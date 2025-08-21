@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能排班系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="js/indexed-db-manager.js"></script>
+    <script src="js/app-init.js?version=1"></script>
+    <style>
+        :root {
+            --primary-dark: #0a1929;
+            --primary: #1a3a5f;
+            --primary-light: #2a4a6f;
+            --accent: #1e90ff;
+            --accent-light: #4dadf7;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --success: #00cc99;
+            --warning: #ffaa00;
+            --danger: #ff5577;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --hover-effect: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-dark), #0d2337);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+        }
+
+        /* 侧边导航 */
+        .sidebar {
+            width: 260px;
+            background: rgba(10, 25, 41, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px 0;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s ease;
+        }
+
+        .logo {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .logo h1 {
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo i {
+            color: var(--accent);
+            font-size: 26px;
+        }
+
+        .nav-item {
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 5px 10px;
+            border-radius: 8px;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: var(--hover-effect);
+        }
+
+        .nav-item i {
+            width: 24px;
+            text-align: center;
+        }
+
+        .nav-item.active {
+            border-left: 3px solid var(--accent);
+        }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-bar {
+            background: rgba(26, 58, 95, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 8px 16px;
+            border-radius: 20px;
+            width: 300px;
+        }
+
+        .search-box input {
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            padding: 5px 10px;
+            width: 100%;
+            outline: none;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* 内容区样式 */
+        .content {
+            padding: 24px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .content-header {
+            margin-bottom: 24px;
+        }
+
+        .content-header h2 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        /* 卡片样式 */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+            border: none;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-light);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #ff7799;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #00ddbb;
+        }
+
+        /* 表格样式 */
+        .table-container {
+            overflow-x: auto;
+            margin-top: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        th {
+            background: rgba(30, 144, 255, 0.1);
+            font-weight: 600;
+            color: var(--accent-light);
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 2px;
+        }
+        .btn-edit {
+            background: rgba(30, 144, 255, 0.1);
+            border: 1px solid var(--accent);
+            color: var(--accent-light);
+        }
+        .btn-delete {
+            background: rgba(255, 85, 119, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+        .btn-status {
+            background: rgba(0, 204, 153, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .action-btn:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 15px;
+            transition: all 0.3s;
+            font-size: 0.9em;
+        }
+        .status-badge.active {
+            background: linear-gradient(135deg, var(--success), #00b383);
+            box-shadow: 0 2px 8px rgba(0, 204, 153, 0.2);
+        }
+        .status-badge.inactive {
+            background: linear-gradient(135deg, var(--danger), #ff3355);
+            box-shadow: 0 2px 8px rgba(255, 85, 119, 0.2);
+        }
+
+        /* 日历视图 */
+        .calendar-view {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .calendar-day {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 10px;
+            min-height: 150px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background-color: var(--primary);
+            border-radius: 10px;
+            width: 500px;
+            max-width: 90%;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            animation: modalFadeIn 0.3s;
+            margin: 20px auto;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 24px;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            border-color: var(--accent);
+        }
+
+        .warning-text {
+            color: var(--warning);
+            margin-top: 10px;
+        }
+
+        .day-header {
+            text-align: center;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .weekend {
+            background: rgba(255, 170, 0, 0.1);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 1200px) {
+            .sidebar {
+                width: 80px;
+            }
+            .nav-item span {
+                display: none;
+            }
+            .stats-cards {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .stats-cards {
+                grid-template-columns: 1fr;
+            }
+            .calendar-view {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边导航 -->
+    <div class="sidebar">
+        <div class="logo">
+            <h1><i class="fas fa-calendar-alt"></i> <span>智能排班系统</span></h1>
+        </div>
+        <div class="nav-item">
+            <i class="fas fa-home"></i>
+            <span>控制台</span>
+        </div>
+        <div class="nav-item active">
+            <i class="fas fa-cog"></i>
+            <span>基础设置</span>
+        </div>
+        <div class="nav-item">
+            <i class="fas fa-calendar"></i>
+            <span>排班计划</span>
+        </div>
+        <div class="nav-item">
+            <i class="fas fa-chart-bar"></i>
+            <span>数据分析</span>
+        </div>
+        <div class="nav-item">
+            <i class="fas fa-file-import"></i>
+            <span>导入导出</span>
+        </div>
+        <div class="nav-item">
+            <i class="fas fa-headset"></i>
+            <span>帮助中心</span>
+        </div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+
+        <!-- 机构添加/编辑模态框 -->
+        <div id="institutionModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="institutionModalTitle">添加机构</h3>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="institutionForm">
+                        <input type="hidden" id="institutionIdInput">
+                        <div class="form-group">
+                            <label for="institutionNumberInput">机构号 *</label>
+                            <input type="text" id="institutionNumberInput" required placeholder="请输入4位数字机构号">
+                        </div>
+                        <div class="form-group">
+                            <label for="institutionNameInput">机构名称 *</label>
+                            <input type="text" id="institutionNameInput" required placeholder="请输入机构名称">
+                        </div>
+                        <div class="form-group">
+                            <label for="departmentNameInput">部门名称</label>
+                            <input type="text" id="departmentNameInput" placeholder="请输入部门名称">
+                        </div>
+                        <div class="form-group">
+                            <label for="remarkInput">备注信息</label>
+                            <textarea id="remarkInput" placeholder="请输入备注信息"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="institutionCreateDateInput">创建日期 *</label>
+                            <input type="date" id="institutionCreateDateInput" required>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary">取消</button>
+                            <button type="submit" class="btn btn-primary">保存</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 机构删除确认模态框 -->
+        <div id="institutionDeleteModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>删除机构</h3>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>确定要删除机构 <span id="deleteInstitutionName"></span> 吗？</p>
+                    <p class="warning-text">删除后将无法恢复，且该机构下的所有部门和人员也将被删除。</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary">取消</button>
+                    <button type="button" class="btn btn-danger">确认删除</button>
+                </div>
+            </div>
+        </div>
+        <!-- 顶部栏 -->
+        <div class="top-bar">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="搜索机构、人员或设置...">
+            </div>
+            <div class="user-info">
+                <div class="user-avatar">AM</div>
+                <div class="user-name">管理员</div>
+            </div>
+        </div>
+
+        <!-- 内容区 -->
+        <div class="content">
+            <div class="content-header">
+                <h2>基础设置</h2>
+                <p>管理机构部门和人员信息</p>
+            </div>
+
+            <!-- 选项卡 -->
+            <div class="tabs">
+                <div class="tab active" data-tab="organizations">机构部门管理</div>
+                <div class="tab" data-tab="employees">人员管理</div>
+            </div>
+
+            <!-- 机构部门管理 -->
+            <div class="tab-content active" id="organizations-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>机构列表</h3>
+                        <button class="btn btn-primary" onclick="showAddOrganizationModal();">
+                            <i class="fas fa-plus"></i> 新增机构
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table id="org-table">
+                            <thead>
+                                <tr>
+                                    <th>机构号</th>
+                            <th>机构名称</th>
+                            <th>部门名称</th>
+                            <th>备注信息</th>
+                            <th>创建时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="org-table-body">
+                                <!-- 动态生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 人员管理 -->
+            <div class="tab-content" id="employees-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>人员列表</h3>
+                    </div>
+                    <div class="table-container">
+                        <table id="emp-table">
+                            <thead>
+                                <tr>
+                                    <th>工号</th>
+                                    <th>姓名</th>
+                                    <th>所属部门</th>
+                                    <th>岗位</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="emp-table-body">
+                                <!-- 动态生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <style>
+            /* 选项卡样式 */
+            .tabs {
+                display: flex;
+                margin-bottom: 20px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+        
+            .tab {
+                padding: 12px 24px;
+                cursor: pointer;
+                transition: all 0.3s;
+                margin-right: 2px;
+                border-bottom: 3px solid transparent;
+                color: var(--text-secondary);
+            }
+        
+            .tab:hover {
+                background: var(--hover-effect);
+                color: var(--text-primary);
+            }
+        
+            .tab.active {
+                border-bottom: 3px solid var(--accent);
+                color: var(--text-primary);
+                font-weight: 500;
+            }
+        
+            .tab-content {
+                display: none;
+            }
+        
+            .tab-content.active {
+                display: block;
+            }
+            </style>
+
+
+<script>
+    // 设置创建日期默认值为当前日期
+    document.addEventListener('DOMContentLoaded', function() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('institutionCreateDateInput').value = today;
+    });
+</script>
+<script>
+            // 数据存储
+            let db = {
+                organizations: [
+                    { id: 1, name: '信息部', code: 'IT', description: '负责系统开发和维护', createdAt: new Date('2023-01-10'), updatedAt: new Date('2023-01-10'), status: 'active' },
+                    { id: 2, name: '人力资源部', code: 'HR', description: '负责人事管理', createdAt: new Date('2023-01-15'), updatedAt: new Date('2023-01-15'), status: 'active' },
+                    { id: 3, name: '财务部', code: 'FIN', description: '负责财务管理', createdAt: new Date('2023-02-01'), updatedAt: new Date('2023-02-01'), status: 'active' }
+                ],
+                employees: [
+                    { id: 1, number: 'EMP001', name: '张三', deptId: 1, position: '前端开发', status: 'active', createdAt: new Date('2023-01-12'), updatedAt: new Date('2023-01-12') },
+                    { id: 2, number: 'EMP002', name: '李四', deptId: 1, position: '后端开发', status: 'active', createdAt: new Date('2023-01-15'), updatedAt: new Date('2023-01-15') },
+                    { id: 3, number: 'EMP003', name: '王五', deptId: 2, position: '人事专员', status: 'active', createdAt: new Date('2023-02-05'), updatedAt: new Date('2023-02-05') },
+                    { id: 4, number: 'EMP004', name: '赵六', deptId: 3, position: '会计', status: 'active', createdAt: new Date('2023-02-10'), updatedAt: new Date('2023-02-10') }
+                ]
+            };
+
+            // 显示通知
+            function showNotification(message, type = 'success') {
+                // 创建自定义通知元素
+                const notification = document.createElement('div');
+                notification.className = `custom-notification notification-${type}`;
+
+                // 定义图标HTML
+                let iconHtml = '';
+                if (type === 'error') {
+                    iconHtml = '✖️';
+                } else if (type === 'warning') {
+                    iconHtml = '⚠️';
+                } else {
+                    iconHtml = '✓';
+                }
+
+                notification.innerHTML = `
+                    <div class="notification-icon">
+                        ${iconHtml}
+                    </div>
+                    <div class="notification-content">
+                        <p>${message}</p>
+                    </div>
+                    <button class="notification-close">✖️</button>
+                `;
+
+                // 添加样式
+                const style = document.createElement('style');
+                style.textContent = `
+                    .custom-notification {
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        padding: 15px 20px;
+                        border-radius: 4px;
+                        color: white;
+                        z-index: 10000;
+                        display: flex;
+                        align-items: center;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                        transition: transform 0.3s, opacity 0.3s;
+                        transform: translateX(calc(100% + 20px));
+                    }
+                    .notification-success {
+                        background-color: #4CAF50;
+                    }
+                    .notification-error {
+                        background-color: #F44336;
+                    }
+                    .notification-warning {
+                        background-color: #FF9800;
+                    }
+                    .notification-icon {
+                        margin-right: 10px;
+                        font-size: 20px;
+                    }
+                    .notification-content {
+                        flex: 1;
+                    }
+                    .notification-close {
+                        background: none;
+                        border: none;
+                        color: white;
+                        cursor: pointer;
+                        font-size: 16px;
+                        margin-left: 10px;
+                    }
+                    .custom-notification.show {
+                        transform: translateX(0);
+                    }
+                `;
+                document.head.appendChild(style);
+
+                // 添加到页面
+                document.body.appendChild(notification);
+
+                // 显示通知
+                setTimeout(() => {
+                    notification.classList.add('show');
+                }, 100);
+
+                // 关闭按钮事件
+                notification.querySelector('.notification-close').addEventListener('click', () => {
+                    notification.classList.remove('show');
+                    setTimeout(() => {
+                        notification.remove();
+                    }, 300);
+                });
+
+                // 自动关闭
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                    setTimeout(() => {
+                        notification.remove();
+                    }, 300);
+                }, 5000);
+
+                // 同时尝试浏览器通知（如果有权限且不是重复通知）
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification(type === 'error' ? '错误' : type === 'warning' ? '警告' : '提示', {
+                        body: message
+                    });
+                }
+            }
+
+            // 已在页面下方定义了initTabs()函数，此处移除重复定义
+
+            // 状态切换方法
+            window.toggleStatus = function(id) {
+                try {
+                    dbManager.getById('organizations', id)
+                        .then(org => {
+                            if (org) {
+                                org.status = org.status === 'active' ? 'inactive' : 'active';
+                                dbManager.save('organizations', org)
+                                    .then(() => {
+                                        showNotification(`已${org.status === 'active' ? '启用' : '停用'}机构: ${org.name}`);
+                                        loadOrganizations();
+                                    })
+                                    .catch(error => {
+                                        showNotification('状态更新失败: ' + error.message, 'error');
+                                    });
+                            }
+                        })
+                        .catch(error => {
+                            showNotification('获取机构失败: ' + error.message, 'error');
+                        });
+                } catch (error) {
+                    showNotification('状态切换失败: ' + error.message, 'error');
+                }
+            }
+
+// 移除重复的DOMContentLoaded事件监听
+            // 该逻辑已在下方的DOMContentLoaded事件中包含
+
+            // 加载部门数据
+            window.loadOrganizations = async function() {
+                try {
+                    const tbody = document.getElementById('org-table-body');
+                    tbody.innerHTML = '';
+
+                    const organizations = await dbManager.getAll('organizations');
+
+                    for (const org of organizations) {
+                        // 计算部门人数
+                        const employees = await dbManager.getByIndex('employees', 'deptId', org.id);
+                        const empCount = employees.length;
+
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${org.code || '-'}</td>
+                            <td>${org.name}</td>
+                            <td>${org.description || '-'}</td>
+                            <td>${empCount}</td>
+                            <td>${new Date(org.createdAt).toLocaleDateString()}</td>
+                            <td>
+                            <button class="action-btn btn-edit" onclick="editOrganization(${org.id})" data-id="${org.id}"><i class="fas fa-edit"></i> 编辑</button>
+                            <button class="action-btn btn-status" onclick="toggleStatus(${org.id})" data-id="${org.id}"><i class="fas fa-power-off"></i> ${org.status === 'active' ? '停用' : '启用'}</button>
+                            <button class="action-btn btn-delete" onclick="deleteOrganization(${org.id})" data-id="${org.id}"><i class="fas fa-trash"></i> 删除</button>
+                        </td>
+                        `;
+                        tbody.appendChild(row);
+                    }
+
+                    // 不需要额外绑定事件，按钮已使用内联onclick事件
+                    // 确保删除操作后刷新列表
+                    // 重写deleteOrganization函数以确保刷新
+                    window.deleteOrganization = function(id) {
+                        try {
+                            // 检查是否有员工关联
+                            dbManager.getByIndex('employees', 'deptId', parseInt(id))
+                                .then(employees => {
+                                    if (employees.length > 0) {
+                                        if (!confirm('该机构下有员工，删除机构将导致这些员工的部门信息丢失。确定要删除吗？')) return false;
+                                    }
+                                    // 删除机构
+                                    dbManager.delete('organizations', parseInt(id))
+                                        .then(() => {
+                                            showNotification('机构删除成功');
+                                            loadOrganizations();
+                                        })
+                                        .catch(error => {
+                                            showNotification('删除失败: ' + error.message, 'error');
+                                        });
+                                })
+                                .catch(error => {
+                                    showNotification('检查员工关联失败: ' + error.message, 'error');
+                                });
+                        } catch (error) {
+                            showNotification('删除失败: ' + error.message, 'error');
+                        }
+                        return false;
+                    };
+                } catch (error) {
+                    showNotification('加载部门数据失败: ' + error, 'error');
+                }
+            }
+
+            // 编辑部门
+            function editOrganization(id) {
+                try {
+                    dbManager.getById('organizations', parseInt(id))
+                        .then(org => {
+                            if (org) {
+                                // 填充表单数据
+                                document.getElementById('institutionIdInput').value = org.id;
+                                document.getElementById('institutionNumberInput').value = org.code;
+                                document.getElementById('institutionNameInput').value = org.name;
+                                document.getElementById('departmentNameInput').value = org.description || '';
+                                document.getElementById('remarkInput').value = org.remark || '';
+                                
+                                // 设置模态框标题
+                                document.getElementById('institutionModalTitle').textContent = '编辑机构';
+                                
+                                // 显示模态框
+                                document.getElementById('institutionModal').style.display = 'block';
+                            } else {
+                                showNotification('未找到指定机构', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            showNotification('获取机构失败: ' + error.message, 'error');
+                        });
+                } catch (error) {
+                    showNotification('操作失败: ' + error, 'error');
+                }
+            }
+
+            // 删除部门功能已整合到window.deleteOrganization中
+            // 此函数定义已移除以避免重复
+
+            // 显示添加机构模态框
+            function showAddOrganizationModal() {
+                // 清空表单
+                document.getElementById('institutionIdInput').value = '';
+                document.getElementById('institutionNumberInput').value = '';
+                document.getElementById('institutionNameInput').value = '';
+                document.getElementById('departmentNameInput').value = '';
+                document.getElementById('remarkInput').value = '';
+                
+                // 显示模态框
+                document.getElementById('institutionModal').style.display = 'block';
+            }
+
+            // 保存机构
+            async function saveOrganization(e) {
+                e.preventDefault();
+
+                const id = document.getElementById('institutionIdInput').value;
+                const code = document.getElementById('institutionNumberInput').value;
+                const name = document.getElementById('institutionNameInput').value;
+                const description = document.getElementById('departmentNameInput').value || '';
+                const remark = document.getElementById('remarkInput').value || '';
+
+                try {
+                    // 验证机构号格式
+                    if (!/^\d{4}$/.test(code)) {
+                        showNotification('机构号必须为4位数字', 'error');
+                        return;
+                    }
+
+                    // 验证机构名称非空
+                    if (!name.trim()) {
+                        showNotification('机构名称不能为空', 'error');
+                        return;
+                    }
+
+                    // 验证机构号+描述组合唯一性
+                    const organizations = await dbManager.getAll('organizations');
+                    const isDuplicate = organizations.some(inst => 
+                        inst.code === code && 
+                        (inst.description || '') === (description || '') &&
+                        (id ? inst.id !== parseInt(id) : true)
+                    );
+
+                    if (isDuplicate) {
+                        showNotification('机构组合已存在', 'error');
+                        return;
+                    }
+
+                    if (id) {
+                        // 更新现有机构
+                        const org = await dbManager.getById('organizations', parseInt(id));
+                        if (org) {
+                            const updatedOrg = {
+                                ...org,
+                                code,
+                                name,
+                                description,
+                                remark,
+                                updatedAt: new Date()
+                            };
+                            await dbManager.save('organizations', updatedOrg);
+                            showNotification('机构更新成功');
+                        }
+                    } else {
+                        // 新增机构
+                        const newOrg = {
+                            code,
+                            name,
+                            description,
+                            remark,
+                            createdAt: new Date(),
+                            updatedAt: new Date(),
+                            status: 'active'
+                        };
+                        await dbManager.save('organizations', newOrg);
+                        showNotification('机构添加成功');
+                    }
+
+                    document.getElementById('institutionModal').style.display = 'none';
+                    loadOrganizations();
+                } catch (error) {
+                    showNotification('保存机构失败: ' + error.message, 'error');
+                }
+            }
+
+            // 加载员工数据
+            window.loadEmployees = async function() {
+                try {
+                    const tbody = document.getElementById('emp-table-body');
+                    tbody.innerHTML = '';
+
+                    const employees = await dbManager.getAll('employees');
+                    const organizations = await dbManager.getAll('organizations');
+
+                    employees.forEach(emp => {
+                        // 获取部门名称
+                        const dept = organizations.find(d => d.id === emp.deptId);
+                        const deptName = dept ? dept.name : '未知部门';
+
+                        // 状态文本 - 移除span标签
+                        let statusText = '';
+                        if (emp.status === 'active') {
+                            statusText = '在职';
+                        } else if (emp.status === 'inactive') {
+                            statusText = '离职';
+                        } else {
+                            statusText = '休假';
+                        }
+
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${emp.number}</td>
+                            <td>${emp.name}</td>
+                            <td>${deptName}</td>
+                            <td>${emp.position}</td>
+                            <td>${statusText}</td>
+                            <td>
+                                <button class="action-btn edit-emp" data-id="${emp.id}">编辑</button>
+                                <button class="action-btn delete-emp" data-id="${emp.id}">删除</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+
+                    // 绑定编辑和删除事件
+                    document.querySelectorAll('.edit-emp').forEach(btn => {
+                        btn.addEventListener('click', () => editEmployee(btn.dataset.id));
+                    });
+
+                    document.querySelectorAll('.delete-emp').forEach(btn => {
+                        btn.addEventListener('click', () => deleteEmployee(btn.dataset.id));
+                    });
+                } catch (error) {
+                    showNotification('加载员工数据失败: ' + error, 'error');
+                }
+            }
+
+            // 加载部门下拉选项功能已移除
+            // function loadDepartmentOptions() {
+            //     try {
+            //         const select = document.getElementById('emp-dept');
+            //         select.innerHTML = '<option value="">请选择部门</option>';
+            // 
+            //         db.organizations.forEach(org => {
+            //             const option = document.createElement('option');
+            //             option.value = org.id;
+            //             option.textContent = org.name;
+            //             select.appendChild(option);
+            //         });
+            //     } catch (error) {
+            //         showNotification('加载部门选项失败: ' + error, 'error');
+            //     }
+            // }
+
+            // 编辑员工
+            function editEmployee(id) {
+                try {
+                    // 移除编辑员工功能，因为模态框已删除
+                    showNotification('员工编辑功能已移除', 'warning');
+                } catch (error) {
+                    showNotification('操作失败: ' + error, 'error');
+                }
+            }
+
+            // 删除员工
+            function deleteEmployee(id) {
+                if (!confirm('确定要删除这名员工吗？')) return;
+
+                try {
+                    const empId = parseInt(id);
+                    dbManager.delete('employees', empId)
+                        .then(() => {
+                            showNotification('员工删除成功');
+                            loadEmployees();
+                            loadOrganizations(); // 更新部门人数
+                        })
+                        .catch(error => {
+                            showNotification('删除员工失败: ' + error.message, 'error');
+                        });
+                } catch (error) {
+                    showNotification('删除员工失败: ' + error, 'error');
+                }
+            }
+
+            // 保存员工 - 移除函数内容，因为模态框已删除
+            function saveEmployee(e) {
+                e.preventDefault();
+                showNotification('员工保存功能已移除', 'warning');
+            }
+
+            // 加载部门下拉选项 - 移除函数，因为员工模态框已删除
+            function loadDepartmentOptions() {
+                showNotification('部门选项加载功能已移除', 'warning');
+            }
+
+            // 注意: dbManager已在app-init.js中初始化
+            // 此处无需再次声明
+
+            // 初始化选项卡函数
+            window.initTabs = function() {
+                const tabButtons = document.querySelectorAll('.tab');
+                const tabContents = document.querySelectorAll('.tab-content');
+
+                tabButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        // 移除所有活动状态
+                        tabButtons.forEach(btn => btn.classList.remove('active'));
+                        tabContents.forEach(content => content.classList.remove('active'));
+
+                        // 添加活动状态到当前按钮
+                        button.classList.add('active');
+
+                        // 显示对应内容
+                        const target = button.dataset.tab + '-tab';
+                        document.getElementById(target).classList.add('active');
+                    });
+                });
+            }
+
+            // 页面加载完成后初始化的函数已移至app-init.js文件
+
+                // 初始化选项卡 - 已在数据库初始化成功后执行
+            // initTabs();
+
+                // 关闭模态框
+                document.querySelectorAll('.modal-close, .btn-secondary').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        const modal = btn.closest('.modal');
+                        if (modal) {
+                            modal.style.display = 'none';
+                        }
+                    });
+                });
+                
+                // 点击模态框外部关闭模态框
+                document.querySelectorAll('.modal').forEach(function(modal) {
+                    modal.addEventListener('click', function(e) {
+                        if (e.target === modal) {
+                            modal.style.display = 'none';
+                        }
+                    });
+                });
+
+                // 绑定表单提交事件
+                document.getElementById('institutionForm').addEventListener('submit', saveOrganization);
+
+                // 绑定删除确认按钮事件
+                const deleteModal = document.getElementById('institutionDeleteModal');
+                if (deleteModal) {
+                    const deleteBtn = deleteModal.querySelector('.btn-danger');
+                    if (deleteBtn) {
+                        deleteBtn.addEventListener('click', function() {
+                            // 删除功能已禁用
+                        });
+                    }
+                }
+            // 导入导出功能初始化
+            window.initImportExportEvents = function() {
+                // 创建导入导出按钮容器
+                const buttonContainer = document.createElement('div');
+                buttonContainer.className = 'import-export-container';
+                buttonContainer.style.margin = '20px 0';
+                buttonContainer.style.display = 'flex';
+                buttonContainer.style.gap = '10px';
+
+                // 导出数据按钮
+                const exportBtn = document.createElement('button');
+                exportBtn.className = 'btn btn-primary';
+                exportBtn.textContent = '导出数据';
+                exportBtn.onclick = function() {
+                    dbManager.exportDatabaseData()
+                        .then(data => {
+                            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = 'schedule_data_' + new Date().toISOString().slice(0, 10) + '.json';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                            showNotification('数据导出成功');
+                        })
+                        .catch(error => {
+                            showNotification('数据导出失败: ' + error.message, 'error');
+                        });
+                };
+
+                // 导入数据按钮
+                const importBtn = document.createElement('button');
+                importBtn.className = 'btn btn-primary';
+                importBtn.textContent = '导入数据';
+                importBtn.onclick = function() {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = '.json';
+                    input.onchange = function(e) {
+                        const file = e.target.files[0];
+                        if (!file) return;
+
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            try {
+                                const data = JSON.parse(event.target.result);
+                                dbManager.importData(data)
+                                    .then(() => {
+                                        showNotification('数据导入成功');
+                                        loadOrganizations();
+                                        loadEmployees();
+                                    })
+                                    .catch(error => {
+                                        showNotification('数据导入失败: ' + error.message, 'error');
+                                    });
+                            } catch (error) {
+                                showNotification('文件解析失败: ' + error.message, 'error');
+                            }
+                        };
+                        reader.readAsText(file);
+                    };
+                    input.click();
+                };
+
+                // 添加按钮到容器
+                buttonContainer.appendChild(exportBtn);
+                buttonContainer.appendChild(importBtn);
+
+                // 添加到页面
+                const mainContent = document.querySelector('.main-content');
+                if (mainContent) {
+                    mainContent.insertBefore(buttonContainer, mainContent.firstChild);
+                }
+            }
+
+            // 注意: 页面初始化逻辑已在app-init.js中实现
+            // 此处无需再次添加
+        </script>
+</body>
+</html>

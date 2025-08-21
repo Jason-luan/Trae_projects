@@ -1,0 +1,1018 @@
+/* 机构设置专用样式 - 与主样式保持一致 */
+
+/* 设置页面统一布局 */
+#settings,
+#institution-settings,
+#department-settings {
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+}
+
+#settings .page-header,
+#institution-settings .page-header,
+#department-settings .page-header {
+    margin-bottom: 30px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* 设置卡片网格布局 */
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+    margin-top: 30px;
+}
+
+/* 设置卡片样式 - 科技蓝主题配色（与人员管理一致） */
+.settings-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 32px;
+    box-shadow: var(--shadow-md);
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+}
+
+.settings-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg), var(--shadow-glow);
+    border-color: var(--primary-500);
+}
+
+.settings-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-500), var(--primary-700));
+}
+
+.settings-icon {
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-700));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    color: white;
+    font-size: 28px;
+    box-shadow: var(--shadow-glow);
+}
+
+.settings-card h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.settings-card p {
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+/* 卡片统计信息 */
+.card-stats {
+    margin-bottom: 24px;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.stat-item i {
+    color: var(--primary-500);
+    font-size: 16px;
+}
+
+.count-badge {
+    background: var(--primary-500);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 20px;
+    text-align: center;
+}
+
+/* 即将推出徽章 */
+.coming-soon-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--primary-400);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.coming-soon-badge i {
+    font-size: 12px;
+}
+
+/* 按钮样式统一 - 科技蓝主题 */
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-danger,
+.action-btn,
+.btn-icon {
+    font-family: inherit;
+    font-weight: 500;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-decoration: none;
+    outline: none;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 主要按钮 */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+    color: white;
+    padding: 12px 24px;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--primary-600), var(--primary-700));
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+/* 次要按钮 */
+.btn-secondary {
+    background: rgba(51, 65, 85, 0.5);
+    color: var(--text-secondary);
+    padding: 12px 24px;
+    font-size: 14px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.btn-secondary:hover {
+    background: rgba(51, 65, 85, 0.7);
+    color: var(--text-primary);
+    border-color: rgba(148, 163, 184, 0.4);
+    transform: translateY(-1px);
+}
+
+/* 危险按钮 */
+.btn-danger {
+    background: linear-gradient(135deg, var(--error), #dc2626);
+    color: white;
+    padding: 12px 24px;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
+}
+
+/* 图标按钮 */
+.btn-icon {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    background: rgba(51, 65, 85, 0.5);
+    color: var(--text-secondary);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.btn-icon:hover {
+    background: rgba(59, 130, 246, 0.2);
+    color: var(--primary-400);
+    transform: translateY(-1px);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.btn-icon.btn-danger {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--error);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.btn-icon.btn-danger:hover {
+    background: rgba(239, 68, 68, 0.3);
+    color: var(--error);
+}
+
+/* 设置卡片中的按钮 */
+.settings-card .btn {
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.settings-card .btn-primary {
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+    color: white;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.settings-card .btn-primary:hover {
+    background: linear-gradient(135deg, var(--primary-600), var(--primary-700));
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+}
+
+/* 机构设置页面样式 */
+
+#institution-settings {
+    padding: 0;
+}
+
+#institution-settings .page-header {
+    margin-bottom: 30px;
+}
+
+.institution-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
+}
+
+.institution-table th,
+.institution-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.institution-table th {
+    background-color: rgba(59, 130, 246, 0.1);
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 14px;
+    border-bottom: 2px solid var(--primary-500);
+}
+
+.institution-table tbody tr:hover {
+    background-color: rgba(59, 130, 246, 0.05);
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-badge.active {
+    background-color: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-badge.inactive {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: var(--error);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.action-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    text-decoration: none;
+    outline: none;
+}
+
+.action-btn.btn-edit {
+    background: rgba(59, 130, 246, 0.2);
+    color: var(--primary-400);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.action-btn.btn-edit:hover {
+    background: rgba(59, 130, 246, 0.3);
+    color: var(--primary-300);
+    transform: translateY(-1px);
+}
+
+.action-btn.btn-delete {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--error);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.action-btn.btn-delete:hover {
+    background: rgba(239, 68, 68, 0.3);
+    color: var(--error);
+    transform: translateY(-1px);
+}
+
+.btn-icon {
+    padding: 6px 8px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all var(--transition-fast);
+    background-color: rgba(51, 65, 85, 0.5);
+    color: var(--text-secondary);
+    backdrop-filter: blur(5px);
+}
+
+.btn-icon:hover {
+    background-color: rgba(59, 130, 246, 0.2);
+    color: var(--primary-400);
+    transform: translateY(-1px);
+}
+
+.btn-icon.btn-danger {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: var(--error);
+}
+
+.btn-icon.btn-danger:hover {
+    background-color: rgba(239, 68, 68, 0.3);
+    color: var(--error);
+}
+
+/* 表单样式 */
+.form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.required {
+    color: var(--error);
+}
+
+/* 通知样式 */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 16px 24px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 10000;
+    max-width: 400px;
+    word-wrap: break-word;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+}
+
+.notification.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.notification.success {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.notification.error {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.notification.warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.notification.info {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .settings-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .settings-card {
+        padding: 24px;
+    }
+    
+    .settings-icon {
+        width: 56px;
+        height: 56px;
+        font-size: 24px;
+    }
+    
+    .institution-table {
+        font-size: 14px;
+    }
+    
+    .institution-table th,
+    .institution-table td {
+        padding: 8px 12px;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .btn-icon {
+        padding: 4px 6px;
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .settings-card {
+        padding: 20px;
+    }
+    
+    .settings-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+    }
+}
+
+/* 机构管理样式增强 */
+
+/* 机构信息样式 */
+.institution-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.institution-info strong {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.institution-meta {
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.institution-meta i {
+    width: 14px;
+    margin-right: 4px;
+    color: var(--primary-500);
+}
+
+/* 统一的搜索区域样式 */
+.search-filters {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+}
+
+.search-filters .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 250px;
+}
+
+.search-filters .search-input {
+    flex: 1;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: all var(--transition-normal);
+    backdrop-filter: blur(10px);
+    min-height: 44px;
+}
+
+.search-filters .search-input:focus {
+    outline: none;
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.search-filters .filter-select {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-size: 14px;
+    min-width: 120px;
+    width: 150px;
+    max-width: 180px;
+    transition: all var(--transition-normal);
+    backdrop-filter: blur(10px);
+    min-height: 44px;
+}
+
+.search-filters .filter-select:focus {
+    outline: none;
+    border-color: var(--primary-500);
+}
+
+.search-filters .filter-btn {
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: var(--shadow-sm);
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.search-filters .filter-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+    background: linear-gradient(135deg, var(--primary-600), var(--primary-700));
+}
+
+.search-filters .filter-btn:active {
+    transform: translateY(0);
+}
+
+.search-filters .filter-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.search-filters .count-badge {
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 20px;
+    text-align: center;
+}
+
+/* 部门管理按钮 */
+.btn-add-dept {
+    background: var(--primary-500);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s;
+}
+
+.btn-add-dept:hover {
+    background: var(--primary-600);
+}
+
+/* 表格行样式优化 */
+.institution-table tr {
+    transition: background-color 0.2s;
+}
+
+.institution-table tr:hover {
+    background-color: var(--bg-hover);
+}
+
+.institution-table td[rowspan] {
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* 部门行样式 */
+.institution-table tr:nth-child(even) {
+    background-color: var(--bg-secondary);
+}
+
+/* 部门统计 */
+.department-count {
+    display: inline-block;
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--primary-500);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    margin-left: 8px;
+}
+
+/* 员工数量徽章 */
+.employee-badge {
+    background: var(--success);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* 部门表格样式 - 科技蓝主题 */
+.department-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 24px;
+    background: rgba(15, 23, 42, 0.4);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+}
+
+.department-table th,
+.department-table td {
+    padding: 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.department-table th {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    backdrop-filter: blur(10px);
+}
+
+.department-table tbody tr {
+    transition: all var(--transition-fast);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.department-table tbody tr:hover {
+    background: rgba(59, 130, 246, 0.1);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.department-table td {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.department-table td:first-child {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* 状态标签 */
+.department-table .status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.department-table .status-active {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.department-table .status-inactive {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--error);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* 员工数量徽章 */
+.employee-count-badge {
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 24px;
+    text-align: center;
+    display: inline-block;
+}
+
+/* 表格操作按钮 */
+.department-table .action-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.department-table .btn-icon {
+    padding: 6px 8px;
+    font-size: 12px;
+    border-radius: 6px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .institution-meta {
+        font-size: 11px;
+    }
+    
+    .btn-add-dept {
+        font-size: 11px;
+        padding: 4px 8px;
+    }
+}
+
+/* 部门管理模态框样式 */
+.modal-content {
+    max-width: 500px;
+}
+
+#departmentForm .form-group {
+    margin-bottom: 15px;
+}
+
+#departmentInstitutionName {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+/* 部门管理样式 - 科技蓝主题 */
+.department-management {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 24px;
+    box-shadow: var(--shadow-lg);
+}
+
+/* 部门筛选区域 - 复用统一搜索区域样式 */
+.department-filters {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+}
+
+.department-filters .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 300px;
+}
+
+.department-filters .search-input {
+    flex: 1;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: all var(--transition-normal);
+    backdrop-filter: blur(10px);
+    min-height: 44px;
+}
+
+.department-filters .search-input:focus {
+    outline: none;
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.department-filters .filter-select {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-size: 14px;
+    min-width: 150px;
+    transition: all var(--transition-normal);
+    backdrop-filter: blur(10px);
+    min-height: 44px;
+}
+
+.department-filters .filter-select:focus {
+    outline: none;
+    border-color: var(--primary-500);
+}
+
+.department-filters .filter-btn {
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: var(--shadow-sm);
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.department-filters .filter-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+    background: linear-gradient(135deg, var(--primary-600), var(--primary-700));
+}
+
+.department-filters .filter-btn:active {
+    transform: translateY(0);
+}
+
+.department-filters .filter-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.department-filters .count-badge {
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 20px;
+    text-align: center;
+}
+
+@media (max-width: 768px) {
+    .department-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .department-filters .btn-primary {
+        margin-left: 0;
+        width: 100%;
+    }
+}
+
+/* 分页样式 - 科技蓝主题 */
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 24px;
+    align-items: center;
+}
+
+.pagination button {
+    padding: 10px 16px;
+    border: 1px solid var(--border-color);
+    background: rgba(15, 23, 42, 0.6);
+    color: var(--text-secondary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: 14px;
+    font-weight: 500;
+    backdrop-filter: blur(10px);
+    min-width: 40px;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: var(--primary-500);
+    color: var(--primary-400);
+    transform: translateY(-1px);
+}
+
+.pagination button.active {
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+    color: white;
+    border-color: var(--primary-500);
+    box-shadow: var(--shadow-glow);
+}
+
+.pagination button:disabled {
+    background: rgba(51, 65, 85, 0.3);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    border-color: rgba(148, 163, 184, 0.2);
+}
+
+.pagination .page-info {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin: 0 16px;
+}
+
+.pagination .ellipsis {
+    color: var(--text-muted);
+    padding: 10px 8px;
+    font-size: 14px;
+}
+
+/* 页面显示控制 - 统一使用主样式 */
+/* 所有section都遵循主样式中的显示逻辑 */
