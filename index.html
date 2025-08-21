@@ -222,6 +222,8 @@
         .table-container {
             overflow-x: auto;
             margin-top: 15px;
+            width: 100%;
+            display: block;
         }
 
         table {
@@ -580,8 +582,94 @@
                                 <!-- 动态生成 -->
                             </tbody>
                         </table>
+                        <!-- 分页控件 -->
+                        <div class="pagination" id="org-pagination"></div>
                     </div>
                 </div>
+
+                <script>
+                // 更新分页控件
+                function updatePagination(totalPages) {
+                    const paginationContainer = document.getElementById('org-pagination');
+                    paginationContainer.innerHTML = '';
+
+                    // 上一页
+                    const prevBtn = document.createElement('button');
+                    prevBtn.textContent = '上一页';
+                    prevBtn.disabled = currentPage === 1;
+                    prevBtn.onclick = () => loadOrganizations(currentPage - 1);
+                    paginationContainer.appendChild(prevBtn);
+
+                    // 页码按钮
+                    const maxVisiblePages = 5;
+                    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+                    if (endPage - startPage + 1 < maxVisiblePages) {
+                        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                    }
+
+                    for (let i = startPage; i <= endPage; i++) {
+                        const pageBtn = document.createElement('button');
+                        pageBtn.textContent = i;
+                        pageBtn.classList.toggle('active', i === currentPage);
+                        pageBtn.onclick = () => loadOrganizations(i);
+                        paginationContainer.appendChild(pageBtn);
+                    }
+
+                    // 下一页
+                    const nextBtn = document.createElement('button');
+                    nextBtn.textContent = '下一页';
+                    nextBtn.disabled = currentPage === totalPages;
+                    nextBtn.onclick = () => loadOrganizations(currentPage + 1);
+                    paginationContainer.appendChild(nextBtn);
+
+                    // 显示页码信息
+                    const infoSpan = document.createElement('span');
+                    infoSpan.textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
+                    infoSpan.style.marginLeft = '16px';
+                    infoSpan.style.color = 'var(--text-secondary)';
+                    paginationContainer.appendChild(infoSpan);
+                }
+
+                // 添加排序事件
+                function addSortEvents() {
+                    const headers = document.querySelectorAll('#org-table th');
+                    headers.forEach(header => {
+                        header.style.cursor = 'pointer';
+                        header.onclick = () => {
+                            const field = header.textContent === '机构号' ? 'code' : 
+                                         header.textContent === '机构名称' ? 'name' : null;
+
+                            if (field) {
+                                // 如果点击相同字段，则切换排序方向
+                                if (sortField === field) {
+                                    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                                } else {
+                                    sortField = field;
+                                    sortDirection = 'asc';
+                                }
+
+                                // 更新表头排序指示
+                                headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+                                header.classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+
+                                // 重新加载数据
+                                loadOrganizations();
+                            }
+                        };
+                    });
+
+                    // 设置当前排序指示
+                    headers.forEach(header => {
+                        header.classList.remove('sort-asc', 'sort-desc');
+                        if ((header.textContent === '机构号' && sortField === 'code') ||
+                            (header.textContent === '机构名称' && sortField === 'name')) {
+                            header.classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+                        }
+                    });
+                }
+                </script>
             </div>
 
             <!-- 人员管理 -->
@@ -808,15 +896,42 @@
 // 移除重复的DOMContentLoaded事件监听
             // 该逻辑已在下方的DOMContentLoaded事件中包含
 
+            // 分页和排序状态
+            let currentPage = 1;
+            const pageSize = 5;
+            let sortField = 'code'; // 默认按机构号排序
+            let sortDirection = 'asc'; // 默认升序
+
             // 加载部门数据
-            window.loadOrganizations = async function() {
+            window.loadOrganizations = async function(page = 1) {
                 try {
+                    currentPage = page;
                     const tbody = document.getElementById('org-table-body');
                     tbody.innerHTML = '';
 
-                    const organizations = await dbManager.getAll('organizations');
+                    let organizations = await dbManager.getAll('organizations');
 
-                    for (const org of organizations) {
+                    // 排序
+                    organizations.sort((a, b) => {
+                        if (sortField === 'code') {
+                            return sortDirection === 'asc' ? 
+                                (a.code || '').localeCompare(b.code || '') : 
+                                (b.code || '').localeCompare(a.code || '');
+                        } else if (sortField === 'name') {
+                            return sortDirection === 'asc' ? 
+                                a.name.localeCompare(b.name) : 
+                                b.name.localeCompare(a.name);
+                        }
+                        return 0;
+                    });
+
+                    // 分页
+                    const totalPages = Math.ceil(organizations.length / pageSize);
+                    const startIndex = (currentPage - 1) * pageSize;
+                    const endIndex = Math.min(startIndex + pageSize, organizations.length);
+                    const paginatedOrganizations = organizations.slice(startIndex, endIndex);
+
+                    for (const org of paginatedOrganizations) {
                         // 计算部门人数
                         const employees = await dbManager.getByIndex('employees', 'deptId', org.id);
                         const empCount = employees.length;
@@ -836,6 +951,12 @@
                         `;
                         tbody.appendChild(row);
                     }
+
+                    // 更新分页控件
+                    updatePagination(totalPages);
+
+                    // 添加排序事件
+                    addSortEvents();
 
                     // 不需要额外绑定事件，按钮已使用内联onclick事件
                     // 确保删除操作后刷新列表
@@ -1231,10 +1352,16 @@
                 buttonContainer.appendChild(exportBtn);
                 buttonContainer.appendChild(importBtn);
 
-                // 添加到页面
-                const mainContent = document.querySelector('.main-content');
-                if (mainContent) {
-                    mainContent.insertBefore(buttonContainer, mainContent.firstChild);
+                // 添加到页面的content-header中
+                const contentHeader = document.querySelector('.content-header');
+                if (contentHeader) {
+                    contentHeader.appendChild(buttonContainer);
+                } else {
+                    // 如果没找到content-header，回退到main-content
+                    const mainContent = document.querySelector('.main-content');
+                    if (mainContent) {
+                        mainContent.insertBefore(buttonContainer, mainContent.firstChild);
+                    }
                 }
             }
 

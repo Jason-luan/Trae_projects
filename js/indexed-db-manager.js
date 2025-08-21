@@ -217,7 +217,7 @@ class IndexedDBManager {
         // 遍历所有存储空间
         for (const storeName in data) {
             // 跳过非存储空间数据
-            if (storeName === 'exportTime' || typeof data[storeName] !== 'array') {
+            if (storeName === 'exportTime' || !Array.isArray(data[storeName])) {
                 continue;
             }
 

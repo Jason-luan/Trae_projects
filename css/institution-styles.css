@@ -1,5 +1,10 @@
 /* 机构设置专用样式 - 与主样式保持一致 */
 
+/* 按钮间距样式 */
+.org-btn { margin-right: 10px; }
+.org-btn + .org-btn { margin-left: 10px; }
+
+
 /* 设置页面统一布局 */
 #settings,
 #institution-settings,
@@ -958,28 +963,63 @@
     }
 }
 
+/* 排序指示样式 */
+th.sort-asc::after {
+    content: ' ↑';
+    color: var(--primary-400);
+}
+
+th.sort-desc::after {
+    content: ' ↓';
+    color: var(--primary-400);
+}
+
 /* 分页样式 - 科技蓝主题 */
 .pagination {
     display: flex;
-    justify-content: center;
+    justify-content: flex-end;
     gap: 8px;
     margin-top: 24px;
     align-items: center;
 }
 
+/* 更新分页按钮样式 */
 .pagination button {
-    padding: 10px 16px;
-    border: 1px solid var(--border-color);
-    background: rgba(15, 23, 42, 0.6);
-    color: var(--text-secondary);
-    border-radius: 8px;
+    padding: 8px 14px;
+    border: 2px solid var(--primary-500);
+    background: var(--primary-600);
+    color: white;
+    border-radius: 6px;
     cursor: pointer;
     transition: all var(--transition-fast);
-    font-size: 14px;
-    font-weight: 500;
-    backdrop-filter: blur(10px);
-    min-width: 40px;
+    font-size: 13px;
+    font-weight: 600;
+    min-width: 36px;
 }
+
+.pagination button:hover:not(:disabled) {
+    background: var(--primary-700);
+    border-color: var(--primary-600);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.pagination button.active {
+    background: linear-gradient(135deg, var(--primary-700), var(--primary-500));
+    border-color: var(--primary-500);
+    color: white;
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+    font-weight: 700;
+}
+
+.pagination button:disabled {
+    background: var(--gray-600);
+    border-color: var(--gray-500);
+    color: var(--gray-300);
+    cursor: not-allowed;
+}
+
+/* 已在上方更新了分页按钮样式，此处删除重复定义 */
 
 .pagination button:hover:not(:disabled) {
     background: rgba(59, 130, 246, 0.2);
