@@ -1358,6 +1358,8 @@ function loadOrganizationsForSelect(selectedOrgId = null) {
                     const organizations = await dbManager.getAll('organizations');
                     // 使用Set来跟踪已添加的部门名称，避免重复
                     const addedDepartments = new Set();
+                    // 使用Set来跟踪已处理的机构名称，避免重复
+                    const processedOrgNames = new Set();
 
                     // 标准化机构名称，用于更准确的匹配
                     const normalizedOrgName = orgName.trim().toLowerCase();
@@ -1368,8 +1370,15 @@ function loadOrganizationsForSelect(selectedOrgId = null) {
                     // 如果找到了匹配的机构，处理其部门
                     if (selectedOrgs && selectedOrgs.length > 0) {
                         selectedOrgs.forEach(org => {
-                            console.log(`找到匹配机构: ${org.name}，ID: ${org.id}`);
-                            processOrganizationDepartments(org, addedDepartments, select);
+                            // 对机构名称进行去重
+                            const orgName = org.name.trim();
+                            if (!processedOrgNames.has(orgName)) {
+                                processedOrgNames.add(orgName);
+                                console.log(`找到匹配机构: ${org.name}，ID: ${org.id}`);
+                                processOrganizationDepartments(org, addedDepartments, select);
+                            } else {
+                                console.log(`跳过重复机构: ${org.name}`);
+                            }
                         });
                     }
                 } catch (error) {
