@@ -412,6 +412,50 @@
     color: var(--error);
 }
 
+/* 表单组内下拉框样式 */
+.form-group .filter-select {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: all var(--transition-normal);
+    backdrop-filter: blur(10px);
+    min-height: 44px;
+}
+
+.form-group .filter-select:focus {
+    outline: none;
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* 输入框样式 */
+.form-group input[type="text"],
+.form-group input[type="date"],
+.form-group textarea {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: all var(--transition-normal);
+    backdrop-filter: blur(10px);
+    min-height: 44px;
+}
+
+.form-group input[type="text"]:focus,
+.form-group input[type="date"]:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
 /* 通知样式 */
 .notification {
     position: fixed;
@@ -598,8 +642,7 @@
     color: var(--text-primary);
     font-size: 14px;
     min-width: 120px;
-    width: 150px;
-    max-width: 180px;
+    flex: 1;
     transition: all var(--transition-normal);
     backdrop-filter: blur(10px);
     min-height: 44px;
@@ -900,6 +943,7 @@
     color: var(--text-primary);
     font-size: 14px;
     min-width: 150px;
+    flex: 1;
     transition: all var(--transition-normal);
     backdrop-filter: blur(10px);
     min-height: 44px;
