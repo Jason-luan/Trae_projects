@@ -2,7 +2,7 @@
 class IndexedDBManager {
     constructor() {
         this.dbName = 'scheduleSystemDB';
-        this.dbVersion = 1;
+        this.dbVersion = 4; // 增加版本号以强制升级
         this.db = null;
         this.initialized = false;
         this.initPromise = this.initDB();
@@ -27,19 +27,66 @@ class IndexedDBManager {
                     organizationStore.createIndex('code', 'code', { unique: false });
                     organizationStore.createIndex('name', 'name', { unique: false });
                     organizationStore.createIndex('status', 'status', { unique: false });
+                    organizationStore.createIndex('description', 'description', { unique: false });
+                    organizationStore.createIndex('remark', 'remark', { unique: false });
+                    organizationStore.createIndex('createdAt', 'createdAt', { unique: false });
+                    organizationStore.createIndex('updatedAt', 'updatedAt', { unique: false });
                 }
 
                 // 创建员工对象存储空间
+                let employeeStore;
                 if (!db.objectStoreNames.contains('employees')) {
-                    const employeeStore = db.createObjectStore('employees', {
+                    employeeStore = db.createObjectStore('employees', {
                         keyPath: 'id',
                         autoIncrement: true
                     });
+                    
                     // 创建索引
                     employeeStore.createIndex('number', 'number', { unique: true });
                     employeeStore.createIndex('name', 'name', { unique: false });
-                    employeeStore.createIndex('deptId', 'deptId', { unique: false });
                     employeeStore.createIndex('status', 'status', { unique: false });
+                    employeeStore.createIndex('orgId', 'orgId', { unique: false });
+                    employeeStore.createIndex('deptName', 'deptName', { unique: false });
+                    employeeStore.createIndex('position', 'position', { unique: false });
+                    employeeStore.createIndex('createdAt', 'createdAt', { unique: false });
+                    employeeStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                    
+                    console.log('员工存储空间和索引已创建');
+                } else {
+                    // 如果存储空间已存在，确保orgId索引存在
+                    const transaction = event.target.transaction;
+                    employeeStore = transaction.objectStore('employees');
+                    
+                    if (!employeeStore.indexNames.contains('orgId')) {
+                        console.log('创建orgId索引...');
+                        employeeStore.createIndex('orgId', 'orgId', { unique: false });
+                        console.log('orgId索引创建成功');
+                    } else {
+                        console.log('orgId索引已存在');
+                    }
+                }
+                
+                // 确保其他索引存在
+                if (!employeeStore.indexNames.contains('number')) {
+                    employeeStore.createIndex('number', 'number', { unique: true });
+                }
+                if (!employeeStore.indexNames.contains('name')) {
+                    employeeStore.createIndex('name', 'name', { unique: false });
+                }
+                if (!employeeStore.indexNames.contains('status')) {
+                    employeeStore.createIndex('status', 'status', { unique: false });
+                }
+                if (!employeeStore.indexNames.contains('deptName')) {
+                    employeeStore.createIndex('deptName', 'deptName', { unique: false });
+                }
+                if (!employeeStore.indexNames.contains('position')) {
+                    employeeStore.createIndex('position', 'position', { unique: false });
+                }
+                if (!employeeStore.indexNames.contains('createdAt')) {
+                    employeeStore.createIndex('createdAt', 'createdAt', { unique: false });
+                }
+                if (!employeeStore.indexNames.contains('updatedAt')) {
+                    employeeStore.createIndex('updatedAt', 'updatedAt', { unique: false });
                 }
 
                 // 创建排班数据对象存储空间
@@ -144,16 +191,50 @@ class IndexedDBManager {
 
     // 根据索引查询数据
     async getByIndex(storeName, indexName, value) {
-        return this.transaction([storeName], 'readonly', (transaction) => {
-            const store = transaction.objectStore(storeName);
-            const index = store.index(indexName);
-            const request = index.getAll(value);
+        console.log(`开始根据索引查询数据: 存储空间=${storeName}, 索引=${indexName}, 值=${value}`);
+        try {
+            // 确保数据库已初始化
+            await this.ensureInitialized();
+            console.log(`数据库已初始化，版本: ${this.dbVersion}`);
+            
+            return this.transaction([storeName], 'readonly', (transaction) => {
+                const store = transaction.objectStore(storeName);
+                
+                // 列出所有可用索引
+                const indexes = Array.from(store.indexNames);
+                console.log(`存储空间 ${storeName} 可用索引:`, indexes);
+                
+                // 检查索引是否存在
+                if (!store.indexNames.contains(indexName)) {
+                    console.error(`索引不存在: ${indexName} 在存储空间 ${storeName}`);
+                    // 无法在只读事务中创建索引
+                    // 提示需要升级数据库版本
+                    if (storeName === 'employees' && indexName === 'orgId') {
+                        console.log('请升级数据库版本以创建缺失的orgId索引');
+                        // 可以在这里触发数据库升级
+                        // this.upgradeDatabase();
+                    }
+                    return Promise.resolve([]);
+                }
+                
+                const index = store.index(indexName);
+                const request = index.getAll(value);
 
-            return new Promise((resolve) => {
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => resolve([]);
+                return new Promise((resolve, reject) => {
+                    request.onsuccess = () => {
+                        console.log(`索引查询成功: 找到 ${request.result.length} 条记录`);
+                        resolve(request.result);
+                    };
+                    request.onerror = (event) => {
+                        console.error(`索引查询失败: ${event.target.error.message}`, event.target.error);
+                        reject(event.target.error);
+                    };
+                });
             });
-        });
+        } catch (error) {
+            console.error(`getByIndex方法异常:`, error);
+            return Promise.resolve([]);
+        }
     }
 
     // 删除数据
@@ -281,6 +362,26 @@ class IndexedDBManager {
             console.error('从localStorage迁移数据到IndexedDB失败:', error);
             return false;
         }
+    }
+
+    // 检查对象存储空间是否存在
+    async checkObjectStoreExists(storeName) {
+        const db = await this.ensureInitialized();
+        return db.objectStoreNames.contains(storeName);
+    }
+
+    // 检查索引是否存在
+    async checkIndexExists(storeName, indexName) {
+        const db = await this.ensureInitialized();
+        if (!db.objectStoreNames.contains(storeName)) {
+            return false;
+        }
+
+        // 需要开启一个事务来检查索引
+        return this.transaction([storeName], 'readonly', (transaction) => {
+            const store = transaction.objectStore(storeName);
+            return store.indexNames.contains(indexName);
+        });
     }
 }
 

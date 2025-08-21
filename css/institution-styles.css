@@ -846,6 +846,10 @@
     box-shadow: var(--shadow-lg);
 }
 
+.float-right {
+    float: right !important;
+}
+
 /* 部门筛选区域 - 复用统一搜索区域样式 */
 .department-filters {
     display: flex;
