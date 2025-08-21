@@ -1241,7 +1241,7 @@
                         btn.addEventListener('click', () => deleteEmployee(btn.dataset.id));
                     });
                 } catch (error) {
-                    showNotification('加载员工数据失败: ' + error, 'error');
+                    showNotification('加载员工数据失败: ' + error.message, 'error');
                 }
             }
 
@@ -1258,7 +1258,7 @@
             //             select.appendChild(option);
             //         });
             //     } catch (error) {
-            //         showNotification('加载部门选项失败: ' + error, 'error');
+            //         showNotification('加载部门选项失败: ' + error.message, 'error');
             //     }
             // }
 
@@ -1403,15 +1403,18 @@ function loadOrganizationsForSelect(selectedOrgId = null) {
 
                     departments.forEach(dept => {
                         if (dept) {
-                            // 标准化部门描述
+                            // 标准化部门描述和机构名称
                             const normalizedDept = dept
                                 .toLowerCase()
                                 .replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '');
+                            const normalizedOrgName = selectedOrg.name
+                                .toLowerCase()
+                                .replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '');
 
-                            // 为部门创建一个唯一标识
-                            const uniqueDeptId = `${selectedOrg.id}_${normalizedDept}`;
+                            // 为部门创建一个唯一标识，基于机构名称而非ID
+                            const uniqueDeptId = `${normalizedOrgName}_${normalizedDept}`;
 
-                            console.log(`处理部门: ${normalizedDept}，机构ID: ${selectedOrg.id}，唯一标识: ${uniqueDeptId}`);
+                            console.log(`处理部门: ${normalizedDept}，机构名称: ${selectedOrg.name}，唯一标识: ${uniqueDeptId}`);
 
                             if (!addedDepartments.has(uniqueDeptId)) {
                                 const option = document.createElement('option');
