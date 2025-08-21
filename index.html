@@ -1363,12 +1363,14 @@ function loadOrganizationsForSelect(selectedOrgId = null) {
                     const normalizedOrgName = orgName.trim().toLowerCase();
 
                     // 找到与所选机构名称匹配的机构对象
-                    const selectedOrg = findMatchingOrganization(organizations, normalizedOrgName);
+                    const selectedOrgs = findMatchingOrganization(organizations, normalizedOrgName);
 
                     // 如果找到了匹配的机构，处理其部门
-                    if (selectedOrg) {
-                        console.log(`找到匹配机构: ${selectedOrg.name}，ID: ${selectedOrg.id}`);
-                        processOrganizationDepartments(selectedOrg, addedDepartments, select);
+                    if (selectedOrgs && selectedOrgs.length > 0) {
+                        selectedOrgs.forEach(org => {
+                            console.log(`找到匹配机构: ${org.name}，ID: ${org.id}`);
+                            processOrganizationDepartments(org, addedDepartments, select);
+                        });
                     }
                 } catch (error) {
                     showNotification('加载部门失败: ' + (error.message || error), 'error');
@@ -1379,10 +1381,10 @@ function loadOrganizationsForSelect(selectedOrgId = null) {
              * 查找匹配的机构
              * @param {Array} organizations - 机构列表
              * @param {string} normalizedOrgName - 标准化后的机构名称
-             * @returns {Object|null} 匹配的机构对象或null
+             * @returns {Array} 匹配的机构对象数组
              */
             function findMatchingOrganization(organizations, normalizedOrgName) {
-                return organizations.find(org => {
+                return organizations.filter(org => {
                     const currentOrgName = org.name.trim().toLowerCase();
                     return currentOrgName === normalizedOrgName || 
                            currentOrgName.includes(normalizedOrgName) || 
@@ -1403,28 +1405,20 @@ function loadOrganizationsForSelect(selectedOrgId = null) {
 
                     departments.forEach(dept => {
                         if (dept) {
-                            // 标准化部门描述和机构名称
-                            const normalizedDept = dept
-                                .toLowerCase()
-                                .replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '');
-                            const normalizedOrgName = selectedOrg.name
-                                .toLowerCase()
-                                .replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '');
+                            // 使用原始部门名称和机构名称，不进行标准化处理
+                            const uniqueDeptId = `${selectedOrg.name}_${dept}`;
 
-                            // 为部门创建一个唯一标识，基于机构名称而非ID
-                            const uniqueDeptId = `${normalizedOrgName}_${normalizedDept}`;
-
-                            console.log(`处理部门: ${normalizedDept}，机构名称: ${selectedOrg.name}，唯一标识: ${uniqueDeptId}`);
+                            console.log(`处理部门: ${dept}，机构名称: ${selectedOrg.name}，唯一标识: ${uniqueDeptId}`);
 
                             if (!addedDepartments.has(uniqueDeptId)) {
                                 const option = document.createElement('option');
-                                option.value = normalizedDept;
-                                option.textContent = normalizedDept;
+                                option.value = dept;
+                                option.textContent = dept;
                                 select.appendChild(option);
                                 addedDepartments.add(uniqueDeptId);
-                                console.log(`添加部门: ${normalizedDept}`);
+                                console.log(`添加部门: ${dept}`);
                             } else {
-                                console.log(`跳过重复部门: ${normalizedDept}，唯一标识: ${uniqueDeptId}`);
+                                console.log(`跳过重复部门: ${dept}，唯一标识: ${uniqueDeptId}`);
                             }
                         }
                     });
