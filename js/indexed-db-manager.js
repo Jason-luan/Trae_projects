@@ -274,12 +274,23 @@ class IndexedDBManager {
         const db = await this.ensureInitialized();
         const exportData = {};
 
-        // 获取所有对象存储空间名称
-        const storeNames = Array.from(db.objectStoreNames);
+        // 只导出指定的存储空间数据
+        const storesToExport = ['organizations', 'employees', 'schedules'];
 
-        // 遍历所有存储空间并获取数据
-        for (const storeName of storeNames) {
-            exportData[storeName] = await this.getAll(storeName);
+        // 遍历需要导出的存储空间并获取数据
+        for (const storeName of storesToExport) {
+            if (db.objectStoreNames.contains(storeName)) {
+                if (storeName === 'organizations') {
+                    // 导出organizations数据时过滤掉institutionNumber字段
+                    const organizations = await this.getAll(storeName);
+                    exportData[storeName] = organizations.map(org => {
+                        const { institutionNumber, ...rest } = org;
+                        return rest;
+                    });
+                } else {
+                    exportData[storeName] = await this.getAll(storeName);
+                }
+            }
         }
 
         // 添加导出时间戳
@@ -307,7 +318,32 @@ class IndexedDBManager {
 
             // 导入新数据
             if (data[storeName].length > 0) {
-                await this.bulkSave(storeName, data[storeName]);
+                let processedData = data[storeName];
+                
+                // 转换日期字段为Date对象，并处理机构号和部门描述
+                if (storeName === 'organizations') {
+                    processedData = processedData.map(item => {
+                            // 创建新对象，不包含institutionNumber字段
+                            const { institutionNumber, ...rest } = item;
+                            return {
+                                ...rest,
+                                createdAt: new Date(item.createdAt),
+                                updatedAt: new Date(item.updatedAt),
+                                // 确保CODE字段映射到code
+                                code: item.code || '-',
+                                // 确保description字段存在，如果没有则设置为空字符串
+                                description: item.description || ''
+                            };
+                        });
+                } else if (storeName === 'employees') {
+                    processedData = processedData.map(item => ({
+                        ...item,
+                        createdAt: new Date(item.createdAt),
+                        updatedAt: new Date(item.updatedAt)
+                    }));
+                }
+                
+                await this.bulkSave(storeName, processedData);
             }
         }
 

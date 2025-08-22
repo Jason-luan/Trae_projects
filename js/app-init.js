@@ -19,15 +19,15 @@ document.addEventListener('DOMContentLoaded', () => {
             // 检查是否有机构数据
             return dbManager.getAll('organizations')
                 .then(organizations => {
-                    // 如果没有数据，不添加示例数据
+                    // 如果没有数据，添加示例数据
                     if (organizations.length === 0) {
-                        console.log('没有检测到机构数据，但已禁用示例数据添加');
-                        return false;
+                        console.log('没有检测到机构数据，开始添加示例数据');
+                        return dbManager.addSampleData();
                     }
                     return false;
                 });
         })
-        .then(addedSampleData => {
+        .then(() => {
             // 初始化选项卡
             if (window.initTabs) {
                 window.initTabs();
