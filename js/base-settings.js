@@ -817,6 +817,12 @@ window.initTabs = function() {
             // 显示对应内容
             const target = button.dataset.tab + '-tab';
             document.getElementById(target).classList.add('active');
+            
+            // 添加：当切换到班次管理选项卡时，重新加载班次数据
+            if (button.dataset.tab === 'shifts' && window.loadShifts) {
+                console.log('切换到班次管理选项卡，正在加载班次数据...');
+                window.loadShifts();
+            }
         });
     });
 }
@@ -877,8 +883,13 @@ window.initImportExportEvents = function() {
                             .then(() => {
                                 showNotification('数据导入成功');
                                 // 延迟一小段时间确保数据完全保存
-                                loadOrganizations();
-                                loadEmployees();
+                                setTimeout(() => {
+                                    loadOrganizations();
+                                    loadEmployees();
+                                    if (window.loadShifts) {
+                                        window.loadShifts();
+                                    }
+                                }, 500);
                             })
                             .catch(error => {
                                 showNotification('数据导入失败: ' + error.message, 'error');

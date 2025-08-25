@@ -50,6 +50,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('loadEmployees函数未定义');
             }
             
+            // 添加：加载班次数据
+            if (window.loadShifts) {
+                window.loadShifts();
+                console.log('班次数据加载完成');
+            } else {
+                console.error('loadShifts函数未定义');
+            }
+            
             // 初始化导入导出事件
             if (window.initImportExportEvents) {
                 window.initImportExportEvents();
@@ -67,6 +75,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.initSearchFunction();
             } else {
                 console.error('搜索功能初始化函数未定义');
+            }
+
+            // 初始化班次管理功能
+            if (window.initShiftManagement) {
+                window.initShiftManagement();
+                console.log('班次管理功能初始化完成');
+                
+                // 添加：检查并手动初始化默认班次数据
+                setTimeout(async function() {
+                    try {
+                        // 检查班次数据是否存在
+                        if (window.shiftManager && typeof window.shiftManager.initializeDefaultShifts === 'function') {
+                            console.log('尝试手动初始化默认班次数据...');
+                            await window.shiftManager.initializeDefaultShifts();
+                            // 重新加载班次数据
+                            if (window.loadShifts) {
+                                window.loadShifts();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('手动初始化默认班次数据失败:', error);
+                    }
+                }, 1000);
+            } else {
+                console.error('班次管理功能初始化函数未定义');
             }
             
             // 初始化员工号筛选功能

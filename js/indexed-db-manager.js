@@ -2,7 +2,7 @@
 class IndexedDBManager {
     constructor() {
         this.dbName = 'scheduleSystemDB';
-        this.dbVersion = 4; // 增加版本号以强制升级
+        this.dbVersion = 5; // 增加版本号以强制升级并创建shifts存储空间
         this.db = null;
         this.initialized = false;
         this.initPromise = this.initDB();
@@ -31,6 +31,23 @@ class IndexedDBManager {
                     organizationStore.createIndex('remark', 'remark', { unique: false });
                     organizationStore.createIndex('createdAt', 'createdAt', { unique: false });
                     organizationStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                }
+
+                // 创建班次对象存储空间
+                if (!db.objectStoreNames.contains('shifts')) {
+                    const shiftStore = db.createObjectStore('shifts', {
+                        keyPath: 'id',
+                        autoIncrement: true
+                    });
+                    // 创建索引
+                    shiftStore.createIndex('code', 'code', { unique: true });
+                    shiftStore.createIndex('name', 'name', { unique: false });
+                    shiftStore.createIndex('startTime', 'startTime', { unique: false });
+                    shiftStore.createIndex('endTime', 'endTime', { unique: false });
+                    shiftStore.createIndex('status', 'status', { unique: false });
+                    shiftStore.createIndex('createdAt', 'createdAt', { unique: false });
+                    shiftStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                    console.log('班次存储空间和索引已创建');
                 }
 
                 // 创建员工对象存储空间
@@ -278,8 +295,8 @@ class IndexedDBManager {
         const db = await this.ensureInitialized();
         const exportData = {};
 
-        // 只导出指定的存储空间数据
-        const storesToExport = ['organizations', 'employees', 'schedules'];
+        // 只导出指定的存储空间数据，包含班次数据
+        const storesToExport = ['organizations', 'employees', 'shifts'];
 
         // 遍历需要导出的存储空间并获取数据
         for (const storeName of storesToExport) {
@@ -340,6 +357,13 @@ class IndexedDBManager {
                             };
                         });
                 } else if (storeName === 'employees') {
+                    processedData = processedData.map(item => ({
+                        ...item,
+                        createdAt: new Date(item.createdAt),
+                        updatedAt: new Date(item.updatedAt)
+                    }));
+                } else if (storeName === 'shifts') {
+                    // 处理班次数据，转换日期字段
                     processedData = processedData.map(item => ({
                         ...item,
                         createdAt: new Date(item.createdAt),

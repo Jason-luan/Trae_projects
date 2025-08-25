@@ -10,6 +10,7 @@
 <script src="js/indexed-db-manager.js"></script>
     <script src="js/base-settings.js"></script>
     <script src="js/search-functions.js"></script>
+    <script src="js/shift-management.js"></script>
     <script src="js/app-init.js?version=1"></script>
     <style>
         :root {
@@ -646,6 +647,7 @@
             <div class="tabs">
                 <div class="tab active" data-tab="organizations">机构部门管理</div>
                 <div class="tab" data-tab="employees">人员管理</div>
+                <div class="tab" data-tab="shifts">班次管理</div>
             </div>
 
             <!-- 机构部门管理 -->
@@ -735,8 +737,93 @@
                     </div>
                 </div>
             </div>
+            <!-- 班次管理 -->
+            <div class="tab-content" id="shifts-tab">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div style="display: flex; align-items: center; gap: 20px;">
+                            <h3>班次列表</h3>
+                        </div>
+                        <div>
+                            <button id="addShiftBtn" class="btn btn-primary" onclick="showAddShiftModal();">
+                                <i class="fas fa-plus"></i> 添加班次
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="shift-table">
+                            <thead>
+                                <tr>
+                                    <th>班次代码</th>
+                                    <th>班次名称</th>
+                                    <th>开始时间</th>
+                                    <th>结束时间</th>
+                                    <th>描述</th>
+                                    <th>创建时间</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="shift-table-body">
+                                <!-- 动态生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
+
+        <!-- 班次管理模态框 -->
+        <div id="shiftModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="shiftModalTitle">添加班次</h3>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="shiftForm" onsubmit="saveShift(event);">
+                        <input type="hidden" id="shiftIdInput">
+                        <div class="form-group">
+                            <label for="shiftCodeInput">班次代码 *</label>
+                            <input type="text" id="shiftCodeInput" required placeholder="请输入班次代码，如G、Y0等">
+                        </div>
+                        <div class="form-group">
+                            <label for="shiftNameInput">班次名称 *</label>
+                            <input type="text" id="shiftNameInput" required placeholder="请输入班次名称">
+                        </div>
+                        <div class="form-group">
+                            <label for="shiftStartTimeInput">开始时间</label>
+                            <input type="time" id="shiftStartTimeInput" placeholder="请输入开始时间">
+                        </div>
+                        <div class="form-group">
+                            <label for="shiftEndTimeInput">结束时间</label>
+                            <input type="time" id="shiftEndTimeInput" placeholder="请输入结束时间">
+                        </div>
+                        <div class="form-group">
+                            <label for="shiftDescriptionInput">描述</label>
+                            <input type="text" id="shiftDescriptionInput" placeholder="请输入班次描述">
+                        </div>
+                        <div class="form-group">
+                            <label for="shiftStatusInput">状态 *</label>
+                            <select id="shiftStatusInput" class="filter-select" required>
+                                <option value="active">启用</option>
+                                <option value="inactive">停用</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="shiftCreatedAtInput">创建日期</label>
+                            <input type="date" id="shiftCreatedAtInput" readonly>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" onclick="closeShiftModal();">取消</button>
+                            <button type="submit" class="btn btn-primary">保存</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
 
         <style>
             /* 选项卡样式 */
