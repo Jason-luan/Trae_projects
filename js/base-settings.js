@@ -4,36 +4,83 @@
 let currentOrganizationId = null;
 // 存储当前编辑的员工ID
 let currentEmployeeId = null;
-// 分页和排序状态ƒ
+// 分页和排序状态
 let currentPage = 1;
 const itemsPerPage = 5;
 let sortField = 'code';
 let sortDirection = 'asc';
 
-// 显示通知
+// 显示通知 - 优化版
 function showNotification(message, type = 'success') {
+    // 移除已有的通知，避免堆叠
+    const existingNotifications = document.querySelectorAll('.notification');
+    existingNotifications.forEach(notification => {
+        document.body.removeChild(notification);
+    });
+
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.textContent = message;
+    
+    // 添加固定样式，确保通知美观且显示在正确位置
+    notification.style.position = 'fixed';
+    notification.style.top = '20px';
+    notification.style.right = '20px';
+    notification.style.padding = '12px 20px';
+    notification.style.borderRadius = '6px';
+    notification.style.color = 'white';
+    notification.style.fontWeight = '500';
+    notification.style.zIndex = '10000';
+    notification.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+    notification.style.transform = 'translateX(100%)';
+    notification.style.transition = 'all 0.3s ease-out';
+    notification.style.minWidth = '250px';
+    notification.style.textAlign = 'center';
+    
+    // 根据通知类型设置不同的背景色
+    switch(type) {
+        case 'success':
+            notification.style.backgroundColor = '#4CAF50';
+            break;
+        case 'error':
+            notification.style.backgroundColor = '#f44336';
+            break;
+        case 'warning':
+            notification.style.backgroundColor = '#ff9800';
+            break;
+        case 'info':
+            notification.style.backgroundColor = '#2196F3';
+            break;
+        default:
+            notification.style.backgroundColor = '#4CAF50';
+    }
+    
     document.body.appendChild(notification);
-
+    
+    // 触发重绘，然后应用动画
     setTimeout(() => {
-        notification.classList.add('fade-out');
+        notification.style.transform = 'translateX(0)';
+    }, 10);
+
+    // 设置自动消失
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
         setTimeout(() => {
-            document.body.removeChild(notification);
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
         }, 300);
     }, 3000);
 }
 
-// 切换状态
+// 切换状态 - 优化版，与编辑按钮样式保持一致
 function toggleStatus(element, id, type, currentStatus) {
     const newStatus = currentStatus === 0 ? 1 : 0;
     try {
-        // 更新按钮样式和文本以反映新状态
-        element.className = newStatus === 0 ? 'btn btn-success btn-sm' : 'btn btn-danger btn-sm';
-        element.textContent = newStatus === 0 ? '启用' : '停用';
-        // 注意：点击后按钮文本更新为新状态（启用/停用）
-
+        // 先禁用按钮防止重复点击
+        element.disabled = true;
+        
         if (type === 'organization') {
             dbManager.getById('organizations', parseInt(id))
                 .then(org => {
@@ -45,7 +92,7 @@ function toggleStatus(element, id, type, currentStatus) {
                 })
                 .then(() => {
                     showNotification('机构状态更新成功');
-                    // 刷新机构列表
+                    // 重新加载列表以确保数据和UI完全同步
                     loadOrganizations();
                 })
                 .catch(error => {
@@ -73,9 +120,9 @@ function toggleStatus(element, id, type, currentStatus) {
 }
 
 // 更新分页控件
-function updatePagination(totalItems) {
+function updatePagination(totalItems, containerId = 'org-pagination') {
     const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const paginationContainer = document.getElementById('org-pagination');
+    const paginationContainer = document.getElementById(containerId);
     if (!paginationContainer) return;
 
     paginationContainer.innerHTML = '';
@@ -84,14 +131,26 @@ function updatePagination(totalItems) {
     const firstPageBtn = document.createElement('button');
     firstPageBtn.className = 'pagination-btn' + (currentPage === 1 ? ' disabled' : '');
     firstPageBtn.textContent = '首页';
-    firstPageBtn.onclick = () => { if (currentPage > 1) { currentPage = 1; loadOrganizations(); } };
+    firstPageBtn.onclick = () => { 
+        if (currentPage > 1) { 
+            currentPage = 1; 
+            // 根据容器ID决定调用哪个加载函数
+            containerId === 'emp-pagination' ? loadEmployees() : loadOrganizations(); 
+        } 
+    };
     paginationContainer.appendChild(firstPageBtn);
 
     // 上一页按钮
     const prevBtn = document.createElement('button');
     prevBtn.className = 'pagination-btn' + (currentPage === 1 ? ' disabled' : '');
     prevBtn.textContent = '上一页';
-    prevBtn.onclick = () => { if (currentPage > 1) { currentPage--; loadOrganizations(); } };
+    prevBtn.onclick = () => { 
+        if (currentPage > 1) { 
+            currentPage--; 
+            // 根据容器ID决定调用哪个加载函数
+            containerId === 'emp-pagination' ? loadEmployees() : loadOrganizations(); 
+        } 
+    };
     paginationContainer.appendChild(prevBtn);
 
     // 页码按钮
@@ -100,7 +159,11 @@ function updatePagination(totalItems) {
             const pageBtn = document.createElement('button');
             pageBtn.className = 'pagination-btn' + (i === currentPage ? ' active' : '');
             pageBtn.textContent = i;
-            pageBtn.onclick = () => { currentPage = i; loadOrganizations(); };
+            pageBtn.onclick = () => { 
+                currentPage = i; 
+                // 根据容器ID决定调用哪个加载函数
+                containerId === 'emp-pagination' ? loadEmployees() : loadOrganizations(); 
+            };
             paginationContainer.appendChild(pageBtn);
         }
     }
@@ -109,14 +172,26 @@ function updatePagination(totalItems) {
     const nextBtn = document.createElement('button');
     nextBtn.className = 'pagination-btn' + (currentPage === totalPages ? ' disabled' : '');
     nextBtn.textContent = '下一页';
-    nextBtn.onclick = () => { if (currentPage < totalPages) { currentPage++; loadOrganizations(); } };
+    nextBtn.onclick = () => { 
+        if (currentPage < totalPages) { 
+            currentPage++; 
+            // 根据容器ID决定调用哪个加载函数
+            containerId === 'emp-pagination' ? loadEmployees() : loadOrganizations(); 
+        } 
+    };
     paginationContainer.appendChild(nextBtn);
 
     // 末页按钮
     const lastPageBtn = document.createElement('button');
     lastPageBtn.className = 'pagination-btn' + (currentPage === totalPages ? ' disabled' : '');
     lastPageBtn.textContent = '末页';
-    lastPageBtn.onclick = () => { if (currentPage < totalPages) { currentPage = totalPages; loadOrganizations(); } };
+    lastPageBtn.onclick = () => { 
+        if (currentPage < totalPages) { 
+            currentPage = totalPages; 
+            // 根据容器ID决定调用哪个加载函数
+            containerId === 'emp-pagination' ? loadEmployees() : loadOrganizations(); 
+        } 
+    };
     paginationContainer.appendChild(lastPageBtn);
 }
 
@@ -142,32 +217,24 @@ function addSortEvents() {
 window.loadOrganizations = async function() {
     try {
         let organizations = await dbManager.getAll('organizations');
-        showNotification(`已加载机构原始数量: ${organizations.length}`, 'info');
-        
-        // 按机构名称去重
-        const uniqueOrganizations = [];
-        const addedOrgNames = new Set();
-        
-        organizations.forEach(org => {
-            if (!addedOrgNames.has(org.name)) {
-                addedOrgNames.add(org.name);
-                uniqueOrganizations.push(org);
-            }
-        });
-        
-        showNotification(`去重后机构数量: ${uniqueOrganizations.length}`, 'info');
-        console.log('去重后的机构数据:', uniqueOrganizations);
-        
-        // 使用去重后的机构数据
-        organizations = uniqueOrganizations;
+        showNotification(`已加载机构数量: ${organizations.length}`, 'info');
+        console.log('机构数据:', organizations);
     
 
         // 排序
         organizations.sort((a, b) => {
-            if (sortDirection === 'asc') {
-                return a[sortField] > b[sortField] ? 1 : -1;
+            if (sortField === 'code') {
+                // 确保机构号作为字符串正确比较，处理可能的空值
+                const codeA = a.code || '';
+                const codeB = b.code || '';
+                return sortDirection === 'asc' ? codeA.localeCompare(codeB) : codeB.localeCompare(codeA);
             } else {
-                return a[sortField] < b[sortField] ? 1 : -1;
+                // 其他字段的默认排序
+                if (sortDirection === 'asc') {
+                    return a[sortField] > b[sortField] ? 1 : -1;
+                } else {
+                    return a[sortField] < b[sortField] ? 1 : -1;
+                }
             }
         });
 
@@ -217,13 +284,14 @@ window.loadOrganizations = async function() {
             // 状态
             const statusCell = document.createElement('td');
             const statusBtn = document.createElement('button');
-            // 按钮文本表示点击后的新状态
-            // 当前状态为0(启用)时，点击后变为1(停用)，所以显示'停用'
-            // 当前状态为1(停用)时，点击后变为0(启用)，所以显示'启用'
+            // 当前状态为0(启用)时，显示'停用'按钮
+            // 当前状态为1(停用)时，显示'启用'按钮
             const currentStatus = org.status;
-            const newStatusAfterClick = currentStatus === 0 ? 1 : 0;
-            statusBtn.className = newStatusAfterClick === 0 ? 'btn btn-success btn-sm' : 'btn btn-danger btn-sm';
-            statusBtn.textContent = newStatusAfterClick === 0 ? '启用' : '停用';
+            statusBtn.textContent = currentStatus === 0 ? '停用' : '启用';
+            
+            // 只使用CSS类，与编辑按钮保持一致的样式
+            statusBtn.className = currentStatus === 0 ? 'btn btn-danger btn-sm' : 'btn btn-success btn-sm';
+            
             statusBtn.onclick = () => toggleStatus(statusBtn, org.id, 'organization', currentStatus);
             statusCell.appendChild(statusBtn);
             row.appendChild(statusCell);
@@ -427,7 +495,7 @@ window.loadEmployees = async function() {
         const paginatedEmployees = employees.slice(startIndex, startIndex + itemsPerPage);
 
         // 渲染表格
-        const tableBody = document.querySelector('#employeeTable tbody');
+        const tableBody = document.getElementById('emp-table-body');
         if (!tableBody) return;
 
         tableBody.innerHTML = '';
@@ -464,20 +532,19 @@ window.loadEmployees = async function() {
 
             // 状态
             const statusCell = document.createElement('td');
-            const statusLabel = document.createElement('label');
-            statusLabel.className = 'switch';
-
-            const statusCheckbox = document.createElement('input');
-            statusCheckbox.type = 'checkbox';
-            statusCheckbox.checked = emp.status === 0;
-            statusCheckbox.onchange = (e) => toggleStatus(e.target, emp.id, 'employee', emp.status);
-
-            const statusSlider = document.createElement('span');
-            statusSlider.className = 'slider round';
-
-            statusLabel.appendChild(statusCheckbox);
-            statusLabel.appendChild(statusSlider);
-            statusCell.appendChild(statusLabel);
+            const statusText = document.createElement('span');
+            
+            // 将状态数字转换为文本 - 根据用户要求：0是在职，1是离职，2是休假
+            let statusDisplay = '-';
+            switch(emp.status) {
+                case 0: statusDisplay = '在职'; break;
+                case 1: statusDisplay = '离职'; break;
+                case 2: statusDisplay = '休假'; break;
+                default: statusDisplay = '-';
+            }
+            
+            statusText.textContent = statusDisplay;
+            statusCell.appendChild(statusText);
             row.appendChild(statusCell);
 
             // 操作
@@ -490,20 +557,30 @@ window.loadEmployees = async function() {
             editBtn.textContent = '编辑';
             editBtn.onclick = () => {
                 currentEmployeeId = emp.id;
-                document.getElementById('employeeNumber').value = emp.number;
-                document.getElementById('employeeName').value = emp.name;
+                document.getElementById('employeeNumberInput').value = emp.number;
+                document.getElementById('employeeNameInput').value = emp.name;
                 document.getElementById('employeeOrgIdInput').value = emp.orgId;
                 // 根据orgId查找机构名称
                 const org = organizations.find(o => o.id === emp.orgId);
-                loadDepartmentsForSelect(org ? org.name : '', emp.deptName);
                 document.getElementById('employeePositionInput').value = emp.position || '';
-                // 假设状态选择框是下拉框而不是复选框
+                // 状态选择 - 根据用户要求：0是在职，1是离职，2是休假
                 const statusSelect = document.getElementById('employeeStatusInput');
                 if (statusSelect) {
-                    statusSelect.value = emp.status === 0 ? 'active' : (emp.status === 1 ? 'inactive' : 'vacation');
+                    if (emp.status === 0) {
+                        statusSelect.value = 'active'; // 在职
+                    } else if (emp.status === 1) {
+                        statusSelect.value = 'inactive'; // 离职
+                    } else if (emp.status === 2) {
+                        statusSelect.value = 'vacation'; // 休假
+                    }
                 }
                 document.getElementById('employeeIdInput').value = emp.id;
                 document.getElementById('employeeModal').style.display = 'block';
+                
+                // 延迟加载部门，确保模态框已显示
+                setTimeout(() => {
+                    loadDepartmentsForSelect(org ? org.name : '', emp.deptName);
+                }, 50);
             };
             actionCell.appendChild(editBtn);
 
@@ -519,7 +596,9 @@ window.loadEmployees = async function() {
         });
 
         // 更新分页
-        updatePagination(employees.length);
+        updatePagination(employees.length, 'emp-pagination');
+        
+        console.log('已加载员工数据:', employees.length, '条');
     } catch (error) {
         showNotification('加载员工数据失败: ' + error.message, 'error');
     }
@@ -656,6 +735,14 @@ function loadDepartmentsForSelect(orgName, selectedDept = '') {
                 const matchingOrgs = allOrganizations.filter(o => o.name === orgName);
                 if (!matchingOrgs || matchingOrgs.length === 0) {
                     deptSelect.innerHTML = '<option value="">请选择部门</option>';
+                    // 如果有选中的部门但没有匹配的机构，手动添加该部门选项
+                    if (selectedDept) {
+                        const customOption = document.createElement('option');
+                        customOption.value = selectedDept;
+                        customOption.textContent = selectedDept;
+                        customOption.selected = true;
+                        deptSelect.appendChild(customOption);
+                    }
                     return;
                 }
 
@@ -682,11 +769,32 @@ function loadDepartmentsForSelect(orgName, selectedDept = '') {
                     const option = document.createElement('option');
                     option.value = dept;
                     option.textContent = dept;
+                    // 确保部门选中逻辑正确
                     if (dept === selectedDept) {
                         option.selected = true;
                     }
                     deptSelect.appendChild(option);
                 });
+                
+                // 如果提供了selectedDept但没有匹配的选项，手动设置选中
+                if (selectedDept && !Array.from(uniqueDepartments).includes(selectedDept)) {
+                    // 添加自定义部门选项
+                    const customOption = document.createElement('option');
+                    customOption.value = selectedDept;
+                    customOption.textContent = selectedDept;
+                    customOption.selected = true;
+                    deptSelect.appendChild(customOption);
+                }
+                
+                // 强制触发change事件，确保表单状态正确更新
+                if (typeof Event === 'function') {
+                    deptSelect.dispatchEvent(new Event('change'));
+                } else {
+                    // IE兼容模式
+                    const event = document.createEvent('Event');
+                    event.initEvent('change', true, true);
+                    deptSelect.dispatchEvent(event);
+                }
             })
             .catch(error => {
                 showNotification('加载部门数据失败: ' + error.message, 'error');
@@ -987,7 +1095,10 @@ window.initBaseSettings = function() {
             }
 
             document.getElementById('employeeModal').style.display = 'none';
-            loadEmployees();
+            // 延迟一小段时间确保数据完全保存
+            setTimeout(() => {
+                loadEmployees();
+            }, 300);
         } catch (error) {
             showNotification('保存员工失败: ' + error.message, 'error');
         }

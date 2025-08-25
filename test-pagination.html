@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分页功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+        }
+        button {
+            padding: 5px 10px;
+            margin: 0 5px;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+        button.disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        span {
+            margin: 0 10px;
+            font-weight: bold;
+        }
+        #debug-info {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>分页功能测试</h1>
+    <div id="pagination-test-container"></div>
+    <div id="debug-info"></div>
+
+    <script>
+        // 模拟分页功能
+        let currentPage = 1;
+        const itemsPerPage = 1;
+        // 模拟有5个项目
+        const totalItems = 5;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+        // 更新分页函数
+        function updatePagination() {
+            console.log('---------------------------');
+            console.log('更新分页测试');
+            console.log('总项目数:', totalItems);
+            console.log('每页项目数:', itemsPerPage);
+            console.log('总页数:', totalPages);
+            console.log('当前页码:', currentPage);
+            
+            // 确保分页容器存在
+            let paginationContainer = document.getElementById('pagination-test-container');
+            if (!paginationContainer) {
+                console.log('创建分页容器');
+                paginationContainer = document.createElement('div');
+                paginationContainer.id = 'pagination-test-container';
+                paginationContainer.className = 'pagination';
+                document.body.appendChild(paginationContainer);
+            }
+
+            paginationContainer.innerHTML = '';
+            console.log('清空分页容器');
+
+            // 确保至少有2页才显示分页
+            if (totalPages > 1) {
+                // 首页按钮
+                const firstPageBtn = document.createElement('button');
+                firstPageBtn.textContent = '首页';
+                firstPageBtn.disabled = currentPage === 1;
+                firstPageBtn.className = currentPage === 1 ? 'disabled' : '';
+                firstPageBtn.onclick = () => {
+                    currentPage = 1;
+                    updatePagination();
+                    updateDebugInfo();
+                };
+                paginationContainer.appendChild(firstPageBtn);
+
+                // 上一页按钮
+                const prevBtn = document.createElement('button');
+                prevBtn.textContent = '上一页';
+                prevBtn.disabled = currentPage === 1;
+                prevBtn.className = currentPage === 1 ? 'disabled' : '';
+                prevBtn.onclick = () => {
+                    if (currentPage > 1) {
+                        currentPage--;
+                        updatePagination();
+                        updateDebugInfo();
+                    }
+                };
+                paginationContainer.appendChild(prevBtn);
+
+                // 显示当前页码
+                const pageInfo = document.createElement('span');
+                pageInfo.textContent = ` ${currentPage}/${totalPages} `;
+                paginationContainer.appendChild(pageInfo);
+
+                // 下一页按钮
+                const nextBtn = document.createElement('button');
+                nextBtn.textContent = '下一页';
+                nextBtn.disabled = currentPage === totalPages;
+                nextBtn.className = currentPage === totalPages ? 'disabled' : '';
+                nextBtn.onclick = () => {
+                    if (currentPage < totalPages) {
+                        currentPage++;
+                        updatePagination();
+                        updateDebugInfo();
+                    }
+                };
+                paginationContainer.appendChild(nextBtn);
+
+                // 末页按钮
+                const lastPageBtn = document.createElement('button');
+                lastPageBtn.textContent = '末页';
+                lastPageBtn.disabled = currentPage === totalPages;
+                lastPageBtn.className = currentPage === totalPages ? 'disabled' : '';
+                lastPageBtn.onclick = () => {
+                    currentPage = totalPages;
+                    updatePagination();
+                    updateDebugInfo();
+                };
+                paginationContainer.appendChild(lastPageBtn);
+            } else {
+                // 只有一页时显示信息
+                const pageInfo = document.createElement('p');
+                pageInfo.textContent = '只有一页数据';
+                paginationContainer.appendChild(pageInfo);
+            }
+
+            // 调试信息
+            console.log('分页按钮创建完成');
+            console.log('分页容器子元素数量:', paginationContainer.children.length);
+            console.log('---------------------------');
+        }
+
+        // 更新调试信息
+        function updateDebugInfo() {
+            const debugInfo = document.getElementById('debug-info');
+            debugInfo.innerHTML = `
+                <h3>调试信息</h3>
+                <p>总项目数: ${totalItems}</p>
+                <p>每页项目数: ${itemsPerPage}</p>
+                <p>总页数: ${totalPages}</p>
+                <p>当前页码: ${currentPage}</p>
+                <p>分页容器存在: ${!!document.getElementById('pagination-test-container')}</p>
+                <p>分页按钮数量: ${document.getElementById('pagination-test-container') ? document.getElementById('pagination-test-container').children.length : 0}</p>
+            `;
+        }
+
+        // 初始化
+        updatePagination();
+        updateDebugInfo();
+    </script>
+</body>
+</html>

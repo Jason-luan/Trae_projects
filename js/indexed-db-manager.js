@@ -143,13 +143,17 @@ class IndexedDBManager {
             const store = transaction.objectStore(storeName);
             const request = store.put(data); // put会根据keyPath更新或插入
 
-            request.onsuccess = () => {
-                console.log(`数据保存成功到${storeName}:`, data);
-            };
+            return new Promise((resolve, reject) => {
+                request.onsuccess = () => {
+                    console.log(`数据保存成功到${storeName}:`, data);
+                    resolve(request.result);
+                };
 
-            request.onerror = (event) => {
-                console.error(`数据保存失败到${storeName}:`, event.target.error);
-            };
+                request.onerror = (event) => {
+                    console.error(`数据保存失败到${storeName}:`, event.target.error);
+                    reject(event.target.error);
+                };
+            });
         });
     }
 
@@ -382,7 +386,6 @@ class IndexedDBManager {
                 }
             }
 
-            // 从institution-manager.js的localStorage中迁移
             const institutionsData = localStorage.getItem('institutions');
             if (institutionsData) {
                 const parsedInstitutions = JSON.parse(institutionsData);
@@ -419,6 +422,8 @@ class IndexedDBManager {
             return store.indexNames.contains(indexName);
         });
     }
+
+
 }
 
 // 初始化IndexedDB管理器

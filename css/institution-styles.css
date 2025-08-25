@@ -206,6 +206,20 @@
     box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
 }
 
+/* 小尺寸按钮样式 - 统一启用和停用按钮的大小和字体 */
+.btn-sm {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    height: 28px !important;
+    min-width: 60px !important;
+    border-radius: 6px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+}
+
 .btn-danger:hover {
     background: linear-gradient(135deg, #dc2626, #b91c1c);
     transform: translateY(-2px);
@@ -273,6 +287,49 @@
 
 #institution-settings {
     padding: 0;
+}
+
+/* 分页样式 */
+.pagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+    gap: 5px;
+}
+
+.pagination-btn {
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.pagination-btn:hover:not(.disabled) {
+    background: var(--hover-effect);
+    background-color: #4CAF50;
+    color: white;
+}
+
+.pagination-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.pagination-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #e0e0e0;
+    color: #777;
+}
+
+.pagination-info {
+    margin: 0 8px;
+    line-height: 34px;
+    color: var(--text-primary);
 }
 
 #institution-settings .page-header {
@@ -1031,8 +1088,8 @@ th.sort-desc::after {
     align-items: center;
 }
 
-/* 更新分页按钮样式 */
-.pagination button {
+/* 分页按钮基础样式 */
+.pagination-btn {
     padding: 8px 14px;
     border: 2px solid var(--primary-500);
     background: var(--primary-600);
@@ -1045,45 +1102,25 @@ th.sort-desc::after {
     min-width: 36px;
 }
 
-.pagination button:hover:not(:disabled) {
-    background: var(--primary-700);
-    border-color: var(--primary-600);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.pagination button.active {
-    background: linear-gradient(135deg, var(--primary-700), var(--primary-500));
-    border-color: var(--primary-500);
-    color: white;
-    box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
-    font-weight: 700;
-}
-
-.pagination button:disabled {
-    background: var(--gray-600);
-    border-color: var(--gray-500);
-    color: var(--gray-300);
-    cursor: not-allowed;
-}
-
-/* 已在上方更新了分页按钮样式，此处删除重复定义 */
-
-.pagination button:hover:not(:disabled) {
+/* 鼠标悬停效果 */
+.pagination-btn:hover:not(.disabled) {
     background: rgba(59, 130, 246, 0.2);
     border-color: var(--primary-500);
     color: var(--primary-400);
     transform: translateY(-1px);
 }
 
-.pagination button.active {
+/* 当前页码高亮效果 - 底色反显 */
+.pagination-btn.active {
     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
     color: white;
     border-color: var(--primary-500);
     box-shadow: var(--shadow-glow);
+    font-weight: 700;
 }
 
-.pagination button:disabled {
+/* 禁用状态样式 */
+.pagination-btn.disabled {
     background: rgba(51, 65, 85, 0.3);
     color: var(--text-muted);
     cursor: not-allowed;

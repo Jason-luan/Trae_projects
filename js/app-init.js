@@ -16,16 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(() => {
             console.log('数据库初始化成功');
             
-            // 检查是否有机构数据
-            return dbManager.getAll('organizations')
-                .then(organizations => {
-                    // 如果没有数据，添加示例数据
-                    if (organizations.length === 0) {
-                        console.log('没有检测到机构数据，开始添加示例数据');
-                        return dbManager.addSampleData();
-                    }
-                    return false;
-                });
+            return Promise.resolve(false);
         })
         .then(() => {
             // 初始化选项卡

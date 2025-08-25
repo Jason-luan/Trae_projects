@@ -6,7 +6,9 @@
     <title>智能排班系统</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/institution-styles.css">
-    <script src="js/indexed-db-manager.js"></script>
+    <script src="node_modules/xlsx/dist/xlsx.full.min.js"></script>
+<script src="js/indexed-db-manager.js"></script>
+    <script src="js/base-settings.js"></script>
     <script src="js/app-init.js?version=1"></script>
     <style>
         :root {
@@ -675,7 +677,6 @@
                 <script>
             // 此处为空，原内联JavaScript代码已移至js/base-settings.js文件
             </script>
-            <script src="js/base-settings.js?v=1"></script>
             <script>
                 // 以下代码已移至base-settings.js
                 // updatePagination 函数已在base-settings.js中实现
@@ -710,6 +711,8 @@
                                 <!-- 动态生成 -->
                             </tbody>
                         </table>
+                        <!-- 分页控件 -->
+                        <div class="pagination" id="emp-pagination"></div>
                     </div>
                 </div>
             </div>
