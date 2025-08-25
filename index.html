@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能排班系统</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/all.min.css">
     <link rel="stylesheet" href="css/institution-styles.css">
-    <script src="node_modules/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="js/xlsx.full.min.js"></script>
 <script src="js/indexed-db-manager.js"></script>
     <script src="js/base-settings.js"></script>
     <script src="js/app-init.js?version=1"></script>
@@ -529,7 +529,7 @@
                     <form id="employeeForm">
                         <input type="hidden" id="employeeIdInput">
                         <div class="form-group">
-                            <label for="employeeNumberInput">工号 *</label>
+                            <label for="employeeNumberInput">员工号 *</label>
                             <input type="text" id="employeeNumberInput" required placeholder="请输入工号">
                         </div>
                         <div class="form-group">
@@ -610,6 +610,10 @@
                         <label for="employeeFileInput">选择文件</label>
                         <input type="file" id="employeeFileInput" accept=".xlsx, .xls">
                         <p class="form-hint">请选择填写好的Excel文件</p>
+                    </div>
+                    <!-- 导入状态提示区域 -->
+                    <div id="importStatusContainer" style="display: none;">
+                        <div id="importStatus" class="import-status"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -698,7 +702,7 @@
                         <table id="emp-table">
                             <thead>
                                 <tr>
-                                    <th>工号</th>
+                                    <th>员工号</th>
                                     <th>姓名</th>
                                     <th>所属机构</th>
                                     <th>所属部门</th>

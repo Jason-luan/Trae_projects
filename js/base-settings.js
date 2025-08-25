@@ -508,12 +508,23 @@ window.loadEmployees = async function() {
             const statusCell = document.createElement('td');
             const statusText = document.createElement('span');
             
-            // 将状态数字转换为文本 - 根据用户要求：0是在职，1是离职，2是休假
+            // 将状态值转换为数字类型，确保正确处理不同类型的状态值
+            // 根据用户要求：0是在职，1是离职，2是休假
             let statusDisplay = '-';
-            switch(emp.status) {
-                case 0: statusDisplay = '在职'; break;
-                case 1: statusDisplay = '离职'; break;
-                case 2: statusDisplay = '休假'; break;
+            const statusNumber = parseInt(emp.status);
+            switch(statusNumber) {
+                case 0: 
+                    statusDisplay = '在职'; 
+                    statusText.className = 'status-active';
+                    break;
+                case 1: 
+                    statusDisplay = '离职'; 
+                    statusText.className = 'status-inactive';
+                    break;
+                case 2: 
+                    statusDisplay = '休假'; 
+                    statusText.className = 'status-vacation';
+                    break;
                 default: statusDisplay = '-';
             }
             
@@ -941,39 +952,211 @@ function initImportEmployeeEvents() {
 
     // 关闭员工导入模态框
     window.closeEmployeeImportModal = function() {
+        // 清空文件选择
+        const fileInput = document.getElementById('employeeFileInput');
+        if (fileInput) {
+            fileInput.value = '';
+        }
+        // 隐藏模态框
         document.getElementById('employeeImportModal').style.display = 'none';
     };
 
-    // 下载模板
+    // 下载模板 - 使用更可靠的JavaScript实现
     document.getElementById('downloadTemplateBtn').addEventListener('click', function(e) {
         e.preventDefault();
+        
+        // 调试信息
+        console.log('尝试下载模板文件');
+        
         // 创建一个临时链接指向模板文件
         const link = document.createElement('a');
-        link.href = 'employee_template.csv';
-        link.download = 'employee_template.csv';
+        link.href = 'employee_import_template.xlsx'; // 使用相对路径
+        link.download = 'employee_import_template.xlsx';
+        
+        // 添加链接到文档并触发点击
         document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        
+        // 使用setTimeout确保链接被正确添加到DOM
+        setTimeout(function() {
+            link.click();
+            // 等待下载开始后再移除链接
+            setTimeout(function() {
+                document.body.removeChild(link);
+                console.log('下载操作完成');
+            }, 100);
+        }, 0);
     });
+
+    // 导入状态显示函数
+    function showImportStatus(type, message) {
+        const statusContainer = document.getElementById('importStatusContainer');
+        const statusElement = document.getElementById('importStatus');
+        
+        // 设置状态类型和消息
+        statusElement.className = 'import-status ' + type;
+        
+        if (type === 'loading') {
+            statusElement.innerHTML = '<div class="loading-spinner"></div>' + message;
+        } else {
+            let icon = '';
+            switch(type) {
+                case 'success':
+                    icon = '<i class="fas fa-check-circle"></i> ';
+                    break;
+                case 'error':
+                    icon = '<i class="fas fa-exclamation-circle"></i> ';
+                    break;
+                case 'info':
+                    icon = '<i class="fas fa-info-circle"></i> ';
+                    break;
+            }
+            statusElement.innerHTML = icon + message;
+        }
+        
+        // 显示状态容器
+        statusContainer.style.display = 'block';
+    }
+
+    // 隐藏导入状态
+    function hideImportStatus() {
+        const statusContainer = document.getElementById('importStatusContainer');
+        statusContainer.style.display = 'none';
+    }
 
     // 导入员工
     window.importEmployees = function() {
         const fileInput = document.getElementById('employeeFileInput');
         if (!fileInput.files || fileInput.files.length === 0) {
-            alert('请选择Excel文件');
+            showImportStatus('error', '请选择Excel文件');
+            setTimeout(hideImportStatus, 3000);
             return;
         }
 
         const file = fileInput.files[0];
         // 检查文件类型
         if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-            alert('请选择.xlsx或.xls格式的Excel文件');
+            showImportStatus('error', '请选择.xlsx或.xls格式的Excel文件');
+            setTimeout(hideImportStatus, 3000);
             return;
         }
 
-        // 这里只是一个示例，实际项目中需要后端处理文件
-        alert('员工导入功能将在后端实现后可用');
-        document.getElementById('employeeImportModal').style.display = 'none';
+        // 显示加载状态
+        showImportStatus('loading', '正在导入员工数据，请稍候...');
+
+        // 使用SheetJS (xlsx) 库解析Excel文件
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                // 获取系统中的所有机构
+                const organizations = await dbManager.getAll('organizations');
+                
+                let successCount = 0;
+                let errorCount = 0;
+                const errorMessages = [];
+
+                // 处理每一行数据
+                for (let i = 0; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    const rowNum = i + 2; // 表格从第2行开始是数据行
+                    
+                    try {
+                        // 检查必要字段
+                        if (!row['员工号'] || !row['姓名'] || !row['所属机构'] || !row['所属部门'] || !row['岗位']) {
+                            throw new Error(`第${rowNum}行缺少必要字段（员工号、姓名、所属机构、所属部门、岗位）`);
+                        }
+
+                        // 检查员工号是否重复
+                        const existingEmployees = await dbManager.getByIndex('employees', 'number', row['员工号']);
+                        if (existingEmployees && existingEmployees.length > 0) {
+                            throw new Error(`第${rowNum}行：员工号"${row['员工号']}"重复，该员工已存在`);
+                        }
+
+                        // 查找对应的机构ID
+                        const orgName = row['所属机构'];
+                        const matchingOrg = organizations.find(org => org.name === orgName);
+                        
+                        if (!matchingOrg) {
+                            throw new Error(`第${rowNum}行：机构"${orgName}"不存在`);
+                        }
+
+                        // 构建员工对象
+                        const employee = {
+                            number: row['员工号'] || '',
+                            name: row['姓名'],
+                            orgId: parseInt(matchingOrg.id), // 确保orgId为数字类型
+                            deptName: row['所属部门'],
+                            position: row['岗位'],
+                            status: row['状态'] !== undefined && row['状态'] !== null && row['状态'] !== '' ? row['状态'] : 0, // 模板没有状态字段时默认设置为0-在职状态
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        };
+
+                        // 保存到IndexedDB
+                        await dbManager.save('employees', employee);
+                        successCount++;
+                    } catch (error) {
+                        errorCount++;
+                        // 安全地获取错误信息，避免null对象错误
+                        const errorMsg = error && error.message ? error.message : '未知错误';
+                        errorMessages.push(errorMsg);
+                        // 继续处理下一行，不中断整个导入过程
+                    }
+                }
+
+                // 刷新员工列表
+                loadEmployees();
+                
+                // 导入完成后显示结果弹窗
+                if (errorCount === 0) {
+                    if (confirm(`成功导入${successCount}名员工！`)) {
+                        // 清空文件选择并关闭模态框
+                        const fileInput = document.getElementById('employeeFileInput');
+                        if (fileInput) {
+                            fileInput.value = '';
+                        }
+                        document.getElementById('employeeImportModal').style.display = 'none';
+                        hideImportStatus();
+                    }
+                } else {
+                    // 如果有错误，在控制台显示详细错误信息
+                    console.error('员工导入错误：', errorMessages);
+                    if (confirm(`成功导入${successCount}名员工，${errorCount}条记录导入失败！\n点击确定查看详情。`)) {
+                        alert(errorMessages.join('\n'));
+                        // 清空文件选择并关闭模态框
+                        const fileInput = document.getElementById('employeeFileInput');
+                        if (fileInput) {
+                            fileInput.value = '';
+                        }
+                        document.getElementById('employeeImportModal').style.display = 'none';
+                        hideImportStatus();
+                    }
+                }
+
+            } catch (error) {
+                // 显示错误信息，安全地处理可能的null错误对象
+                const errorMsg = error && error.message ? error.message : '未知错误';
+                showImportStatus('error', '导入失败：' + errorMsg);
+                setTimeout(() => {
+                    hideImportStatus();
+                    document.getElementById('employeeImportModal').style.display = 'none';
+                }, 3000);
+            }
+        };
+
+        reader.onerror = function() {
+            showImportStatus('error', '文件读取失败，请重试');
+            setTimeout(() => {
+                hideImportStatus();
+            }, 3000);
+        };
+
+        reader.readAsArrayBuffer(file);
     };
 }
 

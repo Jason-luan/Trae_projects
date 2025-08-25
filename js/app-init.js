@@ -4,7 +4,11 @@
 document.addEventListener('DOMContentLoaded', () => {
     // 初始化数据库
     console.log('开始初始化数据库...');
-    // 确保使用全局的dbManager
+    // 确保dbManager作为全局变量存在
+    if (!window.dbManager) {
+        window.dbManager = new IndexedDBManager();
+        console.log('已创建全局dbManager实例');
+    }
     const dbManager = window.dbManager;
     
     if (!dbManager) {
