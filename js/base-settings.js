@@ -22,50 +22,18 @@ function showNotification(message, type = 'success') {
     notification.className = `notification ${type}`;
     notification.textContent = message;
     
-    // 添加固定样式，确保通知美观且显示在正确位置
-    notification.style.position = 'fixed';
-    notification.style.top = '20px';
-    notification.style.right = '20px';
-    notification.style.padding = '12px 20px';
-    notification.style.borderRadius = '6px';
-    notification.style.color = 'white';
-    notification.style.fontWeight = '500';
-    notification.style.zIndex = '10000';
-    notification.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-    notification.style.transform = 'translateX(100%)';
-    notification.style.transition = 'all 0.3s ease-out';
-    notification.style.minWidth = '250px';
-    notification.style.textAlign = 'center';
-    
-    // 根据通知类型设置不同的背景色
-    switch(type) {
-        case 'success':
-            notification.style.backgroundColor = '#4CAF50';
-            break;
-        case 'error':
-            notification.style.backgroundColor = '#f44336';
-            break;
-        case 'warning':
-            notification.style.backgroundColor = '#ff9800';
-            break;
-        case 'info':
-            notification.style.backgroundColor = '#2196F3';
-            break;
-        default:
-            notification.style.backgroundColor = '#4CAF50';
-    }
-    
+    // 添加到文档
     document.body.appendChild(notification);
     
-    // 触发重绘，然后应用动画
+    // 触发重绘，然后显示通知（使用CSS动画）
     setTimeout(() => {
-        notification.style.transform = 'translateX(0)';
+        notification.classList.add('show');
     }, 10);
 
     // 设置自动消失
     setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transform = 'translateX(100%)';
+        notification.classList.remove('show');
+        notification.classList.add('hide');
         setTimeout(() => {
             if (document.body.contains(notification)) {
                 document.body.removeChild(notification);
@@ -92,8 +60,8 @@ function toggleStatus(element, id, type, currentStatus) {
                 })
                 .then(() => {
                     showNotification('机构状态更新成功');
-                    // 重新加载列表以确保数据和UI完全同步
-                    loadOrganizations();
+            // 重新加载列表以确保数据和UI完全同步
+            loadOrganizations(false);
                 })
                 .catch(error => {
                     showNotification('更新状态失败: ' + error.message, 'error');
@@ -135,7 +103,7 @@ function updatePagination(totalItems, containerId = 'org-pagination') {
         if (currentPage > 1) { 
             currentPage = 1; 
             // 根据容器ID决定调用哪个加载函数
-            containerId === 'emp-pagination' ? loadEmployees() : loadOrganizations(); 
+            containerId === 'emp-pagination' ? loadEmployees() : loadOrganizations(false); 
         } 
     };
     paginationContainer.appendChild(firstPageBtn);
@@ -208,16 +176,21 @@ function addSortEvents() {
                 sortDirection = 'asc';
             }
             currentPage = 1;
-            loadOrganizations();
+            loadOrganizations(false);
         });
     });
 }
 
 // 加载机构数据
-window.loadOrganizations = async function() {
+// showNotificationFlag参数控制是否显示加载成功通知，默认为true
+// 当从其他操作函数（如删除、添加、更新状态等）调用时，应设置为false
+window.loadOrganizations = async function(showNotificationFlag = true) {
     try {
         let organizations = await dbManager.getAll('organizations');
-        showNotification(`已加载机构数量: ${organizations.length}`, 'info');
+        // 只有在showNotificationFlag为true时才显示加载通知
+        if (showNotificationFlag) {
+            showNotification(`已加载机构数量: ${organizations.length}`, 'info');
+        }
         console.log('机构数据:', organizations);
     
 
@@ -359,7 +332,7 @@ window.deleteOrganization = function() {
             .then(() => {
                 document.getElementById('institutionDeleteModal').style.display = 'none';
                 showNotification('机构删除成功');
-                loadOrganizations();
+                loadOrganizations(false);
             })
             .catch(error => {
                 showNotification('删除机构失败: ' + error.message, 'error');
@@ -469,7 +442,7 @@ async function saveOrganization(e) {
 
         document.getElementById('institutionModal').style.display = 'none';
             // 延迟一小段时间确保数据完全保存
-            loadOrganizations();
+            loadOrganizations(false);
     } catch (error) {
         showNotification('保存机构失败: ' + error.message, 'error');
     }
@@ -515,10 +488,11 @@ window.loadEmployees = async function() {
             row.appendChild(nameCell);
 
             // 所属机构
-            const orgCell = document.createElement('td');
-            const org = organizations.find(o => o.id === emp.orgId);
-            orgCell.textContent = org ? org.name : '-';
-            row.appendChild(orgCell);
+        const orgCell = document.createElement('td');
+        // 确保ID类型匹配并查找机构
+        const org = organizations.find(o => Number(o.id) === Number(emp.orgId));
+        orgCell.textContent = org ? org.name : '-';
+        row.appendChild(orgCell);
 
             // 部门
             const deptCell = document.createElement('td');
@@ -560,8 +534,8 @@ window.loadEmployees = async function() {
                 document.getElementById('employeeNumberInput').value = emp.number;
                 document.getElementById('employeeNameInput').value = emp.name;
                 document.getElementById('employeeOrgIdInput').value = emp.orgId;
-                // 根据orgId查找机构名称
-                const org = organizations.find(o => o.id === emp.orgId);
+                // 根据orgId查找机构名称，确保ID类型匹配
+                const org = organizations.find(o => Number(o.id) === Number(emp.orgId));
                 document.getElementById('employeePositionInput').value = emp.position || '';
                 // 状态选择 - 根据用户要求：0是在职，1是离职，2是休假
                 const statusSelect = document.getElementById('employeeStatusInput');
@@ -612,7 +586,7 @@ function deleteEmployee(id) {
             .then(() => {
                 showNotification('员工删除成功');
                 loadEmployees();
-                loadOrganizations(); // 更新部门人数
+                loadOrganizations(false); // 更新部门人数
             })
             .catch(error => {
                 showNotification('删除员工失败: ' + error.message, 'error');
@@ -711,7 +685,7 @@ function loadOrganizationsForSelect(selectedOrgId = null) {
 
 // 查找匹配的机构
 function findMatchingOrganization(organizations, orgId) {
-    return organizations.find(org => org.id === orgId) || null;
+    return organizations.find(org => Number(org.id) === Number(orgId)) || null;
 }
 
 // 处理机构部门数据
@@ -1069,7 +1043,7 @@ window.initBaseSettings = function() {
                     ...emp,
                     number,
                     name,
-                    orgId,
+                    orgId: parseInt(orgId), // 将orgId转换为数字类型后存储
                     deptName: document.getElementById('employeeDeptNameInput').value, // 注意：这里使用的是机构的description值
                     position,
                     status,
@@ -1083,7 +1057,7 @@ window.initBaseSettings = function() {
                 const newEmp = {
                     number,
                     name,
-                    orgId,
+                    orgId: parseInt(orgId), // 将orgId转换为数字类型后存储
                     deptName: document.getElementById('employeeDeptNameInput').value,
                     position,
                     status,
