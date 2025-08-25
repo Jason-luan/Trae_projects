@@ -102,7 +102,7 @@ function updatePagination(totalItems, containerId = 'org-pagination') {
     firstPageBtn.onclick = () => { 
         if (currentPage > 1) { 
             currentPage = 1; 
-            // 根据容器ID决定调用哪个加载函数
+            // 根据容器ID决定调用哪个加载函数，机构列表翻页时不显示通知
             containerId === 'emp-pagination' ? loadEmployees() : loadOrganizations(false); 
         } 
     };
@@ -115,8 +115,8 @@ function updatePagination(totalItems, containerId = 'org-pagination') {
     prevBtn.onclick = () => { 
         if (currentPage > 1) { 
             currentPage--; 
-            // 根据容器ID决定调用哪个加载函数
-            containerId === 'emp-pagination' ? loadEmployees() : loadOrganizations(); 
+            // 根据容器ID决定调用哪个加载函数，机构列表翻页时不显示通知
+            containerId === 'emp-pagination' ? loadEmployees() : loadOrganizations(false); 
         } 
     };
     paginationContainer.appendChild(prevBtn);
@@ -129,8 +129,8 @@ function updatePagination(totalItems, containerId = 'org-pagination') {
             pageBtn.textContent = i;
             pageBtn.onclick = () => { 
                 currentPage = i; 
-                // 根据容器ID决定调用哪个加载函数
-                containerId === 'emp-pagination' ? loadEmployees() : loadOrganizations(); 
+                // 根据容器ID决定调用哪个加载函数，机构列表翻页时不显示通知
+                containerId === 'emp-pagination' ? loadEmployees() : loadOrganizations(false); 
             };
             paginationContainer.appendChild(pageBtn);
         }
@@ -143,8 +143,8 @@ function updatePagination(totalItems, containerId = 'org-pagination') {
     nextBtn.onclick = () => { 
         if (currentPage < totalPages) { 
             currentPage++; 
-            // 根据容器ID决定调用哪个加载函数
-            containerId === 'emp-pagination' ? loadEmployees() : loadOrganizations(); 
+            // 根据容器ID决定调用哪个加载函数，机构列表翻页时不显示通知
+            containerId === 'emp-pagination' ? loadEmployees() : loadOrganizations(false); 
         } 
     };
     paginationContainer.appendChild(nextBtn);
@@ -156,8 +156,8 @@ function updatePagination(totalItems, containerId = 'org-pagination') {
     lastPageBtn.onclick = () => { 
         if (currentPage < totalPages) { 
             currentPage = totalPages; 
-            // 根据容器ID决定调用哪个加载函数
-            containerId === 'emp-pagination' ? loadEmployees() : loadOrganizations(); 
+            // 根据容器ID决定调用哪个加载函数，机构列表翻页时不显示通知
+            containerId === 'emp-pagination' ? loadEmployees() : loadOrganizations(false); 
         } 
     };
     paginationContainer.appendChild(lastPageBtn);
@@ -448,11 +448,22 @@ async function saveOrganization(e) {
     }
 }
 
+// 存储当前的员工号筛选值
+let currentEmployeeNumberFilter = '';
+
 // 加载员工数据
 window.loadEmployees = async function() {
     try {
         let employees = await dbManager.getAll('employees');
         const organizations = await dbManager.getAll('organizations');
+
+        // 应用员工号筛选
+        if (currentEmployeeNumberFilter) {
+            const filterLower = currentEmployeeNumberFilter.toLowerCase();
+            employees = employees.filter(emp => 
+                emp.number && String(emp.number).toLowerCase().includes(filterLower)
+            );
+        }
 
         // 排序
         employees.sort((a, b) => {

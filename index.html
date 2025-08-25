@@ -9,6 +9,7 @@
     <script src="js/xlsx.full.min.js"></script>
 <script src="js/indexed-db-manager.js"></script>
     <script src="js/base-settings.js"></script>
+    <script src="js/search-functions.js"></script>
     <script src="js/app-init.js?version=1"></script>
     <style>
         :root {
@@ -692,7 +693,21 @@
             <div class="tab-content" id="employees-tab">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h3>人员列表</h3>
+                        <div style="display: flex; align-items: center; gap: 20px;">
+                            <h3>人员列表</h3>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <input type="text" id="empNumberFilter" placeholder="按员工号筛选..." style="
+                                    padding: 6px 12px;
+                                    border: 1px solid rgba(255, 255, 255, 0.2);
+                                    border-radius: 4px;
+                                    background: var(--card-bg);
+                                    color: var(--text-primary);
+                                    outline: none;
+                                    transition: border-color 0.3s;
+                                    width: 200px;
+                                ">
+                            </div>
+                        </div>
                         <div>
                             <button id="addEmployeeBtn" class="btn btn-primary">添加员工</button>
                             <button id="importEmployeeBtn" class="btn btn-primary" style="margin-left: 2px;">导入员工</button>

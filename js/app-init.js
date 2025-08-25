@@ -61,6 +61,29 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.showNotification) {
                 window.showNotification('数据库初始化完成');
             }
+            
+            // 初始化搜索功能
+            if (window.initSearchFunction) {
+                window.initSearchFunction();
+            } else {
+                console.error('搜索功能初始化函数未定义');
+            }
+            
+            // 初始化员工号筛选功能
+            const empNumberFilter = document.getElementById('empNumberFilter');
+            if (empNumberFilter) {
+                empNumberFilter.addEventListener('input', function() {
+                    // 更新全局筛选值
+                    currentEmployeeNumberFilter = this.value.trim();
+                    // 重置当前页为第一页，重新加载数据
+                    currentPage = 1;
+                    // 重新加载员工数据以应用筛选
+                    if (window.loadEmployees) {
+                        window.loadEmployees();
+                    }
+                });
+                console.log('员工号筛选功能已初始化');
+            }
         })
         .catch(error => {
             console.error('数据库初始化失败:', error);
