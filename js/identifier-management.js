@@ -1031,8 +1031,19 @@ async function processAndImportData(jsonData, statusElement, fileName) {
         let invalidRows = 0;
         let invalidReasons = [];
         
+        // 过滤掉所有字段都为空的行
+        const validDataRows = jsonData.filter(row => {
+            const values = Object.values(row);
+            return values.some(value => value !== undefined && value !== null && value.trim() !== '');
+        });
+        
+        if (validDataRows.length === 0) {
+            statusElement.innerHTML = '<span style="color: red;">导入失败: 没有找到有效数据行</span>';
+            return;
+        }
+        
         // 获取表头信息，找出所有班次代码列
-        const headers = Object.keys(jsonData[0]);
+        const headers = Object.keys(validDataRows[0]);
         const shiftCodeColumns = headers.filter(header => 
             !['序号', '员工号', '员工姓名', '所属机构', '所属部门', '岗位'].includes(header)
         );
@@ -1042,6 +1053,9 @@ async function processAndImportData(jsonData, statusElement, fileName) {
             return;
         }
         
+        // 重新设置总行数为有效数据行数
+        totalRows = validDataRows.length;
+        
         // 显示处理进度
         const progressElement = document.createElement('div');
         progressElement.style.marginTop = '5px';
@@ -1050,7 +1064,7 @@ async function processAndImportData(jsonData, statusElement, fileName) {
         // 处理数据
         const parsedData = [];
         
-        for (const row of jsonData) {
+        for (const row of validDataRows) {
             processedRows++;
             
             // 更新进度
@@ -1058,7 +1072,7 @@ async function processAndImportData(jsonData, statusElement, fileName) {
             progressElement.textContent = `处理进度: ${progress}%`;
             
             const employeeNumber = row['员工号'];
-            if (!employeeNumber) {
+            if (!employeeNumber || employeeNumber.trim() === '') {
                 skippedRows++;
                 continue; // 跳过没有员工号的行
             }
