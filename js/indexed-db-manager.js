@@ -2,7 +2,7 @@
 class IndexedDBManager {
     constructor() {
         this.dbName = 'scheduleSystemDB';
-        this.dbVersion = 5; // 增加版本号以强制升级并创建shifts存储空间
+        this.dbVersion = 6; // 增加版本号以强制升级并创建identifiers存储空间
         this.db = null;
         this.initialized = false;
         this.initPromise = this.initDB();
@@ -108,14 +108,28 @@ class IndexedDBManager {
 
                 // 创建排班数据对象存储空间
                 if (!db.objectStoreNames.contains('schedules')) {
-                    const scheduleStore = db.createObjectStore('schedules', {
-                        keyPath: 'id',
+                    const scheduleStore = db.createObjectStore('schedules', {                        keyPath: 'id',
                         autoIncrement: true
                     });
                     // 创建索引
                     scheduleStore.createIndex('employeeId', 'employeeId', { unique: false });
                     scheduleStore.createIndex('date', 'date', { unique: false });
                     scheduleStore.createIndex('status', 'status', { unique: false });
+                }
+                
+                // 创建标识数据对象存储空间
+                if (!db.objectStoreNames.contains('identifiers')) {
+                    const identifierStore = db.createObjectStore('identifiers', {
+                        keyPath: 'id',
+                        autoIncrement: true
+                    });
+                    // 创建索引
+                    identifierStore.createIndex('employeeId', 'employeeId', { unique: false });
+                    identifierStore.createIndex('shiftId', 'shiftId', { unique: false });
+                    identifierStore.createIndex('employeeId_shiftId', ['employeeId', 'shiftId'], { unique: true });
+                    identifierStore.createIndex('createdAt', 'createdAt', { unique: false });
+                    identifierStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                    console.log('标识数据存储空间和索引已创建');
                 }
             };
 
@@ -147,10 +161,36 @@ class IndexedDBManager {
         const db = await this.ensureInitialized();
         return new Promise((resolve, reject) => {
             const transaction = db.transaction(storeNames, mode);
-            const result = callback(transaction);
-
-            transaction.oncomplete = () => resolve(result);
-            transaction.onerror = () => reject(transaction.error);
+            
+            try {
+                const result = callback(transaction);
+                
+                // 检查result是否是Promise
+                if (result && typeof result.then === 'function') {
+                    // 如果是Promise，等待它完成后再解决事务Promise
+                    result.then(() => {
+                        // 确保事务已经完成
+                        if (transaction.db) {
+                            resolve(result);
+                        }
+                    }).catch(reject);
+                } else {
+                    // 如果不是Promise，按照原来的方式处理
+                    transaction.oncomplete = () => resolve(result);
+                }
+            } catch (error) {
+                reject(error);
+            }
+            
+            transaction.onerror = () => {
+                console.error('事务错误:', transaction.error);
+                reject(transaction.error);
+            };
+            
+            transaction.onabort = () => {
+                console.error('事务被中止:', transaction.error);
+                reject(transaction.error);
+            };
         });
     }
 
@@ -178,9 +218,18 @@ class IndexedDBManager {
     async bulkSave(storeName, dataArray) {
         return this.transaction([storeName], 'readwrite', (transaction) => {
             const store = transaction.objectStore(storeName);
-            dataArray.forEach(data => {
-                store.put(data);
+            
+            // 为每个操作创建一个Promise
+            const promises = dataArray.map(data => {
+                return new Promise((resolve, reject) => {
+                    const request = store.put(data);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = (event) => reject(event.target.error);
+                });
             });
+            
+            // 等待所有操作完成
+            return Promise.all(promises);
         });
     }
 
@@ -295,8 +344,8 @@ class IndexedDBManager {
         const db = await this.ensureInitialized();
         const exportData = {};
 
-        // 只导出指定的存储空间数据，包含班次数据
-        const storesToExport = ['organizations', 'employees', 'shifts'];
+        // 只导出指定的存储空间数据，包含班次数据和标识数据
+        const storesToExport = ['organizations', 'employees', 'shifts', 'identifiers'];
 
         // 遍历需要导出的存储空间并获取数据
         for (const storeName of storesToExport) {
@@ -364,6 +413,13 @@ class IndexedDBManager {
                     }));
                 } else if (storeName === 'shifts') {
                     // 处理班次数据，转换日期字段
+                    processedData = processedData.map(item => ({
+                        ...item,
+                        createdAt: new Date(item.createdAt),
+                        updatedAt: new Date(item.updatedAt)
+                    }));
+                } else if (storeName === 'identifiers') {
+                    // 处理标识数据，转换日期字段
                     processedData = processedData.map(item => ({
                         ...item,
                         createdAt: new Date(item.createdAt),

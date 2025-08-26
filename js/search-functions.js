@@ -23,9 +23,11 @@ window.initSearchFunction = function() {
         }
 
         try {
-            // 从数据库获取所有机构和人员
+            // 从数据库获取所有机构、人员和标识数据
             const organizations = await window.dbManager.getAll('organizations');
             const employees = await window.dbManager.getAll('employees');
+            const identifiers = await window.dbManager.getAll('identifiers');
+            const shifts = await window.dbManager.getAll('shifts');
 
             // 搜索关键词转为小写
             const searchLower = keyword.toLowerCase().trim();
@@ -45,8 +47,21 @@ window.initSearchFunction = function() {
                 (emp.deptName && emp.deptName.toLowerCase().includes(searchLower))
             );
 
+            // 过滤标识数据
+            const matchedIdentifiers = identifiers.filter(identifier => {
+                // 获取对应的员工和班次信息用于搜索
+                const employee = employees.find(e => e.id === identifier.employeeId);
+                const shift = shifts.find(s => s.id === identifier.shiftId);
+                
+                // 搜索条件：员工姓名、员工号、班次名称、班次代码
+                return (employee && (employee.name.toLowerCase().includes(searchLower) || 
+                                     (employee.number && String(employee.number).toLowerCase().includes(searchLower)))) ||
+                       (shift && (shift.name.toLowerCase().includes(searchLower) || 
+                                 (shift.code && shift.code.toLowerCase().includes(searchLower))));
+            });
+
             // 显示搜索结果
-            showSearchResults(matchedOrganizations, matchedEmployees, keyword);
+            showSearchResults(matchedOrganizations, matchedEmployees, matchedIdentifiers, employees, shifts, keyword);
 
         } catch (error) {
             if (window.showNotification) {
@@ -73,7 +88,7 @@ window.initSearchFunction = function() {
 };
 
 // 显示搜索结果
-function showSearchResults(organizations, employees, keyword) {
+function showSearchResults(organizations, employees, identifiers, allEmployees, allShifts, keyword) {
     // 移除已存在的搜索结果模态框
     if (window.searchResultsModal) {
         document.body.removeChild(window.searchResultsModal);
@@ -144,7 +159,7 @@ function showSearchResults(organizations, employees, keyword) {
     // 搜索统计信息
     const stats = document.createElement('div');
     stats.className = 'search-stats';
-    stats.textContent = `找到 ${organizations.length} 个机构和 ${employees.length} 个人员`;
+    stats.textContent = `找到 ${organizations.length} 个机构、${employees.length} 个人员和 ${identifiers.length} 个标识数据`;
     stats.style.cssText = `
         margin-bottom: 20px;
         color: var(--text-secondary);
@@ -153,7 +168,7 @@ function showSearchResults(organizations, employees, keyword) {
     resultsContainer.appendChild(stats);
 
     // 如果没有结果
-    if (organizations.length === 0 && employees.length === 0) {
+    if (organizations.length === 0 && employees.length === 0 && identifiers.length === 0) {
         const noResults = document.createElement('div');
         noResults.className = 'no-results';
         noResults.innerHTML = `<i class="fas fa-search"></i> 未找到匹配的结果`;
@@ -174,6 +189,12 @@ function showSearchResults(organizations, employees, keyword) {
         if (employees.length > 0) {
             const empSection = createSearchSection('人员', employees, 'emp');
             resultsContainer.appendChild(empSection);
+        }
+
+        // 标识数据结果
+        if (identifiers.length > 0) {
+            const identifierSection = createSearchSection('标识数据', identifiers, 'identifier', allEmployees, allShifts);
+            resultsContainer.appendChild(identifierSection);
         }
     }
 
@@ -217,7 +238,7 @@ function showSearchResults(organizations, employees, keyword) {
 }
 
 // 创建搜索结果区域
-function createSearchSection(title, items, type) {
+function createSearchSection(title, items, type, allEmployees, allShifts) {
     const section = document.createElement('div');
     section.className = `search-section search-${type}-section`;
     section.style.cssText = `
@@ -305,6 +326,28 @@ function createSearchSection(title, items, type) {
                             window.editEmployee(item.id);
                         }
                     }, 300);
+                }
+            };
+        } else if (type === 'identifier') {
+            // 获取员工和班次信息
+            const employee = allEmployees.find(e => e.id === item.employeeId);
+            const shift = allShifts.find(s => s.id === item.shiftId);
+            
+            resultItem.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 5px;">${employee ? highlightText(employee.name) : '未知员工'} - ${shift ? highlightText(shift.name) : '未知班次'}</div>
+                <div style="color: var(--text-secondary); font-size: 14px;">员工工号: ${employee ? employee.number : '-'}</div>
+                <div style="color: var(--text-secondary); font-size: 14px;">班次代码: ${shift ? shift.code : '-'}</div>
+                <div style="color: var(--text-secondary); font-size: 14px;">创建时间: ${new Date(item.createdAt).toLocaleString()}</div>
+                ${item.updatedAt ? `<div style="color: var(--text-secondary); font-size: 14px;">更新时间: ${new Date(item.updatedAt).toLocaleString()}</div>` : ''}
+            `;
+            resultItem.onclick = async () => {
+                // 点击标识数据，跳转到标识管理页面
+                document.body.removeChild(window.searchResultsModal);
+                window.searchResultsModal = null;
+                // 先找到标识管理标签页
+                const identifierTab = document.querySelector('.nav-item[data-target="identifier-management"]');
+                if (identifierTab) {
+                    identifierTab.click();
                 }
             };
         }

@@ -7,10 +7,11 @@
     <link rel="stylesheet" href="css/all.min.css">
     <link rel="stylesheet" href="css/institution-styles.css">
     <script src="js/xlsx.full.min.js"></script>
-<script src="js/indexed-db-manager.js"></script>
+    <script src="js/indexed-db-manager.js"></script>
     <script src="js/base-settings.js"></script>
     <script src="js/search-functions.js"></script>
     <script src="js/shift-management.js"></script>
+    <script src="js/identifier-management.js"></script>
     <script src="js/app-init.js?version=1"></script>
     <style>
         :root {
@@ -563,7 +564,7 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="employeeCreateDateInput">创建日期 *</label>
+                            <label for="employeeCreateDateInput">更新日期 *</label>
                             <input type="date" id="employeeCreateDateInput" required>
                         </div>
                         <div class="modal-footer">
@@ -648,6 +649,7 @@
                 <div class="tab active" data-tab="organizations">机构部门管理</div>
                 <div class="tab" data-tab="employees">人员管理</div>
                 <div class="tab" data-tab="shifts">班次管理</div>
+                <div class="tab" data-tab="identifiers">标识管理</div>
             </div>
 
             <!-- 机构部门管理 -->
@@ -668,7 +670,7 @@
                             <th>机构名称</th>
                             <th>部门名称</th>
                             <th>备注信息</th>
-                            <th>创建时间</th>
+                            <th>更新时间</th>
                             <th>状态</th>
                                     <th>操作</th>
                                 </tr>
@@ -762,7 +764,7 @@
                                     <th>开始时间</th>
                                     <th>结束时间</th>
                                     <th>描述</th>
-                                    <th>创建时间</th>
+                                    <th>更新时间</th>
                                     <th>状态</th>
                                     <th>操作</th>
                                 </tr>
@@ -771,6 +773,76 @@
                                 <!-- 动态生成 -->
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 标识管理 -->
+            <div class="tab-content" id="identifiers-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <div>
+                                <h3>人员值班标识管理</h3>
+                                <p style="font-size: 14px; margin-top: 5px;">管理人员可以值班的班次，打勾表示可以值班，空值表示不可以值班</p>
+                                <div class="form-group" style="margin-bottom: 0; margin-top: 10px; display: flex; gap: 10px; align-items: center;">
+                                    <input type="text" id="identifierEmpNumberFilter" placeholder="按员工号筛选..." style="
+                                        padding: 6px 12px;
+                                        border: 1px solid rgba(255, 255, 255, 0.2);
+                                        border-radius: 4px;
+                                        background: var(--card-bg);
+                                        color: var(--text-primary);
+                                        outline: none;
+                                        transition: border-color 0.3s;
+                                        width: 200px;
+                                        height: 36px;
+                                        font-size: 14px;
+                                        font-family: inherit;
+                                        box-sizing: border-box;
+                                    ">
+                                    <select id="identifierDeptFilter" placeholder="请选择部门" style="
+                                        padding: 6px 12px;
+                                        border: 1px solid rgba(255, 255, 255, 0.2);
+                                        border-radius: 4px;
+                                        background: var(--card-bg);
+                                        color: var(--text-primary);
+                                        outline: none;
+                                        transition: border-color 0.3s;
+                                        width: 200px;
+                                        height: 44px;
+                                        font-size: 14px;
+                                        font-family: inherit;
+                                        box-sizing: border-box;
+                                        appearance: none;
+                                        cursor: pointer;
+                                    ">
+                                        <option value="">全部部门</option>
+                                    </select>
+                                    <select id="identifierPositionFilter" placeholder="请选择岗位" style="
+                                        padding: 6px 12px;
+                                        border: 1px solid rgba(255, 255, 255, 0.2);
+                                        border-radius: 4px;
+                                        background: var(--card-bg);
+                                        color: var(--text-primary);
+                                        outline: none;
+                                        transition: border-color 0.3s;
+                                        width: 200px;
+                                        height: 44px;
+                                        font-size: 14px;
+                                        font-family: inherit;
+                                        box-sizing: border-box;
+                                        appearance: none;
+                                        cursor: pointer;
+                                    ">
+                                        <option value="">全部岗位</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button id="importIdentifierBtn" class="btn btn-primary">导入标识数据</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <!-- 动态生成标识管理表格 -->
                     </div>
                 </div>
             </div>
@@ -815,9 +887,13 @@
                                 <option value="inactive">停用</option>
                             </select>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" id="shiftCreatedDateGroup">
                             <label for="shiftCreatedAtInput">创建日期</label>
                             <input type="date" id="shiftCreatedAtInput" readonly>
+                        </div>
+                        <div class="form-group" id="shiftUpdateDateGroup">
+                            <label for="shiftUpdateDateInput">更新日期</label>
+                            <input type="date" id="shiftUpdateDateInput" readonly>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" onclick="closeShiftModal();">取消</button>

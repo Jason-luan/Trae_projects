@@ -254,10 +254,10 @@ window.loadOrganizations = async function(showNotificationFlag = true) {
             remarkCell.textContent = org.remark || '-';
             row.appendChild(remarkCell);
 
-            // 创建时间
-            const createTimeCell = document.createElement('td');
-            createTimeCell.textContent = org.createdAt ? new Date(org.createdAt).toLocaleString() : '-';
-            row.appendChild(createTimeCell);
+            // 更新时间
+            const updateTimeCell = document.createElement('td');
+            updateTimeCell.textContent = org.updatedAt ? new Date(org.updatedAt).toLocaleString() : '-';
+            row.appendChild(updateTimeCell);
 
             // 状态
             const statusCell = document.createElement('td');
@@ -355,11 +355,24 @@ function editOrganization(id) {
             .then(org => {
                 if (org) {
                     // 修正ID：institutionName -> institutionNameInput
-                    document.getElementById('institutionNameInput').value = org.name;
+                    document.getElementById('institutionModalTitle').textContent = '编辑机构';
+                        document.getElementById('institutionNameInput').value = org.name;
                         document.getElementById('institutionNumberInput').value = org.code || '';
                         document.getElementById('departmentNameInput').value = org.description || '';
                         document.getElementById('remarkInput').value = org.remark || '';
                         document.getElementById('institutionIdInput').value = org.id;
+                         
+                        // 设置更新日期为当天
+                        const today = new Date();
+                        const year = today.getFullYear();
+                        const month = String(today.getMonth() + 1).padStart(2, '0');
+                        const day = String(today.getDate()).padStart(2, '0');
+                        const formattedDate = `${year}-${month}-${day}`;
+                        document.getElementById('institutionCreateDateInput').value = formattedDate;
+                         
+                        // 将日期标签改为更新日期
+                        document.querySelector('label[for="institutionCreateDateInput"]').textContent = '更新日期 *';
+                         
                         document.getElementById('institutionModal').style.display = 'block';
                 }
             })
@@ -378,6 +391,9 @@ function showAddOrganizationModal() {
     // 修正ID：institutionId -> institutionIdInput
     document.getElementById('institutionIdInput').value = '';
     
+    // 设置模态框标题为添加机构
+    document.getElementById('institutionModalTitle').textContent = '添加机构';
+    
     // 设置默认创建日期为当天
     const today = new Date();
     const year = today.getFullYear();
@@ -385,6 +401,9 @@ function showAddOrganizationModal() {
     const day = String(today.getDate()).padStart(2, '0');
     const formattedDate = `${year}-${month}-${day}`;
     document.getElementById('institutionCreateDateInput').value = formattedDate;
+    
+    // 将日期标签改为创建日期
+    document.querySelector('label[for="institutionCreateDateInput"]').textContent = '创建日期 *';
     
     document.getElementById('institutionModal').style.display = 'block';
 }
@@ -580,7 +599,20 @@ window.loadEmployees = async function() {
                         statusSelect.value = 'vacation'; // 休假
                     }
                 }
+                document.getElementById('employeeModalTitle').textContent = '编辑员工';
                 document.getElementById('employeeIdInput').value = emp.id;
+                 
+                // 设置更新日期为当天
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                const formattedDate = `${year}-${month}-${day}`;
+                document.getElementById('employeeCreateDateInput').value = formattedDate;
+                 
+                // 将日期标签改为更新日期
+                document.querySelector('label[for="employeeCreateDateInput"]').textContent = '更新日期 *';
+                 
                 document.getElementById('employeeModal').style.display = 'block';
                 
                 // 延迟加载部门，确保模态框已显示
@@ -832,6 +864,12 @@ window.initTabs = function() {
             if (button.dataset.tab === 'shifts' && window.loadShifts) {
                 console.log('切换到班次管理选项卡，正在加载班次数据...');
                 window.loadShifts();
+            }
+            
+            // 添加：当切换到标识管理选项卡时，重新加载标识数据
+            if (button.dataset.tab === 'identifiers' && window.loadIdentifierData) {
+                console.log('切换到标识管理选项卡，正在加载标识数据...');
+                window.loadIdentifierData();
             }
         });
     });
@@ -1235,6 +1273,8 @@ window.initBaseSettings = function() {
         document.getElementById('employeeModalTitle').textContent = '添加员工';
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('employeeCreateDateInput').value = today;
+        // 将日期标签改为创建日期
+        document.querySelector('label[for="employeeCreateDateInput"]').textContent = '创建日期 *';
         loadOrganizationsForSelect();
         document.getElementById('employeeModal').style.display = 'flex';
     });

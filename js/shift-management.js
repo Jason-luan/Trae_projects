@@ -117,7 +117,7 @@ class ShiftManager {
             // 创建班次对象并过滤无效的id
             const shift = {
                 ...shiftData,
-                updatedAt: new Date()
+                updatedAt: new Date() // 设置当前时间为更新时间
             };
             
             // 如果id不是有效的数字，删除它，让IndexedDB自动生成
@@ -125,8 +125,14 @@ class ShiftManager {
                 delete shift.id;
             }
 
-            if (!shift.id) {
+            // 如果没有id(新增班次)，设置创建时间为当前时间
+            if (!shift.id && !shift.createdAt) {
                 shift.createdAt = new Date();
+            }
+            
+            // 确保createdAt是Date对象
+            if (shift.createdAt && typeof shift.createdAt === 'string') {
+                shift.createdAt = new Date(shift.createdAt);
             }
 
             const savedShift = await dbManager.save('shifts', shift);
@@ -240,10 +246,10 @@ window.loadShifts = async function() {
             descCell.textContent = shift.description || '-';
             row.appendChild(descCell);
 
-            // 创建时间
-            const createTimeCell = document.createElement('td');
-            createTimeCell.textContent = shift.createdAt ? new Date(shift.createdAt).toLocaleString() : '-';
-            row.appendChild(createTimeCell);
+            // 更新时间（显示更新时间而不是创建时间）
+            const updateTimeCell = document.createElement('td');
+            updateTimeCell.textContent = shift.updatedAt ? new Date(shift.updatedAt).toLocaleString() : '-';
+            row.appendChild(updateTimeCell);
 
             // 状态（包含状态切换按钮，参考机构部门管理样式）
             const statusCell = document.createElement('td');
@@ -308,6 +314,10 @@ window.showAddShiftModal = function() {
     const formattedDate = today.toISOString().split('T')[0]; // 格式化为 YYYY-MM-DD
     document.getElementById('shiftCreatedAtInput').value = formattedDate;
     
+    // 添加班次时显示创建日期，隐藏更新日期
+    document.getElementById('shiftCreatedDateGroup').style.display = 'block';
+    document.getElementById('shiftUpdateDateGroup').style.display = 'none';
+    
     document.getElementById('shiftModal').style.display = 'block';
 };
 
@@ -325,14 +335,14 @@ window.editShift = async function(id) {
             document.getElementById('shiftDescriptionInput').value = shift.description || '';
             document.getElementById('shiftStatusInput').value = shift.status === 0 ? 'active' : 'inactive';
             
-            // 显示班次的创建日期
-            if (shift.createdAt) {
-                const createdAt = new Date(shift.createdAt);
-                const formattedDate = createdAt.toISOString().split('T')[0];
-                document.getElementById('shiftCreatedAtInput').value = formattedDate;
-            } else {
-                document.getElementById('shiftCreatedAtInput').value = '';
-            }
+            // 编辑班次时隐藏创建日期，显示更新日期
+            document.getElementById('shiftCreatedDateGroup').style.display = 'none';
+            document.getElementById('shiftUpdateDateGroup').style.display = 'block';
+            
+            // 设置更新日期为当天
+            const currentDate = new Date();
+            const formattedDate = currentDate.toISOString().split('T')[0]; // 格式化为 YYYY-MM-DD
+            document.getElementById('shiftUpdateDateInput').value = formattedDate;
             
             document.getElementById('shiftModal').style.display = 'block';
         }
@@ -369,8 +379,19 @@ window.saveShift = async function(event) {
             startTime,
             endTime,
             description,
-            status
+            status,
+            updatedAt: new Date() // 设置当前时间为更新时间
         };
+        
+        // 保留创建时间（编辑时也需要保留，即使不显示在界面上）
+        const createdAtInput = document.getElementById('shiftCreatedAtInput');
+        if (id && createdAtInput && createdAtInput.value) {
+            // 编辑时保留原创建时间
+            shiftData.createdAt = new Date(createdAtInput.value);
+        } else if (!id) {
+            // 新增班次时，设置为当前时间
+            shiftData.createdAt = new Date();
+        }
         
         // 只有当id是有效的数字时才添加到数据对象中
         if (id !== null) {
@@ -382,8 +403,7 @@ window.saveShift = async function(event) {
         
         // 延迟一小段时间确保数据完全保存
         setTimeout(() => {
-            // 重置为第1页
-            shiftCurrentPage = 1;
+            // 保持当前页码，不重置到第1页
             loadShifts();
         }, 300);
     } catch (error) {
