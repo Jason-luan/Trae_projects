@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>标识数据删除测试工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        .container {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: 500;
+        }
+        input,
+        select,
+        button {
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            border: none;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .btn-danger {
+            background-color: #f44336;
+        }
+        .btn-danger:hover {
+            background-color: #da190b;
+        }
+        .log-container {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', Courier, monospace;
+            margin-top: 20px;
+        }
+        .success {
+            color: #4CAF50;
+        }
+        .error {
+            color: #f44336;
+        }
+        .info {
+            color: #2196F3;
+        }
+        .data-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e3f2fd;
+            border-radius: 4px;
+        }
+        .data-content {
+            white-space: pre-wrap;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: white;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>标识数据删除测试工具</h1>
+    
+    <div class="container">
+        <h2>步骤1: 查看当前数据</h2>
+        <button id="viewAllData">查看所有数据</button>
+        <button id="viewEmployees">查看所有员工</button>
+        <button id="viewIdentifiers">查看所有标识数据</button>
+    </div>
+    
+    <div class="container">
+        <h2>步骤2: 选择要删除的员工</h2>
+        <label for="employeeSelect">选择员工:</label>
+        <select id="employeeSelect"></select>
+        <button id="deleteEmployeeBtn" class="btn-danger">删除选中员工及其标识数据</button>
+    </div>
+    
+    <div class="container">
+        <h2>步骤3: 验证删除结果</h2>
+        <button id="verifyDelete">验证删除结果</button>
+        <button id="exportData">导出数据验证</button>
+    </div>
+    
+    <h2>调试日志</h2>
+    <div id="logContainer" class="log-container"></div>
+    
+    <div id="dataDisplay" class="data-section" style="display: none;">
+        <h2>数据详情</h2>
+        <div id="dataContent" class="data-content"></div>
+    </div>
+
+    <script src="js/indexed-db-manager.js"></script>
+    <script src="js/identifier-management.js"></script>
+    <script src="js/base-settings.js"></script>
+    <script>
+        // 初始化数据库和标识管理器
+        window.dbManager = new IndexedDBManager();
+        
+        // 等待数据库初始化完成
+        window.dbManager.ensureInitialized().then(() => {
+            log('数据库初始化完成', 'success');
+            initIdentifierManager();
+            loadEmployeesList();
+        }).catch(err => {
+            log('数据库初始化失败: ' + err.message, 'error');
+        });
+        
+        // 初始化标识管理器
+        function initIdentifierManager() {
+            try {
+                window.identifierManager = new IdentifierManager();
+                log('标识管理器初始化完成', 'success');
+            } catch (err) {
+                log('标识管理器初始化失败: ' + err.message, 'error');
+            }
+        }
+        
+        // 加载员工列表
+        function loadEmployeesList() {
+            const select = document.getElementById('employeeSelect');
+            select.innerHTML = '<option value="">请选择员工</option>';
+            
+            window.dbManager.getAll('employees').then(employees => {
+                employees.forEach(emp => {
+                    const option = document.createElement('option');
+                    option.value = emp.id;
+                    option.textContent = `${emp.name} (ID: ${emp.id})`;
+                    select.appendChild(option);
+                });
+                log(`加载了 ${employees.length} 名员工`, 'info');
+            }).catch(err => {
+                log('加载员工列表失败: ' + err.message, 'error');
+            });
+        }
+        
+        // 删除员工按钮点击事件
+        document.getElementById('deleteEmployeeBtn').addEventListener('click', function() {
+            const empId = document.getElementById('employeeSelect').value;
+            if (!empId) {
+                log('请先选择要删除的员工', 'error');
+                return;
+            }
+            
+            // 根据员工ID查找员工对象，获取员工号
+            window.dbManager.getById('employees', parseInt(empId))
+                .then(employee => {
+                    if (employee) {
+                        const employeeNumber = employee.number;
+                        log(`开始删除员工ID: ${empId}, 员工号: ${employeeNumber}`, 'info');
+                        // 调用我们修改过的deleteEmployee函数，传入员工号
+                        deleteEmployee(employeeNumber);
+                    } else {
+                        log(`未找到员工ID: ${empId}`, 'error');
+                    }
+                })
+                .catch(err => {
+                    log(`查找员工失败: ${err.message}`, 'error');
+                });
+        });
+        
+        // 查看所有数据按钮点击事件
+        document.getElementById('viewAllData').addEventListener('click', function() {
+            Promise.all([
+                window.dbManager.getAll('employees'),
+                window.dbManager.getAll('identifiers')
+            ]).then(([employees, identifiers]) => {
+                const data = {
+                    employees: employees,
+                    identifiers: identifiers,
+                    totalEmployees: employees.length,
+                    totalIdentifiers: identifiers.length
+                };
+                displayData(data);
+            }).catch(err => {
+                log('获取数据失败: ' + err.message, 'error');
+            });
+        });
+        
+        // 查看所有员工按钮点击事件
+        document.getElementById('viewEmployees').addEventListener('click', function() {
+            window.dbManager.getAll('employees').then(employees => {
+                displayData({ employees: employees, total: employees.length });
+            }).catch(err => {
+                log('获取员工数据失败: ' + err.message, 'error');
+            });
+        });
+        
+        // 查看所有标识数据按钮点击事件
+        document.getElementById('viewIdentifiers').addEventListener('click', function() {
+            window.dbManager.getAll('identifiers').then(identifiers => {
+                displayData({ identifiers: identifiers, total: identifiers.length });
+            }).catch(err => {
+                log('获取标识数据失败: ' + err.message, 'error');
+            });
+        });
+        
+        // 验证删除结果按钮点击事件
+        document.getElementById('verifyDelete').addEventListener('click', function() {
+            const empId = document.getElementById('employeeSelect').value;
+            if (!empId) {
+                log('请先选择要验证的员工', 'error');
+                return;
+            }
+            
+            // 检查员工是否存在
+            window.dbManager.getById('employees', parseInt(empId)).then(employee => {
+                if (employee) {
+                    log(`员工ID: ${empId} 仍然存在`, 'info');
+                } else {
+                    log(`员工ID: ${empId} 已成功删除`, 'success');
+                }
+                
+                // 检查标识数据是否存在
+                window.identifierManager.getIdentifiersByEmployeeId(parseInt(empId)).then(identifiers => {
+                    if (identifiers.length > 0) {
+                        log(`警告: 发现 ${identifiers.length} 条残留的标识数据`, 'error');
+                        log(`残留标识数据: ${JSON.stringify(identifiers)}`, 'error');
+                    } else {
+                        log(`没有发现员工ID: ${empId} 的残留标识数据`, 'success');
+                    }
+                });
+            });
+        });
+        
+        // 导出数据按钮点击事件
+        document.getElementById('exportData').addEventListener('click', function() {
+            window.dbManager.exportDatabaseData().then(data => {
+                log('数据导出成功', 'success');
+                displayData(data);
+                
+                // 创建下载链接
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `schedule-data-${new Date().toISOString().slice(0, 19)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }).catch(err => {
+                log('数据导出失败: ' + err.message, 'error');
+            });
+        });
+        
+        // 日志函数
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = type;
+            logEntry.innerHTML = `<span>[${timestamp}]</span> ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            // 同时输出到控制台
+            console.log(`[${timestamp}] ${message}`);
+        }
+        
+        // 显示数据函数
+        function displayData(data) {
+            const dataDisplay = document.getElementById('dataDisplay');
+            const dataContent = document.getElementById('dataContent');
+            dataContent.textContent = JSON.stringify(data, null, 2);
+            dataDisplay.style.display = 'block';
+        }
+        
+        // 为了让调试更直观，我们重写console.log和console.error函数
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ');
+            log(message, 'info');
+        };
+        
+        console.error = function(...args) {
+            originalConsoleError.apply(console, args);
+            const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ');
+            log(message, 'error');
+        };
+    </script>
+</body>
+</html>

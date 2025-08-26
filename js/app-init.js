@@ -146,6 +146,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             // 初始化标识管理部门筛选功能
+            
+            // 初始化一键清除所有标识数据按钮
+            const clearAllIdentifiersBtn = document.getElementById('clearAllIdentifiersBtn');
+            if (clearAllIdentifiersBtn) {
+                clearAllIdentifiersBtn.addEventListener('click', function() {
+                    if (window.clearAllIdentifiers) {
+                        window.clearAllIdentifiers();
+                    } else {
+                        console.error('一键清除所有标识数据函数未定义');
+                    }
+                });
+                console.log('一键清除所有标识数据功能已初始化');
+            }
             const identifierDeptFilter = document.getElementById('identifierDeptFilter');
             if (identifierDeptFilter) {
                 identifierDeptFilter.addEventListener('change', async function() {

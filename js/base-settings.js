@@ -626,7 +626,7 @@ window.loadEmployees = async function() {
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'btn btn-danger btn-sm';
             deleteBtn.textContent = '删除';
-            deleteBtn.onclick = () => deleteEmployee(emp.id);
+            deleteBtn.onclick = () => deleteEmployee(emp.number);
             actionCell.appendChild(deleteBtn);
 
             row.appendChild(actionCell);
@@ -643,20 +643,60 @@ window.loadEmployees = async function() {
 }
 
 // 删除员工
-function deleteEmployee(id) {
+// 重构为async/await版本以更好地处理Promise链和错误
+async function deleteEmployee(employeeNumber) {
     try {
-        const empId = parseInt(id);
-        dbManager.delete('employees', empId)
-            .then(() => {
-                showNotification('员工删除成功');
-                loadEmployees();
-                loadOrganizations(false); // 更新部门人数
-            })
-            .catch(error => {
-                showNotification('删除员工失败: ' + error.message, 'error');
+        // 验证员工号是否为空
+        if (!employeeNumber) {
+            throw new Error('无效的员工号');
+        }
+        
+        // 将员工号统一转换为字符串类型
+        employeeNumber = String(employeeNumber);
+        
+        // 步骤1: 通过员工号查找员工
+        const employee = await window.identifierManager.findEmployeeByNumber(employeeNumber);
+        
+        if (!employee) {
+            throw new Error('未找到员工号为 ' + employeeNumber + ' 的员工');
+        }
+        
+        const empId = employee.id;
+        console.log('找到员工:', employee.name, '员工ID:', empId);
+        
+        // 步骤2: 通过员工ID获取所有相关标识数据
+        const identifiers = await window.identifierManager.getIdentifiersByEmployeeId(empId);
+        
+        // 步骤3: 逐个删除找到的标识数据
+        if (identifiers.length > 0) {
+            console.log('找到标识数据数量:', identifiers.length);
+            
+            // 为每个标识数据创建一个删除Promise
+            const deletePromises = identifiers.map(identifier => {
+                return window.dbManager.delete('identifiers', identifier.id)
+                    .catch(err => {
+                        console.error('删除标识数据失败:', identifier.id, err);
+                        // 即使单个标识删除失败，也要继续尝试删除其他标识
+                    });
             });
+            
+            // 等待所有标识数据删除操作完成
+            await Promise.allSettled(deletePromises);
+        } else {
+            console.log('未找到员工相关的标识数据，跳过标识删除步骤');
+        }
+        
+        // 步骤4: 删除员工数据
+        await window.dbManager.delete('employees', employee.id);
+        
+        // 显示成功通知并刷新列表
+        showNotification('员工 ' + employee.name + ' 删除成功');
+        loadEmployees();
+        loadOrganizations(false); // 更新部门人数
+        
     } catch (error) {
-        showNotification('删除员工失败: ' + error, 'error');
+        console.error('删除员工过程中发生错误:', error);
+        showNotification('删除员工失败: ' + (error.message || '未知错误'), 'error');
     }
 }
 
@@ -1414,7 +1454,11 @@ window.initBaseSettings = function() {
             const employees = await dbManager.getAll('employees');
             const orgEmployees = employees.filter(emp => emp.orgId === orgId);
             for (const emp of orgEmployees) {
-                await dbManager.delete('employees', emp.id);
+                // 调用deleteEmployee函数通过员工号删除员工及其标识数据
+                await new Promise((resolve) => {
+                    deleteEmployee(emp.number);
+                    resolve(); // 继续处理下一个员工，不等待当前员工删除完成
+                });
             }
 
             // 再删除机构

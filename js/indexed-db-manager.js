@@ -309,18 +309,31 @@ class IndexedDBManager {
 
     // 删除数据
     async delete(storeName, id) {
-        return this.transaction([storeName], 'readwrite', (transaction) => {
-            const store = transaction.objectStore(storeName);
-            const request = store.delete(id);
+        console.log(`开始删除数据: 存储空间=${storeName}, ID=${id}`);
+        
+        try {
+            // 直接返回transaction的结果，避免嵌套Promise
+            return await this.transaction([storeName], 'readwrite', (transaction) => {
+                const store = transaction.objectStore(storeName);
+                const request = store.delete(id);
 
-            request.onsuccess = () => {
-                console.log(`数据删除成功从${storeName}, ID:`, id);
-            };
+                return new Promise((resolve, reject) => {
+                    request.onsuccess = () => {
+                        console.log(`数据删除成功从${storeName}, ID:`, id);
+                        resolve(true); // 成功时返回true
+                    };
 
-            request.onerror = (event) => {
-                console.error(`数据删除失败从${storeName}, ID:`, id, event.target.error);
-            };
-        });
+                    request.onerror = (event) => {
+                        console.error(`数据删除失败从${storeName}, ID:`, id, event.target.error);
+                        reject(event.target.error); // 失败时明确reject错误
+                    };
+                });
+            });
+        } catch (error) {
+            // 捕获所有可能的错误
+            console.error(`删除数据失败:`, error);
+            throw error;
+        }
     }
 
     // 清空存储空间
@@ -357,6 +370,33 @@ class IndexedDBManager {
                         const { institutionNumber, ...rest } = org;
                         return rest;
                     });
+                } else if (storeName === 'identifiers') {
+                    // 导出标识数据时，使用员工号和班次code而不是ID
+                    const identifiers = await this.getAll(storeName);
+                    const employees = await this.getAll('employees');
+                    const shifts = await this.getAll('shifts');
+                    
+                    // 创建员工ID到员工号的映射
+                    const employeeIdToNumberMap = {};
+                    employees.forEach(emp => {
+                        employeeIdToNumberMap[emp.id] = emp.number;
+                    });
+                    
+                    // 创建班次ID到班次code的映射
+                    const shiftIdToCodeMap = {};
+                    shifts.forEach(shift => {
+                        shiftIdToCodeMap[shift.id] = shift.code;
+                    });
+                    
+                    // 转换identifiers数据，使用员工号和班次code替换ID
+                    exportData[storeName] = identifiers.map(id => ({
+                        ...id,
+                        employeeNumber: employeeIdToNumberMap[id.employeeId] || '',
+                        shiftCode: shiftIdToCodeMap[id.shiftId] || '',
+                        // 删除原始ID字段，避免在导入时产生冲突
+                        employeeId: undefined,
+                        shiftId: undefined
+                    }));
                 } else {
                     exportData[storeName] = await this.getAll(storeName);
                 }
@@ -419,12 +459,59 @@ class IndexedDBManager {
                         updatedAt: new Date(item.updatedAt)
                     }));
                 } else if (storeName === 'identifiers') {
-                    // 处理标识数据，转换日期字段
-                    processedData = processedData.map(item => ({
-                        ...item,
-                        createdAt: new Date(item.createdAt),
-                        updatedAt: new Date(item.updatedAt)
-                    }));
+                    // 处理标识数据，转换日期字段，并将employeeNumber和shiftCode转换为对应的ID
+                    const employees = await this.getAll('employees');
+                    const shifts = await this.getAll('shifts');
+                    
+                    // 创建员工号到员工ID的映射
+                    const employeeNumberToIdMap = {};
+                    employees.forEach(emp => {
+                        if (emp.number) {
+                            employeeNumberToIdMap[emp.number] = emp.id;
+                        }
+                    });
+                    
+                    // 创建班次code到班次ID的映射
+                    const shiftCodeToIdMap = {};
+                    shifts.forEach(shift => {
+                        if (shift.code) {
+                            shiftCodeToIdMap[shift.code] = shift.id;
+                        }
+                    });
+                    
+                    processedData = processedData.map(item => {
+                        let processedItem = {
+                            ...item,
+                            createdAt: new Date(item.createdAt),
+                            updatedAt: new Date(item.updatedAt)
+                        };
+                        
+                        // 如果有employeeNumber字段但没有employeeId字段，查找对应的employeeId
+                        if (item.employeeNumber && !item.employeeId) {
+                            const employeeId = employeeNumberToIdMap[item.employeeNumber];
+                            if (employeeId) {
+                                processedItem.employeeId = employeeId;
+                            } else {
+                                console.warn(`未找到员工号为${item.employeeNumber}的员工，无法关联标识数据`);
+                            }
+                        }
+                        
+                        // 如果有shiftCode字段但没有shiftId字段，查找对应的shiftId
+                        if (item.shiftCode && !item.shiftId) {
+                            const shiftId = shiftCodeToIdMap[item.shiftCode];
+                            if (shiftId) {
+                                processedItem.shiftId = shiftId;
+                            } else {
+                                console.warn(`未找到班次编码为${item.shiftCode}的班次，无法关联标识数据`);
+                            }
+                        }
+                        
+                        // 删除员工号和班次code字段，避免数据冗余
+                        delete processedItem.employeeNumber;
+                        delete processedItem.shiftCode;
+                        
+                        return processedItem;
+                    });
                 }
                 
                 await this.bulkSave(storeName, processedData);

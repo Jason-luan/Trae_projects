@@ -79,6 +79,24 @@ class IdentifierManager {
         }
     }
 
+    // 清空所有标识数据
+    async clearAllIdentifiers() {
+        try {
+            const exists = await window.dbManager.checkObjectStoreExists('identifiers');
+            if (!exists) {
+                console.log('标识存储空间不存在');
+                return true;
+            }
+            
+            await window.dbManager.clearStore('identifiers');
+            console.log('所有标识数据已清空');
+            return true;
+        } catch (error) {
+            console.error('清空标识数据失败:', error);
+            throw new Error(error && error.message ? error.message : '清空标识数据失败');
+        }
+    }
+
     // 批量保存标识数据
     async bulkSaveIdentifiers(identifiers) {
         try {
@@ -194,7 +212,8 @@ class IdentifierManager {
     async findEmployeeByNumber(employeeNumber) {
         try {
             const employees = await window.dbManager.getAll('employees');
-            return employees.find(emp => emp.number === employeeNumber);
+            // 进行宽松比较，将两边都转换为字符串后再比较
+            return employees.find(emp => String(emp.number) === String(employeeNumber));
         } catch (error) {
             console.error('查找员工失败:', error);
             return null;
@@ -697,6 +716,43 @@ window.closeImportIdentifierModal = function() {
     document.getElementById('importIdentifierModal').style.display = 'none';
     document.getElementById('identifierFileInput').value = '';
     document.getElementById('importIdentifierStatus').innerHTML = '';
+};
+
+// 一键清除所有标识数据
+window.clearAllIdentifiers = async function() {
+    try {
+        // 显示确认对话框
+        if (!confirm('警告：此操作将清除标识管理数据库中的所有数据，且无法恢复！\n\n确定要继续吗？')) {
+            return;
+        }
+        
+        // 确保identifierManager已初始化
+        if (!window.identifierManager) {
+            await window.initIdentifierManagement();
+        }
+        
+        // 清空所有标识数据
+        await window.identifierManager.clearAllIdentifiers();
+        
+        // 重新加载标识数据，刷新界面
+        await loadIdentifierData();
+        
+        // 显示成功通知
+        if (window.showNotification) {
+            window.showNotification('所有标识数据已成功清除', 'success');
+        } else {
+            alert('所有标识数据已成功清除');
+        }
+    } catch (error) {
+        console.error('清除标识数据失败:', error);
+        
+        // 显示错误通知
+        if (window.showNotification) {
+            window.showNotification('清除标识数据失败: ' + error.message, 'error');
+        } else {
+            alert('清除标识数据失败: ' + error.message);
+        }
+    }
 };
 
 // 下载标识数据模板
