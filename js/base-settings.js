@@ -6,7 +6,7 @@ let currentOrganizationId = null;
 let currentEmployeeId = null;
 // 分页和排序状态
 let currentPage = 1;
-const itemsPerPage = 5;
+const itemsPerPage = 10;
 let sortField = 'code';
 let sortDirection = 'asc';
 
@@ -224,9 +224,14 @@ window.loadOrganizations = async function(showNotificationFlag = true) {
 
         tableBody.innerHTML = '';
 
-        paginatedOrganizations.forEach(org => {
+        paginatedOrganizations.forEach((org, index) => {
             const row = document.createElement('tr');
             row.className = 'hover-row';
+
+            // 序号（所有数据连续排序）
+            const indexCell = document.createElement('td');
+            indexCell.textContent = (currentPage - 1) * itemsPerPage + index + 1;
+            row.appendChild(indexCell);
 
             // 机构号
             const idCell = document.createElement('td');
@@ -484,9 +489,14 @@ window.loadEmployees = async function() {
 
         tableBody.innerHTML = '';
 
-        paginatedEmployees.forEach(emp => {
+        paginatedEmployees.forEach((emp, index) => {
             const row = document.createElement('tr');
             row.className = 'hover-row';
+
+            // 序号（所有数据连续排序）
+            const indexCell = document.createElement('td');
+            indexCell.textContent = (currentPage - 1) * itemsPerPage + index + 1;
+            row.appendChild(indexCell);
 
             // 工号
             const numberCell = document.createElement('td');
@@ -916,6 +926,23 @@ window.initImportExportEvents = function() {
             const mainContent = document.querySelector('.main-content');
             if (mainContent) {
                 mainContent.insertBefore(buttonContainer, mainContent.firstChild);
+            }
+        }
+
+        // 添加小号文本注释说明导入导出功能
+        let usageNote = document.querySelector('.import-export-note');
+        if (!usageNote) {
+            usageNote = document.createElement('div');
+            usageNote.className = 'import-export-note';
+            usageNote.style.fontSize = '12px';
+            usageNote.style.color = '#666';
+            usageNote.style.marginTop = '5px';
+            usageNote.style.marginLeft = '10px';
+            usageNote.textContent = '导出数据：备份当前系统中的所有基础设置数据；导入数据：从备份文件恢复基础设置数据（会覆盖现有数据）。';
+            
+            // 将注释添加到按钮容器的后面
+            if (buttonContainer.parentNode) {
+                buttonContainer.parentNode.insertBefore(usageNote, buttonContainer.nextSibling);
             }
         }
     }

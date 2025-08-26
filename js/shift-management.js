@@ -172,17 +172,28 @@ class ShiftManager {
 // 班次管理实例
 const shiftManager = new ShiftManager();
 
+// 分页状态变量
+let shiftCurrentPage = 1;
+let shiftItemsPerPage = 10;
+let allShifts = [];
+
 // 加载班次数据
 window.loadShifts = async function() {
     try {
-        let shifts = await shiftManager.getAllShifts();
+        // 获取并保存所有班次数据
+        allShifts = await shiftManager.getAllShifts();
         
         // 排序 - 按班次代码
-        shifts.sort((a, b) => {
+        allShifts.sort((a, b) => {
             const codeA = a.code || '';
             const codeB = b.code || '';
             return codeA.localeCompare(codeB);
         });
+
+        // 分页处理
+        const startIndex = (shiftCurrentPage - 1) * shiftItemsPerPage;
+        const endIndex = startIndex + shiftItemsPerPage;
+        const paginatedShifts = allShifts.slice(startIndex, endIndex);
 
         // 渲染表格
         const shiftTable = document.getElementById('shift-table');
@@ -195,9 +206,14 @@ window.loadShifts = async function() {
 
         tableBody.innerHTML = '';
 
-        shifts.forEach(shift => {
+        paginatedShifts.forEach((shift, index) => {
             const row = document.createElement('tr');
             row.className = 'hover-row';
+
+            // 序号（所有数据连续排序）
+            const indexCell = document.createElement('td');
+            indexCell.textContent = (shiftCurrentPage - 1) * shiftItemsPerPage + index + 1;
+            row.appendChild(indexCell);
 
             // 班次代码
             const codeCell = document.createElement('td');
@@ -266,7 +282,10 @@ window.loadShifts = async function() {
             tableBody.appendChild(row);
         });
 
-        console.log('已加载班次数据:', shifts.length, '条');
+        // 创建分页控件
+        createShiftPagination(allShifts.length);
+        
+        console.log('已加载班次数据:', allShifts.length, '条，当前第', shiftCurrentPage, '页');
     } catch (error) {
         console.error('加载班次数据失败:', error);
         showNotification('加载班次数据失败: ' + error.message, 'error');
@@ -363,6 +382,8 @@ window.saveShift = async function(event) {
         
         // 延迟一小段时间确保数据完全保存
         setTimeout(() => {
+            // 重置为第1页
+            shiftCurrentPage = 1;
             loadShifts();
         }, 300);
     } catch (error) {
@@ -391,11 +412,96 @@ window.deleteShiftConfirm = function(id) {
 window.deleteShift = async function(id) {
     try {
         await shiftManager.deleteShift(id);
+        // 重置为第1页
+        shiftCurrentPage = 1;
         loadShifts();
     } catch (error) {
         console.error('删除班次失败:', error);
     }
 };
+
+// 创建班次分页控件
+function createShiftPagination(totalItems, containerId = 'shift-pagination') {
+    const paginationContainer = document.getElementById(containerId);
+    if (!paginationContainer) {
+        // 如果分页容器不存在，创建一个
+        const tableContainer = document.querySelector('#shifts-tab .table-container');
+        if (tableContainer) {
+            const paginationDiv = document.createElement('div');
+            paginationDiv.className = 'pagination';
+            paginationDiv.id = 'shift-pagination';
+            tableContainer.appendChild(paginationDiv);
+            return createShiftPagination(totalItems); // 递归调用以创建分页按钮
+        }
+        return;
+    }
+    
+    paginationContainer.innerHTML = '';
+    
+    const totalPages = Math.ceil(totalItems / shiftItemsPerPage);
+    
+    // 首页按钮
+    const firstPageBtn = document.createElement('button');
+    firstPageBtn.className = 'pagination-btn' + (shiftCurrentPage === 1 ? ' disabled' : '');
+    firstPageBtn.textContent = '首页';
+    firstPageBtn.onclick = () => {
+        if (shiftCurrentPage > 1) {
+            shiftCurrentPage = 1;
+            loadShifts();
+        }
+    };
+    paginationContainer.appendChild(firstPageBtn);
+    
+    // 上一页按钮
+    const prevButton = document.createElement('button');
+    prevButton.className = 'pagination-btn' + (shiftCurrentPage === 1 ? ' disabled' : '');
+    prevButton.textContent = '上一页';
+    prevButton.onclick = () => {
+        if (shiftCurrentPage > 1) {
+            shiftCurrentPage--;
+            loadShifts();
+        }
+    };
+    paginationContainer.appendChild(prevButton);
+    
+    // 页码按钮 - 只显示当前页前后3页
+    for (let i = 1; i <= totalPages; i++) {
+        if (i > shiftCurrentPage - 3 && i < shiftCurrentPage + 3) {
+            const pageButton = document.createElement('button');
+            pageButton.className = 'pagination-btn' + (i === shiftCurrentPage ? ' active' : '');
+            pageButton.textContent = i;
+            pageButton.onclick = () => {
+                shiftCurrentPage = i;
+                loadShifts();
+            };
+            paginationContainer.appendChild(pageButton);
+        }
+    }
+    
+    // 下一页按钮
+    const nextButton = document.createElement('button');
+    nextButton.className = 'pagination-btn' + (shiftCurrentPage === totalPages ? ' disabled' : '');
+    nextButton.textContent = '下一页';
+    nextButton.onclick = () => {
+        if (shiftCurrentPage < totalPages) {
+            shiftCurrentPage++;
+            loadShifts();
+        }
+    };
+    paginationContainer.appendChild(nextButton);
+    
+    // 末页按钮
+    const lastPageBtn = document.createElement('button');
+    lastPageBtn.className = 'pagination-btn' + (shiftCurrentPage === totalPages ? ' disabled' : '');
+    lastPageBtn.textContent = '末页';
+    lastPageBtn.onclick = () => {
+        if (shiftCurrentPage < totalPages) {
+            shiftCurrentPage = totalPages;
+            loadShifts();
+        }
+    };
+    paginationContainer.appendChild(lastPageBtn);
+}
 
 // 关闭班次模态框
 window.closeShiftModal = function() {
