@@ -88,10 +88,39 @@ class IdentifierManager {
                 throw new Error('标识存储空间不存在');
             }
             
-            const dataToSave = identifiers.map(identifier => ({
-                ...identifier,
-                updatedAt: new Date()
-            }));
+            // 添加去重逻辑，确保每个员工-班次组合唯一
+            const uniqueCombinations = new Set();
+            const uniqueIdentifiers = [];
+            
+            identifiers.forEach(identifier => {
+                const key = `${identifier.employeeId}-${identifier.shiftId}`;
+                if (!uniqueCombinations.has(key)) {
+                    uniqueCombinations.add(key);
+                    uniqueIdentifiers.push(identifier);
+                }
+            });
+            
+            // 为了避免重复导入时报错，先检查数据库中已有的记录
+            // 获取所有已存在的标识数据
+            const existingIdentifiers = await this.getAllIdentifiers();
+            const existingKeyMap = new Map();
+            
+            existingIdentifiers.forEach(identifier => {
+                const key = `${identifier.employeeId}-${identifier.shiftId}`;
+                existingKeyMap.set(key, identifier.id); // 保存现有的ID
+            });
+            
+            // 准备最终要保存的数据
+            const dataToSave = uniqueIdentifiers.map(identifier => {
+                const key = `${identifier.employeeId}-${identifier.shiftId}`;
+                const existingId = existingKeyMap.get(key);
+                
+                return {
+                    ...identifier,
+                    id: existingId, // 如果已存在，使用现有的ID
+                    updatedAt: new Date()
+                };
+            });
             
             return await window.dbManager.bulkSave('identifiers', dataToSave);
         } catch (error) {
