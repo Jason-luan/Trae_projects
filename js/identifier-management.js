@@ -133,6 +133,7 @@ class IdentifierManager {
     // 导入标识数据
     async importIdentifiersFromExcel(data) {
         try {
+            console.log('开始导入标识数据，数据量:', data.length);
             // 这里需要根据Excel数据格式进行处理
             // 假设data是解析后的员工-班次关系数组
             const identifiers = [];
@@ -501,9 +502,10 @@ async function renderIdentifierTable() {
                     </div>
                     <p>文件格式要求：</p>
                     <ul>
-                        <li>第一列：员工号</li>
-                        <li>第二列：班次代码</li>
-                        <li>第三列：是否可值班（是/否）</li>
+                        <li>第一行既是班次代码也是表头</li>
+                        <li>必须包含"员工号"列</li>
+                        <li>除员工信息列（序号、员工号、员工姓名、所属机构、所属部门、岗位）外，其他列均为班次代码列</li>
+                        <li>单元格值为'1'表示可值班</li>
                     </ul>
                     <div class="form-group">
                         <input type="file" id="identifierFileInput" accept=".xlsx">
@@ -893,8 +895,29 @@ async function parseExcelFile(file, statusElement) {
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
                     
-                    // 转换为JSON（使用第一行作为表头）
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    // 使用显式配置来处理表头，确保第一行被正确识别
+                    // header: "A" 表示使用Excel的列名(A,B,C...)作为键，然后我们自己处理表头行
+                    const rawData = XLSX.utils.sheet_to_json(worksheet, { header: "A" });
+                    
+                    // 处理表头和数据
+                    let jsonData = [];
+                    if (rawData.length > 0) {
+                        // 第一行作为表头行
+                        const headerRow = rawData[0];
+                        
+                        // 从第二行开始处理数据行
+                        for (let i = 1; i < rawData.length; i++) {
+                            const dataRow = {};
+                            // 将列名(A,B,C...)映射到表头值
+                            for (const col in headerRow) {
+                                const header = headerRow[col];
+                                if (header !== undefined && header !== null) {
+                                    dataRow[header] = rawData[i][col];
+                                }
+                            }
+                            jsonData.push(dataRow);
+                        }
+                    }
                     
                     if (!jsonData || jsonData.length === 0) {
                         statusElement.innerHTML = '<span style="color: red;">导入失败: 文件内容为空</span>';
@@ -922,10 +945,10 @@ async function parseExcelFile(file, statusElement) {
             reader.readAsArrayBuffer(file);
         });
     } catch (error) {
-        console.error('使用XLSX库导入失败:', error);
-        // 降级到模拟导入
-        await simulateImport(file, statusElement);
-    }
+            console.error('使用XLSX库导入失败:', error);
+            // 降级到模拟导入，并传递文件名
+            await simulateImport(file, statusElement);
+        }
 }
 
 // 解析CSV文件
@@ -1031,43 +1054,36 @@ async function processAndImportData(jsonData, statusElement, fileName) {
         let invalidRows = 0;
         let invalidReasons = [];
         
-        // 过滤掉所有字段都为空的行
-        const validDataRows = jsonData.filter(row => {
-            const values = Object.values(row);
-            return values.some(value => {
-                if (value === undefined || value === null) {
-                    return false;
-                }
-                // 对于字符串类型，使用trim()方法
-                if (typeof value === 'string') {
-                    return value.trim() !== '';
-                }
-                // 对于非字符串类型（如数字0），不应该被视为空
-                return true;
-            });
-        });
+        // 直接使用原始数据（已在parseExcelFile中处理过表头）
+        const validDataRows = [...jsonData];
         
         if (validDataRows.length === 0) {
             statusElement.innerHTML = '<span style="color: red;">导入失败: 没有找到有效数据行</span>';
             return;
         }
         
-        // 获取表头信息，强制要求第一行包含班次代码列
+        // 从第一行数据中获取表头信息
         const headers = Object.keys(validDataRows[0]);
         
-        // 强制将除了特定的员工标识列外的所有列都视为班次代码列
+        // 定义员工标识列，这些列不应作为班次代码列
         const employeeInfoColumns = ['序号', '员工号', '员工姓名', '所属机构', '所属部门', '岗位'];
+        
+        // 识别班次代码列（过滤掉员工标识列）
         const shiftCodeColumns = headers.filter(header => !employeeInfoColumns.includes(header));
         
         // 检查是否存在员工号列（必需）
         if (!headers.some(header => header === '员工号')) {
-            statusElement.innerHTML = '<span style="color: red;">导入失败: 未找到"员工号"列</span>';
+            statusElement.innerHTML = '<span style="color: red;">导入失败: 未找到"员工号"列</span><br>' +
+                                     '<span>请确保您的导入文件包含"员工号"列</span>';
             return;
         }
         
         // 强制要求存在班次代码列
         if (shiftCodeColumns.length === 0) {
-            statusElement.innerHTML = '<span style="color: red;">导入失败: 未找到班次代码列，请确保第一行包含班次代码</span>';
+            statusElement.innerHTML = '<span style="color: red;">导入失败: 未找到班次代码列</span><br>' +
+                                     '<span>根据模板格式，第一行既是班次代码也是表头</span><br>' +
+                                     '<span>请确保您的导入文件中包含除以下列之外的其他列作为班次代码列：</span><br>' +
+                                     '<span>序号、员工号、员工姓名、所属机构、所属部门、岗位</span>';
             return;
         }
         
@@ -1082,6 +1098,10 @@ async function processAndImportData(jsonData, statusElement, fileName) {
         // 处理数据
         const parsedData = [];
         
+        console.log('Excel解析后的数据:', validDataRows);
+        console.log('表头信息:', headers);
+        console.log('识别的班次代码列:', shiftCodeColumns);
+        
         for (const row of validDataRows) {
             processedRows++;
             
@@ -1090,9 +1110,14 @@ async function processAndImportData(jsonData, statusElement, fileName) {
             progressElement.textContent = `处理进度: ${progress}%`;
             
             const employeeNumber = row['员工号'];
-            if (!employeeNumber || 
-                (typeof employeeNumber === 'string' && employeeNumber.trim() === '') ||
-                (typeof employeeNumber !== 'string' && employeeNumber !== 0)) {
+            
+            // 记录当前行的处理情况
+            console.log('处理行数据:', { employeeNumber, rowData: row });
+            
+            // 宽松的员工号验证，只要不是null、undefined或空字符串就接受
+            if (employeeNumber === null || employeeNumber === undefined || 
+                (typeof employeeNumber === 'string' && employeeNumber.trim() === '')) {
+                console.log('跳过行 - 无员工号:', row);
                 skippedRows++;
                 continue; // 跳过没有员工号的行
             }
@@ -1101,6 +1126,8 @@ async function processAndImportData(jsonData, statusElement, fileName) {
             let hasValidData = false;
             for (const shiftCode of shiftCodeColumns) {
                 const canWorkValue = row[shiftCode];
+                // 记录班次列的值
+                console.log('班次列数据:', { shiftCode, canWorkValue });
                 // 如果单元格值为'1'，表示可值班
                 if (canWorkValue === '1' || canWorkValue === 1) {
                     parsedData.push({
@@ -1113,15 +1140,23 @@ async function processAndImportData(jsonData, statusElement, fileName) {
             }
             
             if (!hasValidData) {
+                console.log('跳过行 - 无有效班次数据:', { employeeNumber });
                 skippedRows++;
+            } else {
+                console.log('成功解析行数据:', { employeeNumber, parsedCount: parsedData.length });
             }
         }
+        
+        console.log('解析后的数据量:', parsedData.length);
         
         // 导入前验证数据
         const { validData, validationInfo } = await validateImportData(parsedData);
         importedCount = validationInfo.importedCount;
         invalidRows = validationInfo.invalidRows;
         invalidReasons = validationInfo.invalidReasons;
+        
+        console.log('验证后的数据量:', validData.length);
+        console.log('验证信息:', validationInfo);
         
         // 调用导入方法
         if (validData.length > 0) {
@@ -1173,6 +1208,7 @@ async function processAndImportData(jsonData, statusElement, fileName) {
 // 验证导入数据
 async function validateImportData(data) {
     try {
+        console.log('开始验证导入数据，数据量:', data.length);
         const validData = [];
         const invalidReasons = [];
         let invalidCount = 0;
@@ -1183,6 +1219,9 @@ async function validateImportData(data) {
         if (window.shiftManager) {
             allShifts = await window.shiftManager.getAllShifts();
         }
+        
+        console.log('系统中存在的员工数量:', allEmployees.length);
+        console.log('系统中存在的班次数量:', allShifts.length);
         
         // 创建映射以便快速查找
         const employeeMap = new Map();
@@ -1197,7 +1236,10 @@ async function validateImportData(data) {
             const employee = employeeMap.get(employeeNumber);
             const shift = shiftMap.get(shiftCode);
             
+            console.log('验证数据项:', { employeeNumber, shiftCode, employeeExists: !!employee, shiftExists: !!shift });
+            
             if (!employee) {
+                console.log('验证失败 - 员工不存在:', employeeNumber);
                 invalidReasons.push(`员工号 ${employeeNumber} 不存在`);
                 invalidCount++;
             } else if (!shift) {
