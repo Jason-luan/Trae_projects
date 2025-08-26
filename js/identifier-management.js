@@ -1034,7 +1034,17 @@ async function processAndImportData(jsonData, statusElement, fileName) {
         // 过滤掉所有字段都为空的行
         const validDataRows = jsonData.filter(row => {
             const values = Object.values(row);
-            return values.some(value => value !== undefined && value !== null && value.trim() !== '');
+            return values.some(value => {
+                if (value === undefined || value === null) {
+                    return false;
+                }
+                // 对于字符串类型，使用trim()方法
+                if (typeof value === 'string') {
+                    return value.trim() !== '';
+                }
+                // 对于非字符串类型（如数字0），不应该被视为空
+                return true;
+            });
         });
         
         if (validDataRows.length === 0) {
@@ -1042,14 +1052,22 @@ async function processAndImportData(jsonData, statusElement, fileName) {
             return;
         }
         
-        // 获取表头信息，找出所有班次代码列
+        // 获取表头信息，强制要求第一行包含班次代码列
         const headers = Object.keys(validDataRows[0]);
-        const shiftCodeColumns = headers.filter(header => 
-            !['序号', '员工号', '员工姓名', '所属机构', '所属部门', '岗位'].includes(header)
-        );
         
+        // 强制将除了特定的员工标识列外的所有列都视为班次代码列
+        const employeeInfoColumns = ['序号', '员工号', '员工姓名', '所属机构', '所属部门', '岗位'];
+        const shiftCodeColumns = headers.filter(header => !employeeInfoColumns.includes(header));
+        
+        // 检查是否存在员工号列（必需）
+        if (!headers.some(header => header === '员工号')) {
+            statusElement.innerHTML = '<span style="color: red;">导入失败: 未找到"员工号"列</span>';
+            return;
+        }
+        
+        // 强制要求存在班次代码列
         if (shiftCodeColumns.length === 0) {
-            statusElement.innerHTML = '<span style="color: red;">导入失败: 未找到班次代码列</span>';
+            statusElement.innerHTML = '<span style="color: red;">导入失败: 未找到班次代码列，请确保第一行包含班次代码</span>';
             return;
         }
         
@@ -1072,7 +1090,9 @@ async function processAndImportData(jsonData, statusElement, fileName) {
             progressElement.textContent = `处理进度: ${progress}%`;
             
             const employeeNumber = row['员工号'];
-            if (!employeeNumber || employeeNumber.trim() === '') {
+            if (!employeeNumber || 
+                (typeof employeeNumber === 'string' && employeeNumber.trim() === '') ||
+                (typeof employeeNumber !== 'string' && employeeNumber !== 0)) {
                 skippedRows++;
                 continue; // 跳过没有员工号的行
             }
