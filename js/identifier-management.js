@@ -103,7 +103,7 @@ class IdentifierManager {
             }));
             
             // 批量更新标识数据
-            await window.dbManager.bulkPut('identifiers', updatedIdentifiers);
+            await window.dbManager.bulkSave('identifiers', updatedIdentifiers);
             console.log('所有人的班次已重置为空');
             return true;
         } catch (error) {
