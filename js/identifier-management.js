@@ -79,7 +79,7 @@ class IdentifierManager {
         }
     }
 
-    // 清空所有标识数据
+    // 重置所有人的班次为空（不删除数据，而是将所有canWork设为false）
     async clearAllIdentifiers() {
         try {
             const exists = await window.dbManager.checkObjectStoreExists('identifiers');
@@ -88,12 +88,27 @@ class IdentifierManager {
                 return true;
             }
             
-            await window.dbManager.clearStore('identifiers');
-            console.log('所有标识数据已清空');
+            // 获取所有标识数据
+            const identifiers = await this.getAllIdentifiers();
+            
+            if (identifiers.length === 0) {
+                console.log('没有标识数据需要重置');
+                return true;
+            }
+            
+            // 将所有标识数据的canWork设为false
+            const updatedIdentifiers = identifiers.map(identifier => ({
+                ...identifier,
+                canWork: false
+            }));
+            
+            // 批量更新标识数据
+            await window.dbManager.bulkPut('identifiers', updatedIdentifiers);
+            console.log('所有人的班次已重置为空');
             return true;
         } catch (error) {
-            console.error('清空标识数据失败:', error);
-            throw new Error(error && error.message ? error.message : '清空标识数据失败');
+            console.error('重置班次数据失败:', error);
+            throw new Error(error && error.message ? error.message : '重置班次数据失败');
         }
     }
 
@@ -718,11 +733,11 @@ window.closeImportIdentifierModal = function() {
     document.getElementById('importIdentifierStatus').innerHTML = '';
 };
 
-// 一键清除所有标识数据
+// 重置所有人的班次为空
 window.clearAllIdentifiers = async function() {
     try {
         // 显示确认对话框
-        if (!confirm('警告：此操作将清除标识管理数据库中的所有数据，且无法恢复！\n\n确定要继续吗？')) {
+        if (!confirm('警告：此操作将把所有人的班次设置为空状态！\n\n确定要继续吗？')) {
             return;
         }
         
@@ -731,7 +746,7 @@ window.clearAllIdentifiers = async function() {
             await window.initIdentifierManagement();
         }
         
-        // 清空所有标识数据
+        // 重置所有人的班次为空
         await window.identifierManager.clearAllIdentifiers();
         
         // 重新加载标识数据，刷新界面
@@ -739,18 +754,18 @@ window.clearAllIdentifiers = async function() {
         
         // 显示成功通知
         if (window.showNotification) {
-            window.showNotification('所有标识数据已成功清除', 'success');
+            window.showNotification('所有人的班次已成功重置为空', 'success');
         } else {
-            alert('所有标识数据已成功清除');
+            alert('所有人的班次已成功重置为空');
         }
     } catch (error) {
-        console.error('清除标识数据失败:', error);
+        console.error('重置班次数据失败:', error);
         
         // 显示错误通知
         if (window.showNotification) {
-            window.showNotification('清除标识数据失败: ' + error.message, 'error');
+            window.showNotification('重置班次数据失败: ' + error.message, 'error');
         } else {
-            alert('清除标识数据失败: ' + error.message);
+            alert('重置班次数据失败: ' + error.message);
         }
     }
 };
