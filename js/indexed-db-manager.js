@@ -574,8 +574,12 @@ class IndexedDBManager {
                             updatedAt: new Date(item.updatedAt || new Date())
                         };
                         
-                        // 如果有employeeNumbers字段，使用它来重建employeeIds
+                        // 如果有employeeNumbers字段，同时更新employeeIds字段
                         if (item.employeeNumbers && Array.isArray(item.employeeNumbers) && item.employeeNumbers.length > 0) {
+                            // 保留employeeNumbers字段
+                            processedItem.employeeNumbers = item.employeeNumbers;
+                            
+                            // 同时更新employeeIds字段，以保持兼容性
                             processedItem.employeeIds = item.employeeNumbers.map(number => {
                                 // 尝试将员工号转换为员工ID
                                 const employeeId = employeeNumberToIdMap[number];
@@ -584,10 +588,12 @@ class IndexedDBManager {
                         } else if (!item.employeeIds) {
                             // 如果没有员工ID数组，设置为空数组
                             processedItem.employeeIds = [];
+                            // 同时设置employeeNumbers为空数组
+                            processedItem.employeeNumbers = [];
+                        } else if (!processedItem.employeeNumbers) {
+                            // 如果没有employeeNumbers字段但有employeeIds，为了保持一致性，设置employeeNumbers为空数组
+                            processedItem.employeeNumbers = [];
                         }
-                        
-                        // 删除employeeNumbers字段，避免数据冗余
-                        delete processedItem.employeeNumbers;
                         
                         return processedItem;
                     });

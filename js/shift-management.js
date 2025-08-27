@@ -166,6 +166,47 @@ class ShiftManager {
                 shift.updatedAt = new Date();
                 await dbManager.save('shifts', shift);
                 showNotification('班次状态更新成功');
+                
+                // 添加班次状态变更时联动排班班次的逻辑
+                if (window.shiftOrderManager) {
+                    try {
+                        const shiftCode = shift.code;
+                        // 获取所有包含该班次的排班顺序
+                        const allShiftOrders = await dbManager.getAll('shiftOrders');
+                        const updatePromises = [];
+                        
+                        allShiftOrders.forEach(order => {
+                            // 如果排班顺序包含该班次
+                            if (order.shiftCode === shiftCode) {
+                                // 如果班次被停用，从排班顺序中移除该班次的所有员工
+                                if (status === 1) { // 1表示停用
+                                    order.employeeIds = [];
+                                    order.updatedAt = new Date();
+                                    updatePromises.push(dbManager.save('shiftOrders', order));
+                                    console.log(`已清空${order.position}岗位${order.shiftCode}班次的排班顺序，因为该班次已被停用`);
+                                }
+                                // 如果班次被启用，不需要特殊处理，让用户手动设置
+                            }
+                        });
+                        
+                        if (updatePromises.length > 0) {
+                            await Promise.all(updatePromises);
+                            console.log(`已更新${updatePromises.length}个排班顺序以响应班次状态变更`);
+                        }
+                        
+                        // 触发班次状态变更事件，方便其他模块响应
+                        const event = new CustomEvent('shiftStatusChanged', {
+                            detail: {
+                                shiftId: id,
+                                shiftCode: shift.code,
+                                status: status
+                            }
+                        });
+                        window.dispatchEvent(event);
+                    } catch (error) {
+                        console.error('更新排班顺序以响应班次状态变更失败:', error);
+                    }
+                }
             }
         } catch (error) {
             console.error('更新班次状态失败:', error);
@@ -302,7 +343,6 @@ window.loadShifts = async function() {
 window.showAddShiftModal = function() {
     document.getElementById('shiftModalTitle').textContent = '添加班次';
     document.getElementById('shiftIdInput').value = '';
-    document.getElementById('shiftCodeInput').value = '';
     document.getElementById('shiftNameInput').value = '';
     document.getElementById('shiftStartTimeInput').value = '';
     document.getElementById('shiftEndTimeInput').value = '';
@@ -328,7 +368,6 @@ window.editShift = async function(id) {
         if (shift) {
             document.getElementById('shiftModalTitle').textContent = '编辑班次';
             document.getElementById('shiftIdInput').value = shift.id;
-            document.getElementById('shiftCodeInput').value = shift.code || '';
             document.getElementById('shiftNameInput').value = shift.name || '';
             document.getElementById('shiftStartTimeInput').value = shift.startTime || '';
             document.getElementById('shiftEndTimeInput').value = shift.endTime || '';
@@ -360,15 +399,16 @@ window.saveShift = async function(event) {
         // 获取id值，并确保它是有效的数字或null
         const idValue = document.getElementById('shiftIdInput').value;
         const id = idValue && !isNaN(parseInt(idValue)) ? parseInt(idValue) : null;
-        const code = document.getElementById('shiftCodeInput').value.trim();
+        // 使用班次名称的缩写作为默认代码
         const name = document.getElementById('shiftNameInput').value.trim();
+        const code = id ? (await dbManager.getById('shifts', id))?.code || 'DEFAULT' : 'DEFAULT';
         const startTime = document.getElementById('shiftStartTimeInput').value.trim();
         const endTime = document.getElementById('shiftEndTimeInput').value.trim();
         const description = document.getElementById('shiftDescriptionInput').value.trim();
         const status = document.getElementById('shiftStatusInput').value === 'active' ? 0 : 1;
 
-        if (!code || !name) {
-            showNotification('班次代码和班次名称不能为空', 'warning');
+        if (!name) {
+            showNotification('班次名称不能为空', 'warning');
             return;
         }
 

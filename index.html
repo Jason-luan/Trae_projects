@@ -14,7 +14,7 @@
     <script src="js/shift-management.js"></script>
     <script src="js/identifier-management.js"></script>
     <script src="js/shift-order-management.js"></script>
-    <script src="js/app-init.js?version=1"></script>
+    <script src="js/app-init.js"></script>
     <style>
         :root {
             --primary-dark: #0a1929;
@@ -900,9 +900,7 @@
                                     </select>
                                 </div>
                             </div>
-                            <div style="display: flex; gap: 10px;">
-                                <button id="saveShiftOrderBtn" class="btn btn-primary">保存排班顺序</button>
-                            </div>
+
                         </div>
                     </div>
                     <div class="table-container">
@@ -961,10 +959,7 @@
                 <div class="modal-body">
                     <form id="shiftForm" onsubmit="saveShift(event);">
                         <input type="hidden" id="shiftIdInput">
-                        <div class="form-group">
-                            <label for="shiftCodeInput">班次代码 *</label>
-                            <input type="text" id="shiftCodeInput" required placeholder="请输入班次代码，如G、Y0等">
-                        </div>
+
                         <div class="form-group">
                             <label for="shiftNameInput">班次名称 *</label>
                             <input type="text" id="shiftNameInput" required placeholder="请输入班次名称">

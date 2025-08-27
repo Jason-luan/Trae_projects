@@ -41,7 +41,12 @@ class IdentifierManager {
                 updatedAt: new Date()
             };
             
-            return await window.dbManager.save('identifiers', data);
+            const result = await window.dbManager.save('identifiers', data);
+            
+            // 添加标识联动排班人员列表的逻辑
+            this.notifyShiftOrderManagerAboutIdentifierChange(identifierData.employeeId, identifierData.shiftId, identifierData.canWork);
+            
+            return result;
         } catch (error) {
             console.error('保存标识数据失败:', error);
             // 确保抛出的是字符串类型的错误信息，避免传递undefined或null
@@ -99,16 +104,50 @@ class IdentifierManager {
             // 将所有标识数据的canWork设为false
             const updatedIdentifiers = identifiers.map(identifier => ({
                 ...identifier,
-                canWork: false
+                canWork: false,
+                updatedAt: new Date()
             }));
             
-            // 批量更新标识数据
-            await window.dbManager.bulkSave('identifiers', updatedIdentifiers);
-            console.log('所有人的班次已重置为空');
+            // 批量更新
+            const savePromises = updatedIdentifiers.map(identifier => 
+                window.dbManager.save('identifiers', identifier)
+            );
+            
+            await Promise.all(savePromises);
+            
+            // 添加标识联动排班人员列表的逻辑 - 当所有标识被重置时
+            if (window.shiftOrderManager) {
+                console.log('所有标识已重置，触发排班人员列表更新');
+                // 触发一个全局事件，让shift-order-management.js监听并响应
+                const event = new CustomEvent('allIdentifiersReset', {});
+                window.dispatchEvent(event);
+            }
+            
             return true;
         } catch (error) {
-            console.error('重置班次数据失败:', error);
-            throw new Error(error && error.message ? error.message : '重置班次数据失败');
+            console.error('重置标识数据失败:', error);
+            throw error;
+        }
+    }
+
+    // 新增方法：通知排班管理器关于标识变更
+    notifyShiftOrderManagerAboutIdentifierChange(employeeId, shiftId, isAdded) {
+        if (window.shiftOrderManager) {
+            try {
+                // 触发标识变更事件，包含员工ID、班次ID和是否添加
+                const event = new CustomEvent('identifierChanged', {
+                    detail: {
+                        employeeId: employeeId,
+                        shiftId: shiftId,
+                        isAdded: isAdded
+                    }
+                });
+                window.dispatchEvent(event);
+                
+                console.log(`已通知排班管理器：员工ID ${employeeId} 的标识已变更，班次ID: ${shiftId}，是否添加: ${isAdded}`);
+            } catch (error) {
+                console.error('通知排班管理器关于标识变更失败:', error);
+            }
         }
     }
 
@@ -452,12 +491,43 @@ async function renderIdentifierTable() {
         // 添加样式
         tableHtml += `
         <style>
+            /* 确保父容器有明确的宽度限制，不超过屏幕宽度 */
+            #identifiers-tab .card {
+                overflow: hidden;
+                position: relative;
+                max-width: 100%; /* 确保卡片不超过屏幕宽度 */
+                box-sizing: border-box;
+            }
+            
+            #identifiers-tab .card-body {
+                padding: 0 !important;
+                max-width: 100%; /* 确保卡片内容区不超过屏幕宽度 */
+                box-sizing: border-box;
+            }
+            
             .table-scroll-wrapper {
                 width: 100%;
-                height: 500px; /* 设置固定高度 */
-                overflow: auto; /* 启用滚动条 */
+                max-width: 100%; /* 确保表格容器不超过屏幕宽度 */
+                height: 500px; /* 设置固定高度，确保表格大小不变 */
+                overflow: hidden; /* 初始隐藏溢出 */
                 border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 4px;
+                /* 确保表格在主界面以内 */
+                box-sizing: border-box;
+                /* 确保容器定位正确 */
+                position: relative;
+                display: block;
+            }
+            
+            /* 强制显示水平滚动条并控制溢出 */
+            .table-scroll-wrapper {
+                overflow-x: scroll !important;
+                overflow-y: scroll !important;
+                -ms-overflow-style: scrollbar;
+                scrollbar-width: auto;
+                /* 确保滚动容器在父容器内正常工作 */
+                display: block;
+                position: relative;
             }
             
             /* 自定义滚动条样式 */
@@ -481,14 +551,11 @@ async function renderIdentifierTable() {
             }
             
             .scrollable-table {
-                width: 100%;
                 border-collapse: collapse;
-                table-layout: auto;
-            }
-            
-            /* 确保表格宽度足够显示所有列，从而触发水平滚动条 */
-            .table-scroll-wrapper {
-                overflow-x: auto !important;
+                table-layout: fixed; /* 保持固定布局 */
+                width: fixed; 
+                min-width: 100%; /* 至少占满容器宽度 */
+                margin: 0; /* 移除可能导致溢出的边距 */
             }
             
             .scrollable-table thead {
@@ -498,13 +565,25 @@ async function renderIdentifierTable() {
                 z-index: 10;
             }
             
+            /* 全局单元格样式 */
             .scrollable-table th,
             .scrollable-table td {
-                padding: 8px;
+                padding: 8px 12px;
                 text-align: center;
                 border: 1px solid rgba(255, 255, 255, 0.1);
-                min-width: 80px;
+                min-width: 100px; /* 增加最小宽度，防止过度压缩 */
                 background-color: var(--card-bg);
+                white-space: nowrap;
+                box-sizing: border-box;
+            }
+
+            /* 非固定列单元格 - 显示全部内容 */
+            .scrollable-table th:not(.fixed-column),
+            .scrollable-table td:not(.fixed-column) {
+                overflow: visible;
+                min-width: 120px; /* 非固定列设置更大的最小宽度 */
+                position: relative;
+                z-index: 1;
             }
             
             .scrollable-table thead th {
@@ -512,21 +591,41 @@ async function renderIdentifierTable() {
                 border-bottom: 2px solid rgba(255, 255, 255, 0.2);
             }
             
+            /* 固定列样式 - 确保不与非固定列重叠 */
             .fixed-column {
                 position: sticky;
                 left: 0;
                 background-color: var(--card-bg);
                 z-index: 5;
                 border-right: 2px solid rgba(255, 255, 255, 0.1);
+                box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+                /* 固定列内容限制 */
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
             
-            /* 固定列的层级关系 */
-            .fixed-column:nth-child(1) { left: 0; z-index: 10; }
-            .fixed-column:nth-child(2) { left: 40px; z-index: 9; width: 120px; }
-            .fixed-column:nth-child(3) { left: 160px; z-index: 8; }
-            .fixed-column:nth-child(4) { left: 240px; z-index: 7; }
-            .fixed-column:nth-child(5) { left: 320px; z-index: 6; }
-            .fixed-column:nth-child(6) { left: 400px; z-index: 5; }
+            /* 固定列的层级关系和精确宽度 */
+            .fixed-column:nth-child(1) { left: 0; z-index: 10; min-width: 40px; width: 40px; }
+            .fixed-column:nth-child(2) { left: 40px; z-index: 9; min-width: 120px; width: 120px; }
+            .fixed-column:nth-child(3) { left: 160px; z-index: 8; min-width: 80px; width: 80px; }
+            .fixed-column:nth-child(4) { left: 240px; z-index: 7; min-width: 100px; width: 100px; }
+            .fixed-column:nth-child(5) { left: 340px; z-index: 6; min-width: 100px; width: 100px; }
+            .fixed-column:nth-child(6) { left: 440px; z-index: 5; min-width: 80px; width: 80px; }
+            
+            /* 修复第一个非固定列的左边距 */
+            .scrollable-table th:nth-child(7),
+            .scrollable-table td:nth-child(7) {
+                padding-left: 15px;
+            }
+            
+            /* 表格容器样式优化 */
+            .table-scroll-wrapper {
+                position: relative;
+                overflow-x: auto !important;
+                overflow-y: auto !important;
+                display: block;
+                contain: content;
+            }
             
             .identifier-cell {
                 padding: 4px;
@@ -1069,8 +1168,7 @@ async function parseExcelFile(file, statusElement) {
         });
     } catch (error) {
         console.error('使用XLSX库导入失败:', error);
-        // 降级到模拟导入，并传递文件名
-        await simulateImport(file, statusElement);
+        statusElement.innerHTML = '<span style="color: red;">导入失败: 无法处理Excel文件</span>';
     }
 }
 
@@ -1399,24 +1497,3 @@ async function validateImportData(data) {
         };
     }
 }
-
-// 模拟导入数据
-async function simulateImport(file, statusElement) {
-    try {
-        // 模拟处理时间
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // 模拟成功导入
-        const importedCount = Math.floor(Math.random() * 10) + 1;
-        statusElement.innerHTML = `<span style="color: green;">成功导入${importedCount}条标识数据</span>`;
-        
-        // 重新加载数据
-        setTimeout(() => {
-            loadIdentifierData();
-            closeImportIdentifierModal();
-        }, 1000);
-    } catch (error) {
-        console.error('模拟导入失败:', error);
-        statusElement.innerHTML = `<span style="color: red;">导入失败: 模拟导入时出错</span>`;
-    }
-};

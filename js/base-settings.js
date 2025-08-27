@@ -689,15 +689,22 @@ async function deleteEmployee(employeeNumber) {
         // 步骤4: 删除员工数据
         await window.dbManager.delete('employees', employee.id);
         
-        // 当员工被删除时，更新排班顺序
+        // 当员工被删除时，更新排班顺序（使用await等待异步操作完成）
         if (window.shiftOrderManager) {
-            window.shiftOrderManager.updateShiftOrderWhenEmployeeDeleted(employee.id);
+            await window.shiftOrderManager.updateShiftOrderWhenEmployeeDeleted(employee.id);
         }
         
         // 显示成功通知并刷新列表
         showNotification('员工 ' + employee.name + ' 删除成功');
         loadEmployees();
         loadOrganizations(false); // 更新部门人数
+        
+        // 直接刷新排班表数据，确保排班表显示最新状态
+        if (window.loadShiftOrderData) {
+            window.loadShiftOrderData();
+        } else if (window.loadAllShiftOrders) {
+            window.loadAllShiftOrders();
+        }
         
     } catch (error) {
         console.error('删除员工过程中发生错误:', error);
