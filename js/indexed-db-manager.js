@@ -2,7 +2,7 @@
 class IndexedDBManager {
     constructor() {
         this.dbName = 'scheduleSystemDB';
-        this.dbVersion = 6; // 增加版本号以强制升级并创建identifiers存储空间
+        this.dbVersion = 7; // 增加版本号以强制升级并创建shiftOrders存储空间
         this.db = null;
         this.initialized = false;
         this.initPromise = this.initDB();
@@ -130,6 +130,22 @@ class IndexedDBManager {
                     identifierStore.createIndex('createdAt', 'createdAt', { unique: false });
                     identifierStore.createIndex('updatedAt', 'updatedAt', { unique: false });
                     console.log('标识数据存储空间和索引已创建');
+                }
+                
+                // 创建排班顺序数据对象存储空间
+                if (!db.objectStoreNames.contains('shiftOrders')) {
+                    const shiftOrderStore = db.createObjectStore('shiftOrders', { 
+                        keyPath: 'id',
+                        autoIncrement: true 
+                    });
+                    // 创建索引
+                    shiftOrderStore.createIndex('position', 'position', { unique: false });
+                    shiftOrderStore.createIndex('shiftCode', 'shiftCode', { unique: false });
+                    shiftOrderStore.createIndex('employeeIds', 'employeeIds', { unique: false, multiEntry: true });
+                    shiftOrderStore.createIndex('date', 'date', { unique: false });
+                    shiftOrderStore.createIndex('createdAt', 'createdAt', { unique: false });
+                    shiftOrderStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                    console.log('排班顺序数据存储空间和索引已创建');
                 }
             };
 
@@ -357,8 +373,13 @@ class IndexedDBManager {
         const db = await this.ensureInitialized();
         const exportData = {};
 
-        // 只导出指定的存储空间数据，包含班次数据和标识数据
-        const storesToExport = ['organizations', 'employees', 'shifts', 'identifiers'];
+        // 只导出指定的存储空间数据，包含班次数据、标识数据和排班顺序数据
+        const storesToExport = ['organizations', 'employees', 'shifts', 'identifiers', 'shiftOrders'];
+
+        // 初始化所有需要导出的存储为默认空数组
+        for (const storeName of storesToExport) {
+            exportData[storeName] = [];
+        }
 
         // 遍历需要导出的存储空间并获取数据
         for (const storeName of storesToExport) {
@@ -396,6 +417,28 @@ class IndexedDBManager {
                         // 删除原始ID字段，避免在导入时产生冲突
                         employeeId: undefined,
                         shiftId: undefined
+                    }));
+                } else if (storeName === 'shiftOrders') {
+                    // 导出排班顺序数据时，将员工ID转换为员工号
+                    const shiftOrders = await this.getAll(storeName);
+                    const employees = await this.getAll('employees');
+                    
+                    // 创建员工ID到员工号的映射
+                    const employeeIdToNumberMap = {};
+                    employees.forEach(emp => {
+                        employeeIdToNumberMap[emp.id] = emp.number;
+                    });
+                    
+                    // 转换排班顺序数据，将员工ID数组转换为员工号数组
+                    exportData[storeName] = shiftOrders.map(order => ({
+                        ...order,
+                        // 将员工ID数组转换为员工号数组
+                        employeeNumbers: order.employeeIds && Array.isArray(order.employeeIds) 
+                            ? order.employeeIds.map(id => employeeIdToNumberMap[id] || id.toString())
+                            : [],
+                        // 保留原始employeeIds字段以便导入时使用
+                        // 删除id字段，避免在导入时产生冲突
+                        id: undefined
                     }));
                 } else {
                     exportData[storeName] = await this.getAll(storeName);
@@ -509,6 +552,42 @@ class IndexedDBManager {
                         // 删除员工号和班次code字段，避免数据冗余
                         delete processedItem.employeeNumber;
                         delete processedItem.shiftCode;
+                        
+                        return processedItem;
+                    });
+                } else if (storeName === 'shiftOrders') {
+                    // 处理排班顺序数据，转换日期字段，并将employeeNumbers转换为对应的ID
+                    const employees = await this.getAll('employees');
+                    
+                    // 创建员工号到员工ID的映射
+                    const employeeNumberToIdMap = {};
+                    employees.forEach(emp => {
+                        if (emp.number) {
+                            employeeNumberToIdMap[emp.number] = emp.id;
+                        }
+                    });
+                    
+                    processedData = processedData.map(item => {
+                        let processedItem = {
+                            ...item,
+                            createdAt: new Date(item.createdAt || new Date()),
+                            updatedAt: new Date(item.updatedAt || new Date())
+                        };
+                        
+                        // 如果有employeeNumbers字段，使用它来重建employeeIds
+                        if (item.employeeNumbers && Array.isArray(item.employeeNumbers) && item.employeeNumbers.length > 0) {
+                            processedItem.employeeIds = item.employeeNumbers.map(number => {
+                                // 尝试将员工号转换为员工ID
+                                const employeeId = employeeNumberToIdMap[number];
+                                return employeeId || number; // 如果找不到对应的员工ID，保留原始值
+                            });
+                        } else if (!item.employeeIds) {
+                            // 如果没有员工ID数组，设置为空数组
+                            processedItem.employeeIds = [];
+                        }
+                        
+                        // 删除employeeNumbers字段，避免数据冗余
+                        delete processedItem.employeeNumbers;
                         
                         return processedItem;
                     });

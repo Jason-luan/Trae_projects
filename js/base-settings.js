@@ -689,6 +689,11 @@ async function deleteEmployee(employeeNumber) {
         // 步骤4: 删除员工数据
         await window.dbManager.delete('employees', employee.id);
         
+        // 当员工被删除时，更新排班顺序
+        if (window.shiftOrderManager) {
+            window.shiftOrderManager.updateShiftOrderWhenEmployeeDeleted(employee.id);
+        }
+        
         // 显示成功通知并刷新列表
         showNotification('员工 ' + employee.name + ' 删除成功');
         loadEmployees();
@@ -1384,6 +1389,17 @@ window.initBaseSettings = function() {
             // 延迟一小段时间确保数据完全保存
             setTimeout(() => {
                 loadEmployees();
+                
+                // 如果是新增员工，更新排班顺序
+                if (!id && window.shiftOrderManager) {
+                    const newEmployee = {
+                        id: null, // ID会在save后自动生成，这里先用null
+                        number: number,
+                        name: name,
+                        position: position
+                    };
+                    window.shiftOrderManager.updateShiftOrderWhenEmployeeAdded(newEmployee);
+                }
             }, 300);
         } catch (error) {
             showNotification('保存员工失败: ' + error.message, 'error');

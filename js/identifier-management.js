@@ -148,11 +148,20 @@ class IdentifierManager {
                 const key = `${identifier.employeeId}-${identifier.shiftId}`;
                 const existingId = existingKeyMap.get(key);
                 
-                return {
-                    ...identifier,
-                    id: existingId, // 如果已存在，使用现有的ID
-                    updatedAt: new Date()
-                };
+                // 如果有现有ID，使用它；否则不设置id字段，让IndexedDB自动生成
+                if (existingId) {
+                    return {
+                        ...identifier,
+                        id: existingId,
+                        updatedAt: new Date()
+                    };
+                } else {
+                    // 不包含id字段，让IndexedDB自动生成
+                    return {
+                        ...identifier,
+                        updatedAt: new Date()
+                    };
+                }
             });
             
             return await window.dbManager.bulkSave('identifiers', dataToSave);
@@ -167,6 +176,11 @@ class IdentifierManager {
     async importIdentifiersFromExcel(data) {
         try {
             console.log('开始导入标识数据，数据量:', data.length);
+            // 在导入数据前先清空原有标识数据
+            console.log('清空原有标识数据...');
+            await window.dbManager.clearStore('identifiers');
+            console.log('原有标识数据已清空');
+            
             // 这里需要根据Excel数据格式进行处理
             // 假设data是解析后的员工-班次关系数组
             const identifiers = [];
@@ -364,20 +378,18 @@ async function renderIdentifierTable() {
             return;
         }
         
-        // 创建表格HTML
-        let tableHtml = '';
-        
-        // 创建表格
-        tableHtml += `
-        <table id="identifier-table" class="scrollable-table">
-            <thead>
-                <tr>
-                    <th class="fixed-column">序号</th>
-                    <th class="fixed-column" style="width: 120px;">员工号</th>
-                    <th class="fixed-column">姓名</th>
-                    <th class="fixed-column">所属机构</th>
-                    <th class="fixed-column">所属部门</th>
-                    <th class="fixed-column">岗位</th>`;
+        // 创建表格HTML - 先创建一个带滚动的外层容器
+        let tableHtml = `
+        <div class="table-scroll-wrapper">
+            <table id="identifier-table" class="scrollable-table">
+                <thead>
+                    <tr>
+                        <th class="fixed-column">序号</th>
+                        <th class="fixed-column" style="width: 120px;">员工号</th>
+                        <th class="fixed-column">姓名</th>
+                        <th class="fixed-column">所属机构</th>
+                        <th class="fixed-column">所属部门</th>
+                        <th class="fixed-column">岗位</th>`;
         
         // 添加班次列（只显示代码，不显示名称）
             allActiveShifts.forEach((shift, index) => {
@@ -434,15 +446,49 @@ async function renderIdentifierTable() {
             tableHtml += `</tr>`;
         });
         
-        tableHtml += `</tbody></table>`;
+        tableHtml += `</tbody></table>
+        </div>`;
         
         // 添加样式
         tableHtml += `
         <style>
+            .table-scroll-wrapper {
+                width: 100%;
+                height: 500px; /* 设置固定高度 */
+                overflow: auto; /* 启用滚动条 */
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 4px;
+            }
+            
+            /* 自定义滚动条样式 */
+            .table-scroll-wrapper::-webkit-scrollbar {
+                width: 8px;
+                height: 8px;
+            }
+            
+            .table-scroll-wrapper::-webkit-scrollbar-track {
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 4px;
+            }
+            
+            .table-scroll-wrapper::-webkit-scrollbar-thumb {
+                background: rgba(255, 255, 255, 0.3);
+                border-radius: 4px;
+            }
+            
+            .table-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+                background: rgba(255, 255, 255, 0.5);
+            }
+            
             .scrollable-table {
                 width: 100%;
                 border-collapse: collapse;
-                table-layout: fixed;
+                table-layout: auto;
+            }
+            
+            /* 确保表格宽度足够显示所有列，从而触发水平滚动条 */
+            .table-scroll-wrapper {
+                overflow-x: auto !important;
             }
             
             .scrollable-table thead {
@@ -459,6 +505,11 @@ async function renderIdentifierTable() {
                 border: 1px solid rgba(255, 255, 255, 0.1);
                 min-width: 80px;
                 background-color: var(--card-bg);
+            }
+            
+            .scrollable-table thead th {
+                background-color: var(--card-bg);
+                border-bottom: 2px solid rgba(255, 255, 255, 0.2);
             }
             
             .fixed-column {
@@ -681,6 +732,8 @@ function addIdentifierEvents() {
         });
     }
     
+    // 清空按钮事件已在app-init.js中添加，此处不再重复添加
+    
     // 关闭模态框按钮
     const closeBtns = document.querySelectorAll('#importIdentifierModal .modal-close');
     closeBtns.forEach(button => {
@@ -894,7 +947,6 @@ window.downloadIdentifierTemplate = async function() {
 };
 
 // 导入标识数据
-// 导入标识数据
 window.importIdentifierData = async function() {
     try {
         // 确保identifierManager已初始化
@@ -944,7 +996,7 @@ window.importIdentifierData = async function() {
         const errorMessage = error && error.message ? error.message : '未知错误';
         statusElement.innerHTML = `<span style="color: red;">导入失败: ${errorMessage}</span>`;
     }
-};
+}
 
 // 解析Excel文件
 async function parseExcelFile(file, statusElement) {
@@ -1016,10 +1068,10 @@ async function parseExcelFile(file, statusElement) {
             reader.readAsArrayBuffer(file);
         });
     } catch (error) {
-            console.error('使用XLSX库导入失败:', error);
-            // 降级到模拟导入，并传递文件名
-            await simulateImport(file, statusElement);
-        }
+        console.error('使用XLSX库导入失败:', error);
+        // 降级到模拟导入，并传递文件名
+        await simulateImport(file, statusElement);
+    }
 }
 
 // 解析CSV文件

@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能排班系统</title>
-    <link rel="stylesheet" href="css/all.min.css">
+    <!-- 使用Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/institution-styles.css">
     <script src="js/xlsx.full.min.js"></script>
     <script src="js/indexed-db-manager.js"></script>
@@ -12,6 +13,7 @@
     <script src="js/search-functions.js"></script>
     <script src="js/shift-management.js"></script>
     <script src="js/identifier-management.js"></script>
+    <script src="js/shift-order-management.js"></script>
     <script src="js/app-init.js?version=1"></script>
     <style>
         :root {
@@ -650,6 +652,7 @@
                 <div class="tab" data-tab="employees">人员管理</div>
                 <div class="tab" data-tab="shifts">班次管理</div>
                 <div class="tab" data-tab="identifiers">标识管理</div>
+                <div class="tab" data-tab="shiftOrders">排班顺序管理</div>
             </div>
 
             <!-- 机构部门管理 -->
@@ -850,8 +853,103 @@
                 </div>
             </div>
 
+            <!-- 排班顺序管理 -->
+            <div class="tab-content" id="shiftOrders-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <div>
+                                <h3>排班顺序管理</h3>
+                                <p style="font-size: 14px; margin-top: 5px;">设置各岗位人员的排班顺序，新加入人员将自动排在各岗位最后</p>
+                                <div class="form-group" style="margin-bottom: 0; margin-top: 10px; display: flex; gap: 10px; align-items: center;">
+                                    <select id="shiftOrderDeptFilter" placeholder="请选择部门" style="
+                                        padding: 6px 12px;
+                                        border: 1px solid rgba(255, 255, 255, 0.2);
+                                        border-radius: 4px;
+                                        background: var(--card-bg);
+                                        color: var(--text-primary);
+                                        outline: none;
+                                        transition: border-color 0.3s;
+                                        width: 200px;
+                                        height: 44px;
+                                        font-size: 14px;
+                                        font-family: inherit;
+                                        box-sizing: border-box;
+                                        appearance: none;
+                                        cursor: pointer;
+                                    ">
+                                        <option value="">全部部门</option>
+                                    </select>
+                                    <select id="shiftOrderPositionFilter" placeholder="请选择岗位" style="
+                                        padding: 6px 12px;
+                                        border: 1px solid rgba(255, 255, 255, 0.2);
+                                        border-radius: 4px;
+                                        background: var(--card-bg);
+                                        color: var(--text-primary);
+                                        outline: none;
+                                        transition: border-color 0.3s;
+                                        width: 200px;
+                                        height: 44px;
+                                        font-size: 14px;
+                                        font-family: inherit;
+                                        box-sizing: border-box;
+                                        appearance: none;
+                                        cursor: pointer;
+                                    ">
+                                        <option value="">全部岗位</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button id="saveShiftOrderBtn" class="btn btn-primary">保存排班顺序</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="shift-order-table">
+                            <tbody id="shift-order-table-body">
+                                <!-- 动态生成排班顺序表格 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
+
+        <!-- 排班顺序编辑模态框 -->
+        <div id="shiftOrderEditModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="shiftOrderModalTitle">编辑排班顺序</h3>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="shiftOrderPositionInput">
+                    <div class="form-group" id="shiftOrderShiftCodeGroup" style="display: none;">
+                        <label for="shiftOrderShiftCodeInput">班次代码</label>
+                        <input type="text" id="shiftOrderShiftCodeInput" readonly placeholder="班次代码">
+                    </div>
+                    <div class="form-group">
+                        <label>员工列表（可拖拽排序）</label>
+                        <div id="shiftOrderEmployeeList" style="
+                            max-height: 400px;
+                            overflow-y: auto;
+                            border: 1px solid rgba(255, 255, 255, 0.2);
+                            border-radius: 4px;
+                            padding: 10px;
+                        ">
+                            <!-- 动态生成可拖拽的员工列表 -->
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary">取消</button>
+                        <button type="button" class="btn btn-primary">保存</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- 班次管理模态框 -->
         <div id="shiftModal" class="modal" style="display: none;">
@@ -974,6 +1072,53 @@
             .pagination-btn.disabled {
                 opacity: 0.5;
                 cursor: not-allowed;
+            }
+            
+            /* 排班顺序员工拖拽项样式 */
+            .shift-order-employee-item {
+                display: flex;
+                align-items: center;
+                padding: 10px 15px;
+                margin-bottom: 8px;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 4px;
+                cursor: move;
+                transition: all 0.3s ease;
+            }
+            
+            .shift-order-employee-item:hover {
+                background: rgba(255, 255, 255, 0.1);
+                border-color: var(--accent);
+            }
+            
+            .shift-order-employee-item.dragging {
+                opacity: 0.5;
+                background: var(--accent);
+                border-color: var(--accent);
+            }
+            
+            .shift-order-employee-item.drag-over {
+                border-top: 2px solid var(--accent);
+            }
+            
+            .shift-order-employee-item:last-child {
+                margin-bottom: 0;
+            }
+            
+            .shift-order-employee-item .employee-info {
+                display: flex;
+                flex-direction: column;
+            }
+            
+            .shift-order-employee-item .employee-name {
+                font-weight: 500;
+                color: var(--text-primary);
+            }
+            
+            .shift-order-employee-item .employee-detail {
+                font-size: 12px;
+                color: var(--text-secondary);
             }
             </style>
 

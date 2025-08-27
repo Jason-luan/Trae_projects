@@ -194,6 +194,57 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('标识管理岗位筛选功能已初始化');
             }
             
+            // 初始化排班顺序管理部门筛选功能
+            const shiftOrderDeptFilter = document.getElementById('shiftOrderDeptFilter');
+            if (shiftOrderDeptFilter) {
+                shiftOrderDeptFilter.addEventListener('change', async function() {
+                    // 清空岗位筛选
+                    const shiftOrderPositionFilter = document.getElementById('shiftOrderPositionFilter');
+                    if (shiftOrderPositionFilter) {
+                        shiftOrderPositionFilter.innerHTML = '<option value="">全部岗位</option>';
+                    }
+                    
+                    // 如果选择了特定部门，加载该部门的岗位
+                    const selectedDept = this.value;
+                    if (selectedDept) {
+                        await loadPositionsForDepartment(selectedDept);
+                    }
+                    
+                    // 重新加载排班顺序数据以应用筛选
+                    if (window.loadShiftOrderData) {
+                        window.loadShiftOrderData();
+                    }
+                });
+                console.log('排班顺序管理部门筛选功能已初始化');
+            }
+            
+            // 初始化排班顺序管理岗位筛选功能
+            const shiftOrderPositionFilter = document.getElementById('shiftOrderPositionFilter');
+            if (shiftOrderPositionFilter) {
+                shiftOrderPositionFilter.addEventListener('change', function() {
+                    // 重新加载排班顺序数据以应用筛选
+                    if (window.loadShiftOrderData) {
+                        window.loadShiftOrderData();
+                    }
+                });
+                console.log('排班顺序管理岗位筛选功能已初始化');
+            }
+            
+            // 初始化排班顺序管理功能
+            if (window.initShiftOrderManagement) {
+                // 延迟初始化排班顺序管理功能，确保其他功能已加载完成
+                setTimeout(async function() {
+                    try {
+                        window.initShiftOrderManagement();
+                        console.log('排班顺序管理功能初始化完成');
+                    } catch (error) {
+                        console.error('排班顺序管理功能初始化失败:', error);
+                    }
+                }, 2000);
+            } else {
+                console.error('排班顺序管理功能初始化函数未定义');
+            }
+            
             // 加载所有部门到部门筛选下拉框
             loadDepartmentsForFilter();
         })
@@ -208,11 +259,21 @@ document.addEventListener('DOMContentLoaded', () => {
 // 加载所有部门到部门筛选下拉框
 async function loadDepartmentsForFilter() {
     try {
+        // 加载标识管理的部门筛选
         const identifierDeptFilter = document.getElementById('identifierDeptFilter');
-        if (!identifierDeptFilter) return;
+        // 加载排班顺序管理的部门筛选
+        const shiftOrderDeptFilter = document.getElementById('shiftOrderDeptFilter');
+        
+        // 如果两个筛选框都不存在，则返回
+        if (!identifierDeptFilter && !shiftOrderDeptFilter) return;
         
         // 清空现有选项，保留默认选项
-        identifierDeptFilter.innerHTML = '<option value="">全部部门</option>';
+        if (identifierDeptFilter) {
+            identifierDeptFilter.innerHTML = '<option value="">全部部门</option>';
+        }
+        if (shiftOrderDeptFilter) {
+            shiftOrderDeptFilter.innerHTML = '<option value="">全部部门</option>';
+        }
         
         // 获取所有员工数据
         const employees = await window.dbManager.getAll('employees');
@@ -225,12 +286,20 @@ async function loadDepartmentsForFilter() {
             }
         });
         
-        // 添加部门选项
+        // 添加部门选项到两个筛选框
         Array.from(departments).sort().forEach(deptName => {
-            const option = document.createElement('option');
-            option.value = deptName;
-            option.textContent = deptName;
-            identifierDeptFilter.appendChild(option);
+            if (identifierDeptFilter) {
+                const option1 = document.createElement('option');
+                option1.value = deptName;
+                option1.textContent = deptName;
+                identifierDeptFilter.appendChild(option1);
+            }
+            if (shiftOrderDeptFilter) {
+                const option2 = document.createElement('option');
+                option2.value = deptName;
+                option2.textContent = deptName;
+                shiftOrderDeptFilter.appendChild(option2);
+            }
         });
     } catch (error) {
         console.error('加载部门列表失败:', error);
@@ -240,8 +309,12 @@ async function loadDepartmentsForFilter() {
 // 根据部门加载岗位列表
 async function loadPositionsForDepartment(deptName) {
     try {
+        // 获取标识管理和排班顺序管理的岗位筛选框
         const identifierPositionFilter = document.getElementById('identifierPositionFilter');
-        if (!identifierPositionFilter) return;
+        const shiftOrderPositionFilter = document.getElementById('shiftOrderPositionFilter');
+        
+        // 如果两个筛选框都不存在，则返回
+        if (!identifierPositionFilter && !shiftOrderPositionFilter) return;
         
         // 获取该部门的所有员工
         const employees = await window.dbManager.getAll('employees');
@@ -255,12 +328,20 @@ async function loadPositionsForDepartment(deptName) {
             }
         });
         
-        // 添加岗位选项
+        // 添加岗位选项到两个筛选框
         Array.from(positions).sort().forEach(position => {
-            const option = document.createElement('option');
-            option.value = position;
-            option.textContent = position;
-            identifierPositionFilter.appendChild(option);
+            if (identifierPositionFilter) {
+                const option1 = document.createElement('option');
+                option1.value = position;
+                option1.textContent = position;
+                identifierPositionFilter.appendChild(option1);
+            }
+            if (shiftOrderPositionFilter) {
+                const option2 = document.createElement('option');
+                option2.value = position;
+                option2.textContent = position;
+                shiftOrderPositionFilter.appendChild(option2);
+            }
         });
     } catch (error) {
         console.error('加载岗位列表失败:', error);

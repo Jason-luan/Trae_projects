@@ -34,6 +34,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         // 初始化标识管理
         initIdentifierManagement();
         
+        // 初始化排班顺序管理
+        initShiftOrderManagement();
+        
         // 设置员工号筛选器
         document.getElementById('employeeId-filter').addEventListener('input', filterEmployees);
         
