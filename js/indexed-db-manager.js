@@ -125,11 +125,34 @@ class IndexedDBManager {
                     });
                     // 创建索引
                     identifierStore.createIndex('employeeId', 'employeeId', { unique: false });
+                    identifierStore.createIndex('employeeNumber', 'employeeNumber', { unique: false });
                     identifierStore.createIndex('shiftId', 'shiftId', { unique: false });
+                    identifierStore.createIndex('shiftCode', 'shiftCode', { unique: false });
                     identifierStore.createIndex('employeeId_shiftId', ['employeeId', 'shiftId'], { unique: true });
+                    identifierStore.createIndex('employeeNumber_shiftCode', ['employeeNumber', 'shiftCode'], { unique: true });
                     identifierStore.createIndex('createdAt', 'createdAt', { unique: false });
                     identifierStore.createIndex('updatedAt', 'updatedAt', { unique: false });
                     console.log('标识数据存储空间和索引已创建');
+                } else {
+                    // 如果存储空间已存在，确保employeeNumber和shiftCode索引存在
+                    const transaction = event.target.transaction;
+                    const identifierStore = transaction.objectStore('identifiers');
+                    
+                    if (!identifierStore.indexNames.contains('employeeNumber')) {
+                        console.log('创建employeeNumber索引...');
+                        identifierStore.createIndex('employeeNumber', 'employeeNumber', { unique: false });
+                        console.log('employeeNumber索引创建成功成功');
+                    }
+                    if (!identifierStore.indexNames.contains('shiftCode')) {
+                        console.log('创建shiftCode索引...');
+                        identifierStore.createIndex('shiftCode', 'shiftCode', { unique: false });
+                        console.log('shiftCode索引创建成功');
+                    }
+                    if (!identifierStore.indexNames.contains('employeeNumber_shiftCode')) {
+                        console.log('创建employeeNumber_shiftCode复合索引...');
+                        identifierStore.createIndex('employeeNumber_shiftCode', ['employeeNumber', 'shiftCode'], { unique: true });
+                        console.log('employeeNumber_shiftCode复合索引创建成功');
+                    }
                 }
                 
                 // 创建排班顺序数据对象存储空间
@@ -219,7 +242,17 @@ class IndexedDBManager {
             return new Promise((resolve, reject) => {
                 request.onsuccess = () => {
                     console.log(`数据保存成功到${storeName}:`, data);
-                    resolve(request.result);
+                    
+                    // 如果数据没有id字段（新创建的记录），则添加id字段
+                    if (store.keyPath && !data[store.keyPath]) {
+                        const savedData = { ...data };
+                        savedData[store.keyPath] = request.result;
+                        console.log(`返回包含ID的完整数据:`, savedData);
+                        resolve(savedData);
+                    } else {
+                        // 对于已存在ID的记录，直接返回原数据
+                        resolve(data);
+                    }
                 };
 
                 request.onerror = (event) => {
@@ -429,14 +462,17 @@ class IndexedDBManager {
                         employeeIdToNumberMap[emp.id] = emp.number;
                     });
                     
-                    // 转换排班顺序数据，将员工ID数组转换为员工号数组
+                    // 转换排班顺序数据，使用employeeNumbers字段，不保留employeeIds
                     exportData[storeName] = shiftOrders.map(order => ({
                         ...order,
-                        // 将员工ID数组转换为员工号数组
-                        employeeNumbers: order.employeeIds && Array.isArray(order.employeeIds) 
-                            ? order.employeeIds.map(id => employeeIdToNumberMap[id] || id.toString())
-                            : [],
-                        // 保留原始employeeIds字段以便导入时使用
+                        // 优先使用employeeNumbers字段
+                        employeeNumbers: order.employeeNumbers && Array.isArray(order.employeeNumbers) && order.employeeNumbers.length > 0 
+                            ? order.employeeNumbers
+                            : (order.employeeIds && Array.isArray(order.employeeIds) 
+                                ? order.employeeIds.map(id => employeeIdToNumberMap[id] || id.toString())
+                                : []),
+                        // 删除employeeIds字段，避免导出重复数据
+                        employeeIds: undefined,
                         // 删除id字段，避免在导入时产生冲突
                         id: undefined
                     }));

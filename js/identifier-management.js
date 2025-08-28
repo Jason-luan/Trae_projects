@@ -36,10 +36,48 @@ class IdentifierManager {
                 throw new Error('标识存储空间不存在');
             }
             
-            const data = {
-                ...identifierData,
-                updatedAt: new Date()
-            };
+            let data = { ...identifierData };
+            
+            // 如果提供了员工号但没有员工ID，查找对应的员工
+            if (data.employeeNumber && !data.employeeId) {
+                const employee = await this.findEmployeeByNumber(data.employeeNumber);
+                if (employee) {
+                    data.employeeId = employee.id;
+                } else {
+                    console.error('根据员工号找不到对应的员工:', data.employeeNumber);
+                    throw new Error('根据员工号找不到对应的员工');
+                }
+            }
+            
+            // 如果提供了班次代码但没有班次ID，查找对应的班次
+            if (data.shiftCode && !data.shiftId) {
+                const shift = await this.findShiftByCode(data.shiftCode);
+                if (shift) {
+                    data.shiftId = shift.id;
+                } else {
+                    console.error('根据班次代码找不到对应的班次:', data.shiftCode);
+                    throw new Error('根据班次代码找不到对应的班次');
+                }
+            }
+            
+            // 如果提供了员工ID但没有员工号，查找员工号
+            if (data.employeeId && !data.employeeNumber) {
+                const employee = await window.dbManager.getById('employees', data.employeeId);
+                if (employee) {
+                    data.employeeNumber = employee.number;
+                }
+            }
+            
+            // 如果提供了班次ID但没有班次代码，查找班次代码
+            if (data.shiftId && !data.shiftCode) {
+                const shift = await window.dbManager.getById('shifts', data.shiftId);
+                if (shift) {
+                    data.shiftCode = shift.code;
+                }
+            }
+            
+            // 添加更新时间
+            data.updatedAt = new Date();
             
             const result = await window.dbManager.save('identifiers', data);
             
@@ -83,6 +121,60 @@ class IdentifierManager {
         } catch (error) {
             console.error('根据员工ID获取标识数据失败:', error);
             return [];
+        }
+    }
+    
+    // 根据员工号获取标识数据
+    async getIdentifiersByEmployeeNumber(employeeNumber) {
+        try {
+            const exists = await window.dbManager.checkObjectStoreExists('identifiers');
+            if (!exists) {
+                return [];
+            }
+            
+            // 先尝试直接通过employeeNumber索引查找
+            let identifiers = await window.dbManager.getByIndex('identifiers', 'employeeNumber', employeeNumber);
+            
+            // 如果没找到，可能是因为旧数据没有employeeNumber字段，尝试通过员工号查找员工ID，再通过员工ID查找标识
+            if (identifiers.length === 0) {
+                const employee = await this.findEmployeeByNumber(employeeNumber);
+                if (employee) {
+                    identifiers = await this.getIdentifiersByEmployeeId(employee.id);
+                }
+            }
+            
+            return identifiers;
+        } catch (error) {
+            console.error('根据员工号获取标识数据失败:', error);
+            return [];
+        }
+    }
+    
+    // 根据员工号和班次代码获取标识数据
+    async getIdentifierByEmployeeNumberAndShiftCode(employeeNumber, shiftCode) {
+        try {
+            const exists = await window.dbManager.checkObjectStoreExists('identifiers');
+            if (!exists) {
+                return null;
+            }
+            
+            // 先查找对应的员工和班次
+            const employee = await this.findEmployeeByNumber(employeeNumber);
+            const shift = await this.findShiftByCode(shiftCode);
+            
+            if (!employee || !shift) {
+                return null;
+            }
+            
+            // 尝试通过employeeId和shiftId查找
+            const identifiers = await this.getAllIdentifiers();
+            return identifiers.find(identifier => 
+                identifier.employeeId === employee.id && 
+                identifier.shiftId === shift.id
+            ) || null;
+        } catch (error) {
+            console.error('根据员工号和班次代码获取标识数据失败:', error);
+            return null;
         }
     }
 
@@ -147,25 +239,10 @@ class IdentifierManager {
         }
     }
 
-    // 新增方法：通知排班管理器关于标识变更
+    // 通知排班管理器关于标识变更 - 仅保留方法但不执行任何操作（完全禁用自动排序）
     notifyShiftOrderManagerAboutIdentifierChange(employeeId, shiftId, isAdded) {
-        if (window.shiftOrderManager) {
-            try {
-                // 触发标识变更事件，包含员工ID、班次ID和是否添加
-                const event = new CustomEvent('identifierChanged', {
-                    detail: {
-                        employeeId: employeeId,
-                        shiftId: shiftId,
-                        isAdded: isAdded
-                    }
-                });
-                window.dispatchEvent(event);
-                
-                console.log(`已通知排班管理器：员工ID ${employeeId} 的标识已变更，班次ID: ${shiftId}，是否添加: ${isAdded}`);
-            } catch (error) {
-                console.error('通知排班管理器关于标识变更失败:', error);
-            }
-        }
+        // 已完全禁用自动排序功能，所有排班排序都将通过手动编辑完成
+        console.log(`标识变更已记录但不会自动更新排班顺序：员工ID ${employeeId} 的标识已变更，班次ID: ${shiftId}，是否添加: ${isAdded}`);
     }
 
     // 新增方法：将员工岗位传递给岗位下拉框并刷新
@@ -236,13 +313,60 @@ class IdentifierManager {
                 throw new Error('标识存储空间不存在');
             }
             
+            // 首先处理每个标识数据，补充员工号和班次代码信息
+            const processedIdentifiers = await Promise.all(
+                identifiers.map(async (identifier) => {
+                    let processed = { ...identifier };
+                    
+                    // 如果提供了员工号但没有员工ID，查找对应的员工
+                    if (processed.employeeNumber && !processed.employeeId) {
+                        const employee = await this.findEmployeeByNumber(processed.employeeNumber);
+                        if (employee) {
+                            processed.employeeId = employee.id;
+                        }
+                    }
+                    
+                    // 如果提供了班次代码但没有班次ID，查找对应的班次
+                    if (processed.shiftCode && !processed.shiftId) {
+                        const shift = await this.findShiftByCode(processed.shiftCode);
+                        if (shift) {
+                            processed.shiftId = shift.id;
+                        }
+                    }
+                    
+                    // 如果提供了员工ID但没有员工号，查找员工号
+                    if (processed.employeeId && !processed.employeeNumber) {
+                        const employee = await window.dbManager.getById('employees', processed.employeeId);
+                        if (employee) {
+                            processed.employeeNumber = employee.number;
+                        }
+                    }
+                    
+                    // 如果提供了班次ID但没有班次代码，查找班次代码
+                    if (processed.shiftId && !processed.shiftCode) {
+                        const shift = await window.dbManager.getById('shifts', processed.shiftId);
+                        if (shift) {
+                            processed.shiftCode = shift.code;
+                        }
+                    }
+                    
+                    return processed;
+                })
+            );
+            
             // 添加去重逻辑，确保每个员工-班次组合唯一
             const uniqueCombinations = new Set();
             const uniqueIdentifiers = [];
             
-            identifiers.forEach(identifier => {
-                const key = `${identifier.employeeId}-${identifier.shiftId}`;
-                if (!uniqueCombinations.has(key)) {
+            processedIdentifiers.forEach(identifier => {
+                // 优先使用employeeId和shiftId进行去重，如果没有则使用employeeNumber和shiftCode
+                const key = identifier.employeeId && identifier.shiftId 
+                    ? `${identifier.employeeId}-${identifier.shiftId}` 
+                    : identifier.employeeNumber && identifier.shiftCode 
+                        ? `${identifier.employeeNumber}-${identifier.shiftCode}` 
+                        : null;
+                        
+                if (key && !uniqueCombinations.has(key)) {
                     uniqueCombinations.add(key);
                     uniqueIdentifiers.push(identifier);
                 }
@@ -254,14 +378,33 @@ class IdentifierManager {
             const existingKeyMap = new Map();
             
             existingIdentifiers.forEach(identifier => {
-                const key = `${identifier.employeeId}-${identifier.shiftId}`;
-                existingKeyMap.set(key, identifier.id); // 保存现有的ID
+                // 为每个记录创建两个键：一个基于ID，一个基于编号/代码
+                if (identifier.employeeId && identifier.shiftId) {
+                    const idKey = `${identifier.employeeId}-${identifier.shiftId}`;
+                    existingKeyMap.set(idKey, identifier.id);
+                }
+                if (identifier.employeeNumber && identifier.shiftCode) {
+                    const codeKey = `${identifier.employeeNumber}-${identifier.shiftCode}`;
+                    existingKeyMap.set(codeKey, identifier.id);
+                }
             });
             
             // 准备最终要保存的数据
             const dataToSave = uniqueIdentifiers.map(identifier => {
-                const key = `${identifier.employeeId}-${identifier.shiftId}`;
-                const existingId = existingKeyMap.get(key);
+                // 尝试通过两种方式查找现有ID
+                let existingId = null;
+                
+                // 首先尝试通过ID查找
+                if (identifier.employeeId && identifier.shiftId) {
+                    const idKey = `${identifier.employeeId}-${identifier.shiftId}`;
+                    existingId = existingKeyMap.get(idKey);
+                }
+                
+                // 如果通过ID没找到，尝试通过编号/代码查找
+                if (!existingId && identifier.employeeNumber && identifier.shiftCode) {
+                    const codeKey = `${identifier.employeeNumber}-${identifier.shiftCode}`;
+                    existingId = existingKeyMap.get(codeKey);
+                }
                 
                 // 如果有现有ID，使用它；否则不设置id字段，让IndexedDB自动生成
                 if (existingId) {
@@ -289,7 +432,7 @@ class IdentifierManager {
                         .filter(identifier => identifier.canWork)
                         .map(identifier => identifier.employeeId)
                 )];
-                
+
                 if (selectedEmployeeIds.length > 0) {
                     // 如果有被选中的标识，传递第一个员工的岗位信息给下拉框
                     // 注意：在批量操作中，我们只能设置一个岗位作为当前选中值
@@ -304,6 +447,21 @@ class IdentifierManager {
                 }
             } catch (refreshError) {
                 console.error('刷新岗位下拉框失败:', refreshError);
+            }
+
+            // 通知排班管理器标识变更，使批量操作与单点操作行为一致
+            try {
+                // 遍历所有唯一标识，通知排班管理器
+                for (const identifier of uniqueIdentifiers) {
+                    // isAdded 参数表示是否设置了标识（canWork=true）
+                    this.notifyShiftOrderManagerAboutIdentifierChange(
+                        identifier.employeeId,
+                        identifier.shiftId,
+                        identifier.canWork
+                    );
+                }
+            } catch (notifyError) {
+                console.error('通知排班管理器标识变更失败:', notifyError);
             }
             
             return result;
@@ -332,43 +490,67 @@ class IdentifierManager {
             
             // 处理导入的数据
             for (const item of data) {
-                // 如果已经包含employeeId和shiftId，直接使用
-                if (item.employeeId && item.shiftId) {
-                    // 检查是否重复
-                    const key = `${item.employeeId}-${item.shiftId}`;
-                    if (!validCombinations.has(key)) {
-                        identifiers.push({
-                            employeeId: item.employeeId,
-                            shiftId: item.shiftId,
-                            canWork: item.canWork || false,
-                            createdAt: new Date()
-                        });
-                        validCombinations.add(key);
-                    }
-                } else {
-                    // 兼容旧的数据格式，需要查找ID
-                    const employee = await this.findEmployeeByNumber(item.employeeNumber);
-                    const shift = await this.findShiftByCode(item.shiftCode);
-                    
-                    if (employee && shift) {
+                // 优先使用员工号和班次代码
+                    if (item.employeeNumber && item.shiftCode) {
+                        // 查找对应的员工和班次
+                        const employee = await this.findEmployeeByNumber(item.employeeNumber);
+                        const shift = await this.findShiftByCode(item.shiftCode);
+                        
+                        if (employee && shift) {
+                            // 检查是否重复
+                            const key = `${employee.id}-${shift.id}`;
+                            if (!validCombinations.has(key)) {
+                                identifiers.push({
+                                    employeeId: employee.id,
+                                    employeeNumber: employee.number,  // 保存员工号
+                                    shiftId: shift.id,
+                                    shiftCode: shift.code,  // 保存班次代码
+                                    canWork: item.canWork !== false, // 默认设为true，除非明确指定为false
+                                    createdAt: new Date()
+                                });
+                                validCombinations.add(key);
+                            }
+                        }
+                    } else if (item.employeeId && item.shiftId) {
+                        // 兼容旧的数据格式，通过ID查找员工和班次信息以保存员工号和班次代码
+                        const employee = await window.dbManager.getById('employees', item.employeeId);
+                        const shift = await window.dbManager.getById('shifts', item.shiftId);
+                        
                         // 检查是否重复
-                        const key = `${employee.id}-${shift.id}`;
+                        const key = `${item.employeeId}-${item.shiftId}`;
                         if (!validCombinations.has(key)) {
                             identifiers.push({
-                                employeeId: employee.id,
-                                shiftId: shift.id,
-                                canWork: item.canWork || false,
+                                employeeId: item.employeeId,
+                                employeeNumber: employee ? employee.number : '',  // 保存员工号
+                                shiftId: item.shiftId,
+                                shiftCode: shift ? shift.code : '',  // 保存班次代码
+                                canWork: item.canWork !== false, // 默认设为true，除非明确指定为false
                                 createdAt: new Date()
                             });
                             validCombinations.add(key);
                         }
                     }
-                }
             }
             
             // 批量保存处理后的数据
             if (identifiers.length > 0) {
                 await this.bulkSaveIdentifiers(identifiers);
+            }
+            
+            // 导入完成后，额外触发一个全局事件表示所有标识已重新导入
+            // 这确保排班编辑器能完全重新加载标识数据，与单点操作保持一致
+            try {
+                if (window.shiftOrderManager) {
+                    console.log('标识数据导入完成，触发全局标识重新加载事件');
+                    const event = new CustomEvent('allIdentifiersReimported', {
+                        detail: {
+                            count: identifiers.length
+                        }
+                    });
+                    window.dispatchEvent(event);
+                }
+            } catch (eventError) {
+                console.error('触发全局标识重新加载事件失败:', eventError);
             }
             
             return identifiers.length;
@@ -1220,44 +1402,52 @@ async function parseExcelFile(file, statusElement) {
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
                     
-                    // 使用显式配置来处理表头，确保第一行被正确识别
-                    // header: "A" 表示使用Excel的列名(A,B,C...)作为键，然后我们自己处理表头行
-                    const rawData = XLSX.utils.sheet_to_json(worksheet, { header: "A" });
+                    // 使用更简单直接的方式解析Excel文件，让XLSX库自动处理表头
+                    // header: 1 表示将第一行作为表头
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+                        header: 1, // 使用第一行作为数据行索引
+                        blankrows: false // 忽略空行
+                    });
                     
-                    // 处理表头和数据
-                    let jsonData = [];
-                    if (rawData.length > 0) {
-                        // 第一行作为表头行
-                        const headerRow = rawData[0];
-                        
-                        // 从第二行开始处理数据行
-                        for (let i = 1; i < rawData.length; i++) {
-                            const dataRow = {};
-                            // 将列名(A,B,C...)映射到表头值
-                            for (const col in headerRow) {
-                                const header = headerRow[col];
-                                if (header !== undefined && header !== null) {
-                                    dataRow[header] = rawData[i][col];
-                                }
-                            }
-                            jsonData.push(dataRow);
-                        }
-                    }
-                    
-                    if (!jsonData || jsonData.length === 0) {
-                        statusElement.innerHTML = '<span style="color: red;">导入失败: 文件内容为空</span>';
+                    if (!jsonData || jsonData.length <= 1) {
+                        statusElement.innerHTML = '<span style="color: red;">导入失败: 文件内容为空或只有表头</span>';
                         resolve();
                         return;
                     }
                     
+                    console.log('Excel原始数据:', jsonData);
+                    
+                    // 构建标准格式的数据
+                    const headers = jsonData[0]; // 第一行是表头
+                    const formattedData = [];
+                    
+                    for (let i = 1; i < jsonData.length; i++) {
+                        const rowData = jsonData[i];
+                        const formattedRow = {};
+                        
+                        for (let j = 0; j < headers.length; j++) {
+                            // 确保表头是字符串类型
+                            const header = typeof headers[j] === 'string' ? headers[j].trim() : String(headers[j]);
+                            // 处理单元格值
+                            const cellValue = rowData[j];
+                            
+                            // 将Excel的数值转换为字符串（特别是员工号）
+                            formattedRow[header] = typeof cellValue === 'number' ? String(cellValue) : cellValue;
+                        }
+                        
+                        formattedData.push(formattedRow);
+                    }
+                    
+                    console.log('格式化后的数据:', formattedData);
+                    
                     // 处理数据并导入
-                    await processAndImportData(jsonData, statusElement, file.name);
+                    await processAndImportData(formattedData, statusElement, file.name);
                     resolve();
                 } catch (error) {
                     console.error('解析Excel文件失败:', error);
                     // 安全地获取错误信息
                     const errorMessage = error && error.message ? error.message : '未知错误';
-                    statusElement.innerHTML = `<span style="color: red;">导入失败: 解析文件时出错</span>`;
+                    statusElement.innerHTML = `<span style="color: red;">导入失败: 解析文件时出错</span><br><span>${errorMessage}</span>`;
                     reject(error);
                 }
             };
@@ -1271,7 +1461,7 @@ async function parseExcelFile(file, statusElement) {
         });
     } catch (error) {
         console.error('使用XLSX库导入失败:', error);
-        statusElement.innerHTML = '<span style="color: red;">导入失败: 无法处理Excel文件</span>';
+        statusElement.innerHTML = '<span style="color: red;">导入失败: 无法处理Excel文件</span><br><span>' + (error.message || '未知错误') + '</span>';
     }
 }
 
@@ -1283,28 +1473,43 @@ async function parseCsvFile(file, statusElement) {
         return new Promise((resolve, reject) => {
             reader.onload = async function(e) {
                 try {
-                    const csvText = e.target.result;
+                    let csvText = e.target.result;
+                    
+                    // 处理BOM标记（常见于从Excel导出的CSV文件）
+                    if (csvText.charCodeAt(0) === 0xFEFF) {
+                        csvText = csvText.slice(1);
+                    }
+                    
                     const lines = csvText.split(/\r\n|\n/);
                     
-                    if (lines.length < 2) {
+                    // 过滤掉全空的行
+                    const nonEmptyLines = lines.filter(line => line.trim().length > 0);
+                    
+                    if (nonEmptyLines.length < 2) {
                         statusElement.innerHTML = '<span style="color: red;">导入失败: CSV文件内容为空或格式不正确</span>';
                         resolve();
                         return;
                     }
                     
                     // 解析表头
-                    const headers = lines[0].split(',').map(header => header.trim());
+                    const headers = parseCsvLine(nonEmptyLines[0]).map(header => {
+                        // 处理可能的BOM标记和空白字符
+                        const cleanHeader = header.replace(/^\uFEFF/, '').trim();
+                        return cleanHeader;
+                    });
                     
                     // 解析数据行
                     const jsonData = [];
-                    for (let i = 1; i < lines.length; i++) {
-                        if (!lines[i].trim()) continue; // 跳过空行
+                    for (let i = 1; i < nonEmptyLines.length; i++) {
+                        if (!nonEmptyLines[i].trim()) continue; // 跳过空行
                         
-                        const values = parseCsvLine(lines[i]);
+                        const values = parseCsvLine(nonEmptyLines[i]);
                         const row = {};
                         
                         headers.forEach((header, index) => {
-                            row[header] = values[index] !== undefined ? values[index].trim() : '';
+                            const value = values[index] !== undefined ? values[index].trim() : '';
+                            // 确保所有值都是字符串类型，便于后续处理
+                            row[header] = String(value);
                         });
                         
                         jsonData.push(row);
@@ -1315,7 +1520,9 @@ async function parseCsvFile(file, statusElement) {
                     resolve();
                 } catch (error) {
                     console.error('解析CSV文件失败:', error);
-                    statusElement.innerHTML = `<span style="color: red;">导入失败: 解析CSV文件时出错</span>`;
+                    // 安全地获取错误信息
+                    const errorMessage = error && error.message ? error.message : '未知错误';
+                    statusElement.innerHTML = `<span style="color: red;">导入失败: 解析CSV文件时出错</span><br><span>${errorMessage}</span>`;
                     reject(error);
                 }
             };
@@ -1329,7 +1536,9 @@ async function parseCsvFile(file, statusElement) {
         });
     } catch (error) {
         console.error('解析CSV文件失败:', error);
-        statusElement.innerHTML = `<span style="color: red;">导入失败: ${error.message}</span>`;
+        // 安全地获取错误信息
+        const errorMessage = error && error.message ? error.message : '未知错误';
+        statusElement.innerHTML = `<span style="color: red;">导入失败: ${errorMessage}</span>`;
     }
 }
 
@@ -1342,8 +1551,16 @@ function parseCsvLine(line) {
     for (let i = 0; i < line.length; i++) {
         const char = line[i];
         
-        if (char === '"' && line[i-1] !== '\\') {
-            inQuotes = !inQuotes;
+        if (char === '"') {
+            // 处理引号
+            if (i + 1 < line.length && line[i + 1] === '"') {
+                // 处理转义引号（两个连续的引号）
+                currentField += '"';
+                i++; // 跳过下一个引号
+            } else {
+                // 切换引号状态
+                inQuotes = !inQuotes;
+            }
         } else if (char === ',' && !inQuotes) {
             // 字段结束
             result.push(currentField);
@@ -1357,13 +1574,12 @@ function parseCsvLine(line) {
     // 添加最后一个字段
     result.push(currentField);
     
-    // 去除引号
+    // 处理可能的BOM标记和空白字符
     return result.map(field => {
-        if (field.startsWith('"') && field.endsWith('"')) {
-            // 去除首尾引号，并处理转义引号
-            return field.slice(1, -1).replace(/""/g, '"');
-        }
-        return field;
+        // 移除可能的BOM标记并去除首尾空白
+        let cleanField = field.replace(/^\uFEFF/, '').trim();
+        
+        return cleanField;
     });
 }
 
@@ -1378,7 +1594,7 @@ async function processAndImportData(jsonData, statusElement, fileName) {
         let invalidRows = 0;
         let invalidReasons = [];
         
-        // 直接使用原始数据（已在parseExcelFile中处理过表头）
+        // 直接使用原始数据（已在parseExcelFile中处理过表头和格式化）
         const validDataRows = [...jsonData];
         
         if (validDataRows.length === 0) {
@@ -1393,11 +1609,18 @@ async function processAndImportData(jsonData, statusElement, fileName) {
         const employeeInfoColumns = ['序号', '员工号', '员工姓名', '所属机构', '所属部门', '岗位'];
         
         // 识别班次代码列（过滤掉员工标识列）
-        const shiftCodeColumns = headers.filter(header => !employeeInfoColumns.includes(header));
+        const shiftCodeColumns = headers.filter(header => 
+            !employeeInfoColumns.includes(header) && 
+            header.trim() !== '' // 忽略空的表头
+        );
         
         // 检查是否存在员工号列（必需）
-        if (!headers.some(header => header === '员工号')) {
-            statusElement.innerHTML = '<span style="color: red;">导入失败: 未找到"员工号"列</span><br>' +
+        const hasEmployeeNumberColumn = headers.some(header => 
+            header.includes('员工号') || header.includes('员工编号')
+        );
+        
+        if (!hasEmployeeNumberColumn) {
+            statusElement.innerHTML = '<span style="color: red;">导入失败: 未找到"员工号"相关列</span><br>' +
                                      '<span>请确保您的导入文件包含"员工号"列</span>';
             return;
         }
@@ -1426,6 +1649,11 @@ async function processAndImportData(jsonData, statusElement, fileName) {
         console.log('表头信息:', headers);
         console.log('识别的班次代码列:', shiftCodeColumns);
         
+        // 找出员工号列的实际名称（考虑可能的变体）
+        let employeeNumberColumn = headers.find(header => 
+            header.includes('员工号') || header.includes('员工编号')
+        );
+        
         for (const row of validDataRows) {
             processedRows++;
             
@@ -1433,14 +1661,17 @@ async function processAndImportData(jsonData, statusElement, fileName) {
             const progress = Math.round((processedRows / totalRows) * 100);
             progressElement.textContent = `处理进度: ${progress}%`;
             
-            const employeeNumber = row['员工号'];
+            let employeeNumber = row[employeeNumberColumn];
+            
+            // 确保员工号是字符串类型并去除空白字符
+            employeeNumber = employeeNumber !== undefined && employeeNumber !== null ? 
+                String(employeeNumber).trim() : '';
             
             // 记录当前行的处理情况
             console.log('处理行数据:', { employeeNumber, rowData: row });
             
             // 宽松的员工号验证，只要不是null、undefined或空字符串就接受
-            if (employeeNumber === null || employeeNumber === undefined || 
-                (typeof employeeNumber === 'string' && employeeNumber.trim() === '')) {
+            if (!employeeNumber) {
                 console.log('跳过行 - 无员工号:', row);
                 skippedRows++;
                 continue; // 跳过没有员工号的行
@@ -1452,8 +1683,13 @@ async function processAndImportData(jsonData, statusElement, fileName) {
                 const canWorkValue = row[shiftCode];
                 // 记录班次列的值
                 console.log('班次列数据:', { shiftCode, canWorkValue });
-                // 如果单元格值为'1'，表示可值班
-                if (canWorkValue === '1' || canWorkValue === 1) {
+                // 接受多种格式的"1"值
+                const isCanWork = canWorkValue === '1' || 
+                                 canWorkValue === 1 || 
+                                 String(canWorkValue).toLowerCase() === 'true' || 
+                                 String(canWorkValue).toLowerCase() === 'yes';
+                                 
+                if (isCanWork) {
                     parsedData.push({
                         employeeNumber: employeeNumber,
                         shiftCode: shiftCode,
@@ -1490,7 +1726,7 @@ async function processAndImportData(jsonData, statusElement, fileName) {
                 console.error('调用导入方法失败:', error);
                 // 安全地获取错误信息
                 const errorMessage = error && error.message ? error.message : '未知错误';
-                statusElement.innerHTML = `<span style="color: red;">导入失败: 保存数据时出错</span>`;
+                statusElement.innerHTML = `<span style="color: red;">导入失败: 保存数据时出错</span><br><span>${errorMessage}</span>`;
                 return;
             }
         }
@@ -1547,20 +1783,89 @@ async function validateImportData(data) {
         console.log('系统中存在的员工数量:', allEmployees.length);
         console.log('系统中存在的班次数量:', allShifts.length);
         
-        // 创建映射以便快速查找
+        // 创建映射以便快速查找，支持宽松匹配
         const employeeMap = new Map();
-        allEmployees.forEach(emp => employeeMap.set(emp.number, emp));
+        const employeeMapLoose = new Map(); // 用于宽松匹配的映射
+        allEmployees.forEach(emp => {
+            // 精确匹配
+            employeeMap.set(emp.number, emp);
+            // 宽松匹配 - 转换为字符串
+            const numberStr = String(emp.number).trim();
+            employeeMapLoose.set(numberStr, emp);
+        });
         
         const shiftMap = new Map();
-        allShifts.forEach(shift => shiftMap.set(shift.code, shift));
+        const shiftMapLoose = new Map(); // 用于宽松匹配的映射
+        allShifts.forEach(shift => {
+            // 精确匹配
+            shiftMap.set(shift.code, shift);
+            // 宽松匹配 - 转换为字符串并去除空白字符
+            const codeStr = String(shift.code).trim();
+            shiftMapLoose.set(codeStr, shift);
+        });
         
         // 验证每一条数据
         for (const item of data) {
-            const { employeeNumber, shiftCode } = item;
-            const employee = employeeMap.get(employeeNumber);
-            const shift = shiftMap.get(shiftCode);
+            // 确保数据结构正确
+            if (!item || typeof item !== 'object') {
+                invalidReasons.push('无效的数据项');
+                invalidCount++;
+                continue;
+            }
             
-            console.log('验证数据项:', { employeeNumber, shiftCode, employeeExists: !!employee, shiftExists: !!shift });
+            // 获取员工号和班次代码，进行类型处理
+            let employeeNumber = item.employeeNumber;
+            let shiftCode = item.shiftCode;
+            
+            // 确保员工号和班次代码都是字符串类型
+            employeeNumber = employeeNumber !== undefined && employeeNumber !== null ? String(employeeNumber).trim() : '';
+            shiftCode = shiftCode !== undefined && shiftCode !== null ? String(shiftCode).trim() : '';
+            
+            // 基本验证
+            if (!employeeNumber) {
+                invalidReasons.push('缺少员工号');
+                invalidCount++;
+                continue;
+            }
+            
+            if (!shiftCode) {
+                invalidReasons.push(`员工号 ${employeeNumber} 缺少班次代码`);
+                invalidCount++;
+                continue;
+            }
+            
+            console.log('验证数据项:', { employeeNumber, shiftCode });
+            
+            // 查找员工，先精确匹配，再宽松匹配
+            let employee = employeeMap.get(employeeNumber) || 
+                          employeeMapLoose.get(employeeNumber);
+            
+            // 查找班次，先精确匹配，再宽松匹配
+            let shift = shiftMap.get(shiftCode) || 
+                       shiftMapLoose.get(shiftCode);
+            
+            // 如果没有找到，尝试忽略大小写匹配
+            if (!employee) {
+                const lowerEmpNum = employeeNumber.toLowerCase();
+                for (const [key, emp] of employeeMapLoose.entries()) {
+                    if (key.toLowerCase() === lowerEmpNum) {
+                        employee = emp;
+                        break;
+                    }
+                }
+            }
+            
+            if (!shift) {
+                const lowerShiftCode = shiftCode.toLowerCase();
+                for (const [key, s] of shiftMapLoose.entries()) {
+                    if (key.toLowerCase() === lowerShiftCode) {
+                        shift = s;
+                        break;
+                    }
+                }
+            }
+            
+            console.log('匹配结果:', { employeeExists: !!employee, shiftExists: !!shift });
             
             if (!employee) {
                 console.log('验证失败 - 员工不存在:', employeeNumber);
@@ -1574,28 +1879,42 @@ async function validateImportData(data) {
                     ...item,
                     // 直接使用ID，避免导入时重复查询
                     employeeId: employee.id,
-                    shiftId: shift.id
+                    shiftId: shift.id,
+                    // 确保employeeNumber和shiftCode是字符串类型
+                    employeeNumber: String(employee.number),
+                    shiftCode: String(shift.code)
                 });
             }
         }
         
+        // 去重，避免重复导入相同的员工-班次组合
+        const uniqueData = [];
+        const seen = new Set();
+        for (const item of validData) {
+            const key = `${item.employeeId}-${item.shiftId}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueData.push(item);
+            }
+        }
+        
         return {
-            validData,
+            validData: uniqueData,
             validationInfo: {
-                importedCount: validData.length,
+                importedCount: uniqueData.length,
                 invalidRows: invalidCount,
-                invalidReasons: invalidReasons.slice(0, 10) // 只显示前10个错误
+                invalidReasons: invalidReasons.slice(0, 15) // 显示更多错误信息，帮助用户排查问题
             }
         };
     } catch (error) {
         console.error('验证数据失败:', error);
-        // 如果验证出错，返回原始数据继续处理
+        // 显示错误信息，不再继续处理
         return {
-            validData: data,
+            validData: [],
             validationInfo: {
-                importedCount: data.length,
-                invalidRows: 0,
-                invalidReasons: []
+                importedCount: 0,
+                invalidRows: data.length,
+                invalidReasons: [`数据验证失败: ${error.message || '未知错误'}`]
             }
         };
     }

@@ -237,6 +237,21 @@ function autoSelectDepartmentAndLoadData() {
                 console.error('标识管理功能初始化函数未定义');
             }
             
+            // 初始化排班顺序管理功能
+            if (window.initShiftOrderManagement) {
+                // 延迟初始化排班顺序管理功能，确保标识管理功能已加载完成
+                setTimeout(async function() {
+                    try {
+                        window.initShiftOrderManagement();
+                        console.log('排班顺序管理功能初始化完成');
+                    } catch (error) {
+                        console.error('排班顺序管理功能初始化失败:', error);
+                    }
+                }, 2000);
+            } else {
+                console.error('排班顺序管理功能初始化函数未定义');
+            }
+            
             // 初始化员工号筛选功能
             const empNumberFilter = document.getElementById('empNumberFilter');
             if (empNumberFilter) {
@@ -352,41 +367,80 @@ function autoSelectDepartmentAndLoadData() {
             
             // 初始化排班顺序管理功能
             if (!window.shiftOrderManager) {
-                // 确保ShiftOrderManager类已加载
-                if (window.ShiftOrderManager) {
-                    // 立即初始化，不再使用延迟
-                    try {
-                        window.shiftOrderManager = new window.ShiftOrderManager();
-                        console.log('排班顺序管理功能初始化成功');
-                    } catch (error) {
-                        console.error('排班顺序管理功能初始化失败:', error);
-                        // 尝试多次初始化
-                        let retryCount = 0;
-                        const maxRetries = 3;
-                        const retryInterval = 500;
-                        
-                        const retryInitialization = () => {
-                            retryCount++;
-                            console.log(`尝试重新初始化排班顺序管理功能 (${retryCount}/${maxRetries})`);
+                // 使用setTimeout延迟初始化，确保shift-order-management.js文件有足够的时间加载和执行
+                setTimeout(() => {
+                    // 确保ShiftOrderManager类已加载
+                    if (window.ShiftOrderManager) {
+                        // 立即初始化
+                        try {
+                            window.shiftOrderManager = new window.ShiftOrderManager();
+                            console.log('排班顺序管理功能初始化成功');
+                        } catch (error) {
+                            console.error('排班顺序管理功能初始化失败:', error);
+                            // 尝试多次初始化
+                            let retryCount = 0;
+                            const maxRetries = 3;
+                            const retryInterval = 500;
                             
-                            try {
-                                window.shiftOrderManager = new window.ShiftOrderManager();
-                                console.log('排班顺序管理功能重新初始化成功');
-                            } catch (retryError) {
-                                console.error('排班顺序管理功能重新初始化失败:', retryError);
-                                if (retryCount < maxRetries) {
-                                    setTimeout(retryInitialization, retryInterval);
-                                } else {
-                                    console.error('多次尝试后仍无法初始化排班顺序管理功能');
+                            const retryInitialization = () => {
+                                retryCount++;
+                                console.log(`尝试重新初始化排班顺序管理功能 (${retryCount}/${maxRetries})`);
+                                
+                                try {
+                                    window.shiftOrderManager = new window.ShiftOrderManager();
+                                    console.log('排班顺序管理功能重新初始化成功');
+                                } catch (retryError) {
+                                    console.error('排班顺序管理功能重新初始化失败:', retryError);
+                                    if (retryCount < maxRetries) {
+                                        setTimeout(retryInitialization, retryInterval);
+                                    } else {
+                                        console.error('多次尝试后仍无法初始化排班顺序管理功能');
+                                    }
+                                }
+                            };
+                            
+                            setTimeout(retryInitialization, retryInterval);
+                        }
+                    } else {
+                        console.error('ShiftOrderManager类未定义，尝试更晚初始化');
+                        // 如果还是未定义，再延迟2秒后最后尝试一次
+                        setTimeout(() => {
+                            if (window.ShiftOrderManager) {
+                                try {
+                                    window.shiftOrderManager = new window.ShiftOrderManager();
+                                    console.log('排班顺序管理功能最终初始化成功');
+                                } catch (finalError) {
+                                    console.error('排班顺序管理功能最终初始化失败:', finalError);
+                                }
+                            } else {
+                                console.error('ShiftOrderManager类仍未定义，可能是脚本加载失败');
+                                // 作为最后的备选方案，直接在全局作用域中创建一个基本的ShiftOrderManager类
+                                window.ShiftOrderManager = class {
+                                    constructor() {
+                                        console.warn('使用备选ShiftOrderManager类');
+                                    }
+                                    
+                                    async getAllActiveShifts() {
+                                        // 返回空数组作为备选
+                                        return [];
+                                    }
+                                    
+                                    async getShiftOrderByPositionAndShift(position, shiftCode) {
+                                        // 返回null作为备选
+                                        return null;
+                                    }
+                                };
+                                
+                                try {
+                                    window.shiftOrderManager = new window.ShiftOrderManager();
+                                    console.log('备选ShiftOrderManager类初始化成功');
+                                } catch (fallbackError) {
+                                    console.error('备选ShiftOrderManager类初始化失败:', fallbackError);
                                 }
                             }
-                        };
-                        
-                        setTimeout(retryInitialization, retryInterval);
+                        }, 2000);
                     }
-                } else {
-                    console.error('ShiftOrderManager类未定义');
-                }
+                }, 100); // 延迟100毫秒后再尝试初始化
             }
             
             // 加载所有部门到部门筛选下拉框，使用Promise链式调用而不是await
