@@ -1397,21 +1397,96 @@ window.initBaseSettings = function() {
             setTimeout(() => {
                 loadEmployees();
                 
-                // 如果是新增员工，更新排班顺序
-                if (!id && window.shiftOrderManager) {
-                    const newEmployee = {
-                        id: null, // ID会在save后自动生成，这里先用null
-                        number: number,
-                        name: name,
-                        position: position
-                    };
-                    window.shiftOrderManager.updateShiftOrderWhenEmployeeAdded(newEmployee);
+                // 如果是新增员工，刷新排班顺序
+                if (!id) {
+                    // 重新获取刚保存的员工完整信息（包含ID）
+                    dbManager.getAll('employees')
+                        .then(employees => {
+                            // 查找最新添加的员工（按创建时间排序）
+                            const newEmployee = employees
+                                .filter(emp => emp.number === number && emp.name === name)
+                                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+                            
+                            if (newEmployee) {
+                                // 参考identifier-management.js中的事件驱动方式
+                                notifyShiftOrderManagerAboutEmployeeChange({
+                                    id: newEmployee.id,
+                                    number: newEmployee.number,
+                                    name: newEmployee.name,
+                                    position: newEmployee.position,
+                                    status: newEmployee.status
+                                }, 'added');
+                            } else {
+                                console.error('未找到刚添加的员工信息');
+                                // 作为备用方案，直接刷新排班表
+                                if (window.loadShiftOrderData) {
+                                    window.loadShiftOrderData();
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('获取员工信息失败:', error);
+                            // 作为备用方案，直接刷新排班表
+                            if (window.loadShiftOrderData) {
+                                window.loadShiftOrderData();
+                            }
+                        });
                 }
             }, 300);
         } catch (error) {
             showNotification('保存员工失败: ' + error.message, 'error');
         }
     });
+
+    // 新增方法：通知排班管理器关于员工变更
+    function notifyShiftOrderManagerAboutEmployeeChange(employee, changeType) {
+        try {
+            // 触发员工变更事件，包含员工信息和变更类型
+            const event = new CustomEvent('employeeAdded', {
+                detail: {
+                    employee: employee,
+                    changeType: changeType
+                }
+            });
+            window.dispatchEvent(event);
+            
+            console.log(`已通知排班管理器：员工${employee.name}已${changeType === 'added' ? '添加' : '修改'}`);
+            
+            // 延迟一小段时间后触发排班数据刷新事件，确保员工ID完全生成
+            setTimeout(() => {
+                try {
+                    const refreshEvent = new CustomEvent('shiftDataChanged', { 
+                        detail: { 
+                            reason: 'employeeAdded',
+                            employeeId: employee.id,
+                            employeeNumber: employee.number
+                        } 
+                    });
+                    window.dispatchEvent(refreshEvent);
+                    console.log('已触发shiftDataChanged事件通知排班数据刷新');
+                } catch (refreshError) {
+                    console.error('触发shiftDataChanged事件失败:', refreshError);
+                }
+            }, 500);
+        } catch (error) {
+            console.error('通知排班管理器关于员工变更失败:', error);
+            
+            // 如果事件触发失败，作为备用方案直接调用刷新函数
+            try {
+                setTimeout(() => {
+                    if (window._reloadShiftOrderData) {
+                        window._reloadShiftOrderData().catch(err => console.error('备用方案刷新失败:', err));
+                    } else if (window.loadShiftOrderData) {
+                        window.loadShiftOrderData().catch(err => console.error('备用方案刷新失败:', err));
+                    } else if (window.loadAllShiftOrders) {
+                        window.loadAllShiftOrders().catch(err => console.error('备用方案刷新失败:', err));
+                    }
+                }, 500);
+            } catch (fallbackError) {
+                console.error('备用刷新方案执行失败:', fallbackError);
+            }
+        }
+    }
 
     // 关闭员工模态框
     document.querySelector('#employeeModal .modal-close').addEventListener('click', function() {

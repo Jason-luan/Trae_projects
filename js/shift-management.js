@@ -137,6 +137,30 @@ class ShiftManager {
 
             const savedShift = await dbManager.save('shifts', shift);
             showNotification(shift.id ? '班次更新成功' : '班次添加成功');
+            
+            // 新增：通知排班管理刷新数据
+            if (window.shiftOrderManager) {
+                try {
+                    // 触发班次数据变更事件
+                    const event = new CustomEvent('shiftDataChanged', {
+                        detail: {
+                            reason: shift.id ? 'shiftUpdated' : 'shiftAdded',
+                            shiftId: savedShift.id,
+                            shiftCode: savedShift.code
+                        }
+                    });
+                    window.dispatchEvent(event);
+                    console.log('已触发shiftDataChanged事件通知排班管理刷新数据');
+                } catch (error) {
+                    console.error('触发shiftDataChanged事件失败:', error);
+                    // 备用刷新方案：直接调用刷新函数
+                    if (window.loadShiftOrderData) {
+                        window.loadShiftOrderData();
+                        console.log('通过备用方案刷新排班数据');
+                    }
+                }
+            }
+            
             return savedShift;
         } catch (error) {
             console.error('保存班次失败:', error);

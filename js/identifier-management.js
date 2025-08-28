@@ -46,6 +46,23 @@ class IdentifierManager {
             // 添加标识联动排班人员列表的逻辑
             this.notifyShiftOrderManagerAboutIdentifierChange(identifierData.employeeId, identifierData.shiftId, identifierData.canWork);
             
+            // 同步刷新岗位下拉框并传递员工岗位信息
+            try {
+                // 当标识被选中（canWork=true）时，将员工岗位传递给岗位下拉框
+                if (identifierData.canWork) {
+                    console.log('标识被选中，将员工岗位传递给岗位下拉框，员工ID:', identifierData.employeeId);
+                    await this.propagateEmployeePositionToDropdown(identifierData.employeeId);
+                } else {
+                    // 如果标识未被选中，从所有员工中加载岗位下拉框以确保显示所有可用岗位
+                    if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
+                        console.log('标识未被选中，从所有员工中加载岗位下拉框');
+                        await window.loadPositionsForDepartment(''); // 传入空字符串表示从所有部门加载
+                    }
+                }
+            } catch (refreshError) {
+                console.error('刷新岗位下拉框失败:', refreshError);
+            }
+            
             return result;
         } catch (error) {
             console.error('保存标识数据失败:', error);
@@ -151,6 +168,65 @@ class IdentifierManager {
         }
     }
 
+    // 新增方法：将员工岗位传递给岗位下拉框并刷新
+    async propagateEmployeePositionToDropdown(employeeId) {
+        try {
+            // 获取员工信息
+            const employee = await window.dbManager.getById('employees', employeeId);
+            if (!employee || !employee.position) {
+                console.warn('未找到员工或员工没有岗位信息:', employeeId);
+                return;
+            }
+            
+            console.log(`获取到员工 ${employee.name} 的岗位信息: ${employee.position}`);
+            
+            // 获取当前选中的部门
+            const deptFilter = document.getElementById('identifierDepartmentFilter');
+            const selectedDept = deptFilter && deptFilter.value ? deptFilter.value : '';
+            
+            // 首先刷新岗位下拉框
+            if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
+                console.log('刷新岗位下拉框，部门:', selectedDept);
+                await window.loadPositionsForDepartment(selectedDept);
+            }
+            
+            // 将员工岗位设置到岗位下拉框
+            const positionFilter = document.getElementById('identifierPositionFilter');
+            if (positionFilter) {
+                // 先检查是否有对应的选项
+                const hasPosition = Array.from(positionFilter.options).some(option => option.value === employee.position);
+                
+                if (hasPosition) {
+                    positionFilter.value = employee.position;
+                    console.log(`已将岗位下拉框设置为: ${employee.position}`);
+                    
+                    // 触发change事件以刷新数据
+                    if (typeof Event !== 'undefined') {
+                        positionFilter.dispatchEvent(new Event('change'));
+                    }
+                } else {
+                    console.warn(`岗位下拉框中未找到岗位: ${employee.position}`);
+                    // 如果未找到对应的岗位选项，尝试重新从所有员工中加载岗位列表
+                    if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
+                        console.log('重新从所有员工中加载岗位列表');
+                        await window.loadPositionsForDepartment(''); // 传入空字符串表示从所有部门加载
+                    }
+                    // 再次尝试设置岗位
+                    setTimeout(() => {
+                        if (positionFilter && Array.from(positionFilter.options).some(option => option.value === employee.position)) {
+                            positionFilter.value = employee.position;
+                            if (typeof Event !== 'undefined') {
+                                positionFilter.dispatchEvent(new Event('change'));
+                            }
+                        }
+                    }, 100);
+                }
+            }
+        } catch (error) {
+            console.error('传递员工岗位信息失败:', error);
+        }
+    }
+
     // 批量保存标识数据
     async bulkSaveIdentifiers(identifiers) {
         try {
@@ -203,7 +279,34 @@ class IdentifierManager {
                 }
             });
             
-            return await window.dbManager.bulkSave('identifiers', dataToSave);
+            const result = await window.dbManager.bulkSave('identifiers', dataToSave);
+            
+            // 同步刷新岗位下拉框并传递员工岗位信息
+            try {
+                // 找出被选中的员工ID集合（去重）
+                const selectedEmployeeIds = [...new Set(
+                    uniqueIdentifiers
+                        .filter(identifier => identifier.canWork)
+                        .map(identifier => identifier.employeeId)
+                )];
+                
+                if (selectedEmployeeIds.length > 0) {
+                    // 如果有被选中的标识，传递第一个员工的岗位信息给下拉框
+                    // 注意：在批量操作中，我们只能设置一个岗位作为当前选中值
+                    console.log('批量保存标识中有被选中的标识，将第一个员工岗位传递给岗位下拉框，员工ID:', selectedEmployeeIds[0]);
+                    await this.propagateEmployeePositionToDropdown(selectedEmployeeIds[0]);
+                } else {
+                    // 如果没有被选中的标识，从所有员工中加载岗位下拉框以确保显示所有可用岗位
+                    if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
+                        console.log('批量保存标识后没有被选中的标识，从所有员工中加载岗位下拉框');
+                        await window.loadPositionsForDepartment(''); // 传入空字符串表示从所有部门加载
+                    }
+                }
+            } catch (refreshError) {
+                console.error('刷新岗位下拉框失败:', refreshError);
+            }
+            
+            return result;
         } catch (error) {
             console.error('批量保存标识数据失败:', error);
             // 确保抛出的是字符串类型的错误信息，避免传递undefined或null

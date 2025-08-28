@@ -584,16 +584,20 @@ async function loadPositionsForDepartment(deptName) {
             return;
         }
         
-        // 获取该部门的所有员工
+        // 获取该部门的所有员工或所有员工（如果没有指定部门）
         const employees = await window.dbManager.getAll('employees');
         console.log('总共获取到员工数:', employees.length);
         
-        const deptEmployees = employees.filter(emp => emp.deptName === deptName);
-        console.log('部门内员工数:', deptEmployees.length);
+        // 如果指定了部门，则筛选该部门的员工；否则使用所有员工
+        const targetEmployees = deptName ? 
+            employees.filter(emp => emp.deptName === deptName) : 
+            employees;
         
-        // 收集该部门的所有岗位
+        console.log(deptName ? `部门内员工数: ${targetEmployees.length}` : '使用所有员工: ' + targetEmployees.length);
+        
+        // 收集岗位
         const positions = new Set();
-        deptEmployees.forEach(emp => {
+        targetEmployees.forEach(emp => {
             if (emp.position && emp.position.trim() !== '') {
                 positions.add(emp.position.trim());
             }
@@ -622,16 +626,19 @@ async function loadPositionsForDepartment(deptName) {
         // 添加岗位选项到两个筛选框
         const sortedPositions = Array.from(positions).sort();
         sortedPositions.forEach(position => {
-            const option1 = document.createElement('option');
-            option1.value = position;
-            option1.textContent = position;
-            
-            const option2 = option1.cloneNode(true);
-            
+            // 为标识管理的岗位筛选框创建选项
             if (identifierPositionFilter) {
+                const option1 = document.createElement('option');
+                option1.value = position;
+                option1.textContent = position;
                 identifierPositionFilter.appendChild(option1);
             }
+            
+            // 为排班顺序管理的岗位筛选框创建选项
             if (shiftOrderPositionFilter) {
+                const option2 = document.createElement('option');
+                option2.value = position;
+                option2.textContent = position;
                 shiftOrderPositionFilter.appendChild(option2);
             }
         });
