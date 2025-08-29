@@ -368,6 +368,7 @@ window.showAddShiftModal = function() {
     document.getElementById('shiftModalTitle').textContent = '添加班次';
     document.getElementById('shiftIdInput').value = '';
     document.getElementById('shiftNameInput').value = '';
+    document.getElementById('shiftCodeInput').value = '';
     document.getElementById('shiftStartTimeInput').value = '';
     document.getElementById('shiftEndTimeInput').value = '';
     document.getElementById('shiftDescriptionInput').value = '';
@@ -393,6 +394,7 @@ window.editShift = async function(id) {
             document.getElementById('shiftModalTitle').textContent = '编辑班次';
             document.getElementById('shiftIdInput').value = shift.id;
             document.getElementById('shiftNameInput').value = shift.name || '';
+            document.getElementById('shiftCodeInput').value = shift.code || '';
             document.getElementById('shiftStartTimeInput').value = shift.startTime || '';
             document.getElementById('shiftEndTimeInput').value = shift.endTime || '';
             document.getElementById('shiftDescriptionInput').value = shift.description || '';
@@ -423,9 +425,9 @@ window.saveShift = async function(event) {
         // 获取id值，并确保它是有效的数字或null
         const idValue = document.getElementById('shiftIdInput').value;
         const id = idValue && !isNaN(parseInt(idValue)) ? parseInt(idValue) : null;
-        // 使用班次名称的缩写作为默认代码
+        // 获取表单中的班次信息
+        const code = document.getElementById('shiftCodeInput').value.trim();
         const name = document.getElementById('shiftNameInput').value.trim();
-        const code = id ? (await dbManager.getById('shifts', id))?.code || 'DEFAULT' : 'DEFAULT';
         const startTime = document.getElementById('shiftStartTimeInput').value.trim();
         const endTime = document.getElementById('shiftEndTimeInput').value.trim();
         const description = document.getElementById('shiftDescriptionInput').value.trim();
@@ -433,6 +435,16 @@ window.saveShift = async function(event) {
 
         if (!name) {
             showNotification('班次名称不能为空', 'warning');
+            return;
+        }
+        
+        if (!code) {
+            showNotification('班次代码不能为空', 'warning');
+            return;
+        }
+        
+        if (code.length > 20) {
+            showNotification('班次代码不能超过20个字符', 'warning');
             return;
         }
 

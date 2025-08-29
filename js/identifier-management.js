@@ -777,182 +777,184 @@ async function renderIdentifierTable() {
         tableHtml += `
         <style>
             /* 确保父容器有明确的宽度限制，不超过屏幕宽度 */
-            #identifiers-tab .card {
+            #identifiers-tab {
+                width: 100%;
+                max-width: 100%;
                 overflow: hidden;
-                position: relative;
-                max-width: 100%; /* 确保卡片不超过屏幕宽度 */
                 box-sizing: border-box;
+                position: relative;
+            }
+            
+            #identifiers-tab .card {
+                overflow: hidden; /* 隐藏溢出内容 */
+                position: relative; /* 相对定位，为子元素提供参考 */
+                max-width: 100%; /* 确保卡片不超过屏幕宽度 */
+                box-sizing: border-box; /* 盒模型包含边框和内边距 */
+                width: 100%; /* 明确设置宽度为100% */
+                margin: 0 !important;
             }
             
             #identifiers-tab .card-body {
-                padding: 0 !important;
+                padding: 0 !important; /* 移除内边距，让表格充满容器 */
                 max-width: 100%; /* 确保卡片内容区不超过屏幕宽度 */
-                box-sizing: border-box;
+                box-sizing: border-box; /* 盒模型包含边框和内边距 */
+                overflow: hidden; /* 确保卡片内容区不会被撑大 */
+                width: 100%; /* 明确设置宽度为100% */
+                margin: 0 !important;
             }
             
+            /* 表格滚动容器 - 合并所有样式 */
             .table-scroll-wrapper {
-                width: 100%;
+                width: 100%; /* 宽度充满父容器 */
                 max-width: 100%; /* 确保表格容器不超过屏幕宽度 */
-                height: 500px; /* 设置固定高度，确保表格大小不变 */
-                overflow: hidden; /* 初始隐藏溢出 */
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 4px;
-                /* 确保表格在主界面以内 */
-                box-sizing: border-box;
-                /* 确保容器定位正确 */
-                position: relative;
-                display: block;
-            }
-            
-            /* 强制显示水平滚动条并控制溢出 */
-            .table-scroll-wrapper {
-                overflow-x: scroll !important;
-                overflow-y: scroll !important;
-                -ms-overflow-style: scrollbar;
-                scrollbar-width: auto;
-                /* 确保滚动容器在父容器内正常工作 */
-                display: block;
-                position: relative;
+                height: 500px; /* 设置固定高度 */
+                overflow-x: auto !important; /* 自动水平滚动 */
+                overflow-y: auto !important; /* 自动垂直滚动 */
+                border: 1px solid rgba(255, 255, 255, 0.1); /* 边框样式 */
+                border-radius: 4px; /* 圆角 */
+                box-sizing: border-box; /* 盒模型包含边框和内边距 */
+                position: relative; /* 相对定位，为子元素提供参考 */
+                display: block; /* 块级元素 */
+                -ms-overflow-style: scrollbar; /* IE滚动条样式 */
             }
             
             /* 自定义滚动条样式 */
             .table-scroll-wrapper::-webkit-scrollbar {
-                width: 8px;
-                height: 8px;
+                width: 8px; /* 垂直滚动条宽度 */
+                height: 8px; /* 水平滚动条高度 */
             }
             
             .table-scroll-wrapper::-webkit-scrollbar-track {
-                background: rgba(255, 255, 255, 0.1);
-                border-radius: 4px;
+                background: rgba(255, 255, 255, 0.1); /* 滚动条轨道背景 */
+                border-radius: 4px; /* 滚动条轨道圆角 */
             }
             
             .table-scroll-wrapper::-webkit-scrollbar-thumb {
-                background: rgba(255, 255, 255, 0.3);
-                border-radius: 4px;
+                background: rgba(255, 255, 255, 0.3); /* 滚动条滑块背景 */
+                border-radius: 4px; /* 滚动条滑块圆角 */
             }
             
             .table-scroll-wrapper::-webkit-scrollbar-thumb:hover {
-                background: rgba(255, 255, 255, 0.5);
+                background: rgba(255, 255, 255, 0.5); /* 滚动条滑块悬停背景 */
             }
             
             .scrollable-table {
-                border-collapse: collapse;
-                table-layout: fixed; /* 保持固定布局 */
-                width: fixed; 
-                min-width: 100%; /* 至少占满容器宽度 */
+                border-collapse: collapse; /* 合并边框 */
+                table-layout: fixed; /* 固定列宽 */
+                width: 100%; /* 表格宽度根据内容自动调整 */
+                min-width: 100%; /* 确保表格至少填满容器 */
                 margin: 0; /* 移除可能导致溢出的边距 */
+                display: table; /* 保持表格布局 */
+                position: relative; /* 相对定位 */
             }
             
             .scrollable-table thead {
-                position: sticky;
-                top: 0;
-                background-color: var(--card-bg);
-                z-index: 10;
+                position: sticky; /* 表头粘性定位 */
+                top: 0; /* 定位到容器顶部 */
+                background-color: var(--card-bg); /* 背景色 */
+                z-index: 10; /* 层级，确保在内容之上 */
             }
             
             /* 全局单元格样式 */
             .scrollable-table th,
             .scrollable-table td {
-                padding: 8px 12px;
-                text-align: center;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                min-width: 100px; /* 增加最小宽度，防止过度压缩 */
-                background-color: var(--card-bg);
-                white-space: nowrap;
-                box-sizing: border-box;
+                padding: 8px 12px; /* 内边距 */
+                text-align: center; /* 文本居中 */
+                border: 1px solid rgba(255, 255, 255, 0.1); /* 边框样式 */
+                min-width: 120px; /* 增加最小宽度，确保内容不会被过度压缩 */
+                background-color: var(--card-bg); /* 背景色 */
+                white-space: nowrap; /* 文本不换行 */
+                box-sizing: border-box; /* 盒模型包含边框和内边距 */
+                vertical-align: top; /* 内容顶部对齐，方便多行显示 */
             }
 
-            /* 非固定列单元格 - 显示全部内容 */
+            /* 非固定列单元格 */
             .scrollable-table th:not(.fixed-column),
             .scrollable-table td:not(.fixed-column) {
-                overflow: visible;
-                min-width: 120px; /* 非固定列设置更大的最小宽度 */
-                position: relative;
-                z-index: 1;
+                white-space: nowrap; /* 文本不换行 */
+                min-width: 120px; /* 非固定列最小宽度 */
+                position: relative; /* 相对定位 */
+                z-index: 1; /* 层级 */
             }
             
             .scrollable-table thead th {
-                background-color: var(--card-bg);
-                border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+                background-color: var(--card-bg); /* 表头背景色 */
+                border-bottom: 2px solid rgba(255, 255, 255, 0.2); /* 表头下边框 */
             }
             
             /* 固定列样式 - 确保不与非固定列重叠 */
             .fixed-column {
-                position: sticky;
-                left: 0;
-                background-color: var(--card-bg);
-                z-index: 5;
-                border-right: 2px solid rgba(255, 255, 255, 0.1);
-                box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-                /* 固定列内容限制 */
-                overflow: hidden;
-                text-overflow: ellipsis;
+                position: sticky; /* 粘性定位 */
+                left: 0; /* 定位到容器左侧 */
+                background-color: var(--card-bg); /* 背景色 */
+                z-index: 5; /* 层级，确保在非固定列之上 */
+                border-right: 2px solid rgba(255, 255, 255, 0.1); /* 右侧边框 */
+                box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1); /* 右侧阴影，增强层次感 */
+                overflow: visible; /* 允许内容完整显示 */
+                white-space: nowrap; /* 文本不换行 */
+                vertical-align: top; /* 内容顶部对齐 */
             }
             
             /* 固定列的层级关系和精确宽度 */
-            .fixed-column:nth-child(1) { left: 0; z-index: 10; min-width: 40px; width: 40px; }
-            .fixed-column:nth-child(2) { left: 40px; z-index: 9; min-width: 120px; width: 120px; }
-            .fixed-column:nth-child(3) { left: 160px; z-index: 8; min-width: 80px; width: 80px; }
-            .fixed-column:nth-child(4) { left: 240px; z-index: 7; min-width: 100px; width: 100px; }
-            .fixed-column:nth-child(5) { left: 340px; z-index: 6; min-width: 100px; width: 100px; }
-            .fixed-column:nth-child(6) { left: 440px; z-index: 5; min-width: 80px; width: 80px; }
+            .fixed-column:nth-child(1) { left: 0; z-index: 10; min-width: 40px; width: 40px; } /* 第一列固定位置和宽度 */
+            .fixed-column:nth-child(2) { left: 40px; z-index: 9; min-width: 120px; width: 120px; } /* 第二列固定位置和宽度 */
+            .fixed-column:nth-child(3) { left: 160px; z-index: 8; min-width: 80px; width: 80px; } /* 第三列固定位置和宽度 */
+            .fixed-column:nth-child(4) { left: 240px; z-index: 7; min-width: 100px; width: 100px; } /* 第四列固定位置和宽度 */
+            .fixed-column:nth-child(5) { left: 340px; z-index: 6; min-width: 100px; width: 100px; } /* 第五列固定位置和宽度 */
+            .fixed-column:nth-child(6) { left: 440px; z-index: 5; min-width: 80px; width: 80px; } /* 第六列固定位置和宽度 */
             
             /* 修复第一个非固定列的左边距 */
             .scrollable-table th:nth-child(7),
             .scrollable-table td:nth-child(7) {
-                padding-left: 15px;
+                padding-left: 15px; /* 增加左内边距，避免被固定列遮挡 */
             }
             
-            /* 表格容器样式优化 */
-            .table-scroll-wrapper {
-                position: relative;
-                overflow-x: auto !important;
-                overflow-y: auto !important;
-                display: block;
-                contain: content;
+            /* 固定列与滚动容器的协调 */
+            .scrollable-table tbody {
+                display: table-row-group; /* 恢复标准表格行组显示 */
             }
             
             .identifier-cell {
-                padding: 4px;
+                padding: 4px; /* 标识单元格内边距 */
             }
             
             .checkbox-label {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
+                display: flex; /* 弹性布局 */
+                align-items: center; /* 垂直居中 */
+                justify-content: center; /* 水平居中 */
+                cursor: pointer; /* 鼠标指针样式 */
             }
             
             .identifier-checkbox {
-                display: none;
+                display: none; /* 隐藏原生复选框 */
             }
             
             .checkbox-custom {
-                width: 20px;
-                height: 20px;
-                border: 2px solid #007bff;
-                border-radius: 4px;
-                transition: all 0.3s ease;
-                position: relative;
+                width: 20px; /* 自定义复选框宽度 */
+                height: 20px; /* 自定义复选框高度 */
+                border: 2px solid #007bff; /* 边框样式 */
+                border-radius: 4px; /* 圆角 */
+                transition: all 0.3s ease; /* 过渡效果 */
+                position: relative; /* 相对定位，为伪元素提供参考 */
             }
             
             .identifier-checkbox:checked + .checkbox-custom {
-                background-color: #28a745;
-                border-color: #28a745;
+                background-color: #28a745; /* 选中状态背景色 */
+                border-color: #28a745; /* 选中状态边框色 */
             }
             
             .identifier-checkbox:checked + .checkbox-custom::after {
-                content: '✓';
-                color: white;
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                font-weight: bold;
+                content: '✓'; /* 选中标记 */
+                color: white; /* 标记颜色 */
+                position: absolute; /* 绝对定位 */
+                top: 50%; /* 垂直居中 */
+                left: 50%; /* 水平居中 */
+                transform: translate(-50%, -50%); /* 居中变换 */
+                font-weight: bold; /* 字体加粗 */
             }
             
             .hover-row:hover {
-                background: rgba(255, 255, 255, 0.05) !important;
+                background: rgba(255, 255, 255, 0.05) !important; /* 行悬停背景色 */
             }
         </style>`;
         
