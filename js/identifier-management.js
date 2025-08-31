@@ -4,6 +4,12 @@ class IdentifierManager {
         this.initializeStore().catch(err => console.error('初始化标识存储空间失败:', err));
     }
 
+    // 创建规范化ID的函数
+    normalizeId(id) {
+        if (id === null || id === undefined) return '';
+        return String(id).toLowerCase().trim();
+    }
+
     // 初始化标识存储空间
     async initializeStore() {
         try {
@@ -593,8 +599,11 @@ class IdentifierManager {
     async findEmployeeByNumber(employeeNumber) {
         try {
             const employees = await window.dbManager.getAll('employees');
-            // 进行宽松比较，将两边都转换为字符串后再比较
-            return employees.find(emp => String(emp.number) === String(employeeNumber));
+            // 进行规范化比较，确保更精确的匹配
+            const normalizedEmployeeNumber = this.normalizeId(String(employeeNumber));
+            return employees.find(emp => 
+                this.normalizeId(String(emp.number)) === normalizedEmployeeNumber
+            );
         } catch (error) {
             console.error('查找员工失败:', error);
             return null;

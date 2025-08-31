@@ -23,11 +23,16 @@ function autoSelectDepartmentAndLoadData() {
         const identifierDeptFilter = document.getElementById('identifierDeptFilter');
         const identifierPositionFilter = document.getElementById('identifierPositionFilter');
         
+        // 获取排班顺序管理选项卡内容
+        const shiftOrdersTab = document.getElementById('shiftOrders-tab');
+        
         console.log('找到的筛选框:', {
             shiftOrderDeptFilter: !!deptFilter,
             shiftOrderPositionFilter: !!positionFilter,
             identifierDeptFilter: !!identifierDeptFilter,
-            identifierPositionFilter: !!identifierPositionFilter
+            identifierPositionFilter: !!identifierPositionFilter,
+            shiftOrdersTab: !!shiftOrdersTab,
+            isShiftOrdersTabActive: shiftOrdersTab && shiftOrdersTab.classList.contains('active')
         });
         
         // 确保岗位筛选框默认选择为"全部岗位"
@@ -70,10 +75,14 @@ function autoSelectDepartmentAndLoadData() {
                     });
                 }
                 
-                // 触发数据加载
-                if (window.loadShiftOrderData) {
-                    console.log('触发排班顺序数据加载');
-                    window.loadShiftOrderData();
+                // 触发数据加载 - 只有当排班顺序管理选项卡是当前活动选项卡时才触发
+                if (shiftOrdersTab && shiftOrdersTab.classList.contains('active')) {
+                    if (window.loadShiftOrderData) {
+                        console.log('触发排班顺序数据加载 (因为排班顺序管理是当前活动选项卡)');
+                        window.loadShiftOrderData();
+                    }
+                } else {
+                    console.log('不触发排班顺序数据加载 (因为排班顺序管理不是当前活动选项卡)');
                 }
                 
                 if (window.loadIdentifierData) {
