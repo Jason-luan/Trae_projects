@@ -413,6 +413,9 @@ class ShiftOrderManager {
                     // 使用全局dbManager保存数据
                     const result = await window.dbManager.save('shiftOrders', data);
                     console.log('全局dbManager保存成功: ' + JSON.stringify(data));
+                    
+                    // 触发自动刷新
+                    this._autoRefreshAfterSave();
                     return result;
                 } else {
                     throw new Error('全局dbManager不可用');
@@ -423,6 +426,9 @@ class ShiftOrderManager {
                 // 降级到内存存储
                 // 注意：使用employeeNumbers字段
                 this._saveToMemory(data);
+                
+                // 触发自动刷新
+                this._autoRefreshAfterSave();
                 return 'memory_backup';
             }
         } catch (error) {
@@ -538,6 +544,9 @@ class ShiftOrderManager {
                     // 使用全局dbManager保存数据
                     const result = await window.dbManager.save('shiftOrders', data);
                     console.log('全局dbManager保存成功: ' + JSON.stringify(data));
+                    
+                    // 触发自动刷新
+                    this._autoRefreshAfterSave();
                     return result;
                 } else {
                     throw new Error('全局dbManager不可用');
@@ -547,6 +556,9 @@ class ShiftOrderManager {
                 
                 // 降级到内存存储
                 this._saveToMemory(data);
+                
+                // 触发自动刷新
+                this._autoRefreshAfterSave();
                 return 'memory_backup';
             }
         } catch (error) {
@@ -555,6 +567,44 @@ class ShiftOrderManager {
         }
     }
 
+    // 自动刷新排班数据（私有方法）
+    _autoRefreshAfterSave() {
+        try {
+            console.log('排班数据保存成功，准备自动刷新...');
+            
+            // 清除缓存，确保获取最新数据
+            if (this.clearCache) {
+                this.clearCache();
+            }
+            
+            // 延迟一小段时间，确保数据完全写入后再刷新
+            setTimeout(() => {
+                try {
+                    // 触发班次数据变更事件，通知其他模块
+                    const event = new CustomEvent('shiftDataChanged', {
+                        detail: {
+                            reason: '排班数据保存',
+                            shiftId: null,
+                            shiftCode: null
+                        }
+                    });
+                    window.dispatchEvent(event);
+                    
+                    // 直接调用刷新函数，确保立即更新UI
+                    if (window.loadShiftOrderData) {
+                        window.loadShiftOrderData();
+                    }
+                    
+                    console.log('排班数据已自动刷新');
+                } catch (refreshError) {
+                    console.error('自动刷新排班数据失败:', refreshError);
+                }
+            }, 50); // 50ms的延迟，平衡性能和实时性
+        } catch (error) {
+            console.error('执行自动刷新逻辑失败:', error);
+        }
+    }
+    
     // 获取所有岗位的排班顺序
     async getAllShiftOrders() {
         try {
@@ -680,7 +730,12 @@ class ShiftOrderManager {
                 shiftOrder.updatedAt = new Date();
                 
                 // 保存更新后的排班顺序
-                return await window.dbManager.save('shiftOrders', shiftOrder);
+                const result = await window.dbManager.save('shiftOrders', shiftOrder);
+                
+                // 添加自动刷新逻辑
+                this._autoRefreshAfterSave();
+                
+                return result;
             }
             
             return shiftOrder;
@@ -724,7 +779,12 @@ class ShiftOrderManager {
                 shiftOrder.updatedAt = new Date();
                 
                 // 保存更新后的排班顺序
-                return await window.dbManager.save('shiftOrders', shiftOrder);
+                const result = await window.dbManager.save('shiftOrders', shiftOrder);
+                
+                // 添加自动刷新逻辑
+                this._autoRefreshAfterSave();
+                
+                return result;
             }
             
             return shiftOrder;
@@ -775,6 +835,7 @@ class ShiftOrderManager {
         try {
             // 获取所有排班顺序
             const allShiftOrders = await this.getAllShiftOrders();
+            let hasChanges = false;
             
             // 检查并更新每个排班顺序
             for (const shiftOrder of allShiftOrders) {
@@ -788,6 +849,7 @@ class ShiftOrderManager {
                         
                         // 保存更新后的排班顺序
                         await window.dbManager.save('shiftOrders', shiftOrder);
+                        hasChanges = true;
                     }
                 }
                 // 兼容旧版employeeIds数组
@@ -800,8 +862,14 @@ class ShiftOrderManager {
                         
                         // 保存更新后的排班顺序
                         await window.dbManager.save('shiftOrders', shiftOrder);
+                        hasChanges = true;
                     }
                 }
+            }
+            
+            // 如果有数据变更，添加自动刷新逻辑
+            if (hasChanges) {
+                this._autoRefreshAfterSave();
             }
         } catch (error) {
             console.error('从排班顺序中移除员工失败:', error);
@@ -1160,6 +1228,12 @@ async function loadAllShiftOrders() {
 
 // 根据筛选条件加载排班顺序数据
 window.loadShiftOrderData = async function() {
+    // 创建规范化ID的函数
+    const normalizeId = (id) => {
+        if (id === null || id === undefined) return '';
+        return String(id).toLowerCase().trim();
+    };
+    
     try {
         // 获取部门和岗位筛选值
         const deptFilter = document.getElementById('shiftOrderDeptFilter');
@@ -1200,10 +1274,11 @@ window.loadShiftOrderData = async function() {
                 if (allIdentifiers && allIdentifiers.length > 0) {
                     // 只保留至少有一个有效标识（canWork=true）的员工，优先使用员工号匹配
                     const employeesWithValidIdentifiers = filteredEmployees.filter(employee => {
-                        const empNumber = String(employee.number);
+                        const empNumber = normalizeId(employee.number);
+                        const empId = normalizeId(employee.id);
                         return allIdentifiers.some(id => {
-                            const identifierNumber = String(id.employeeNumber || id.employeeId);
-                            return identifierNumber === empNumber && id.canWork === true;
+                            const identifierNumber = normalizeId(id.employeeNumber || id.employeeId);
+                            return (identifierNumber === empNumber || identifierNumber === empId) && id.canWork === true;
                         });
                     });
                     
@@ -1314,10 +1389,21 @@ function sortEmployeesByOrder(employees, orderedEmployeeIds) {
 // 内部辅助函数：加载并准备编辑排班顺序
 async function _prepareEditShiftOrder(position, shiftCode = null) {
     try {
+        console.log(`开始准备编辑排班顺序：岗位=${position}，班次=${shiftCode || '无'}`);
         // 注意：不再预先调用window.loadAllShiftOrders()，避免绕过标识过滤逻辑
         // 获取该岗位的所有员工
         const allEmployees = await window.dbManager.getAll('employees');
+        console.log(`从数据库获取的员工总数：${allEmployees.length}`);
+        // 添加日志检查员工对象结构
+        if (allEmployees.length > 0) {
+            console.log(`员工对象结构示例：${JSON.stringify(allEmployees[0])}`);
+        }
         let positionEmployees = allEmployees.filter(emp => emp.position === position && emp.status === 0);
+        console.log(`过滤后的岗位员工数：${positionEmployees.length}`);
+        // 添加日志检查过滤后的员工对象
+        if (positionEmployees.length > 0) {
+            console.log(`过滤后员工对象示例：${JSON.stringify(positionEmployees[0])}`);
+        }
         
         // 未设置该班次的员工列表（用于在剔除列表中显示）
         let notSetShiftEmployees = [];
@@ -1339,11 +1425,6 @@ async function _prepareEditShiftOrder(position, shiftCode = null) {
                         .filter(identifier => identifier.canWork === true)  // 只保留canWork为true的标识
                         .map(identifier => identifier.employeeNumber || identifier.employeeId); // 优先使用employeeNumber，兼容性考虑保留employeeId
                     
-                    // 提取未设置该班次或canWork为false的员工号
-                    const notSetEmployeeNumbers = shiftIdentifiers
-                        .filter(identifier => identifier.canWork === false)  // 只保留canWork为false的标识
-                        .map(identifier => identifier.employeeNumber || identifier.employeeId);
-
                     // 先过滤只保留在该班次有有效标识的员工，严格按员工号匹配
                     positionEmployees = positionEmployees.filter(emp => {
                         const empNumber = String(emp.number);
@@ -1351,14 +1432,9 @@ async function _prepareEditShiftOrder(position, shiftCode = null) {
                         // 只保留canWork为true的员工
                         return identifiedEmployeeNumbers.some(identifiedNumber => String(identifiedNumber) === empNumber);
                     });
-
-                    // 获取未设置该班次的员工
-                    // 根据需求，只包含在标识管理中有该班次标识(canWork=true)但没有在排班顺序中的员工
-                    // 注意：positionEmployees已经被过滤，只包含有有效标识(canWork=true)的员工
-                    notSetShiftEmployees = [];
                 } else {
-                    // 如果没有找到对应的班次，显示空列表
-                    positionEmployees = [];
+                    console.warn('没有找到对应的班次，将使用岗位员工列表并跳过标识过滤');
+                    // 如果没有找到对应的班次，不设置空列表，而是保留原始岗位员工列表
                 }
             } else {
                 // 如果没有提供班次代码，过滤所有有有效标识的员工
@@ -1381,8 +1457,9 @@ async function _prepareEditShiftOrder(position, shiftCode = null) {
                 }
             }
             
-            // 当数据库中没有员工但标识管理中有有效标识时，从标识管理中创建临时员工对象
-            if (positionEmployees.length === 0 && allEmployees.length === 0) {
+            // 当过滤后没有有效员工但标识管理中有有效标识时，从标识管理中创建临时员工对象
+            if (positionEmployees.length === 0) {
+                console.log('过滤后没有有效员工，尝试从标识管理创建临时员工对象');
                 try {
                     let validIdentifiers;
                     if (shiftCode) {
@@ -1406,27 +1483,53 @@ async function _prepareEditShiftOrder(position, shiftCode = null) {
                             const tempEmployeesMap = new Map();
                             
                             // 为每个有效标识创建临时员工对象
-                            activeIdentifiers.forEach(identifier => {
+                            for (const identifier of activeIdentifiers) {
                                 // 使用employeeNumber作为员工号，如果没有则使用employeeId
                                 const employeeNumber = identifier.employeeNumber || identifier.employeeId;
                                 
                                 if (!tempEmployeesMap.has(employeeNumber)) {
-                                    // 创建临时员工对象
-                                    const tempEmployee = {
-                                        id: identifier.employeeId,
-                                        number: employeeNumber,
-                                        name: `员工${employeeNumber}`, // 默认名称
-                                        position: position, // 使用当前岗位
-                                        department: '', // 默认为空
-                                        status: 0 // 在职状态
-                                    };
+                                    // 尝试从数据库中获取实际的员工信息
+                                    let tempEmployee = null;
+                                    
+                                    try {
+                                        // 优先通过员工号查找
+                                        if (identifier.employeeNumber) {
+                                            const employeeByNumber = await window.dbManager.getByIndex('employees', 'number', identifier.employeeNumber);
+                                            if (employeeByNumber && employeeByNumber.length > 0) {
+                                                tempEmployee = employeeByNumber[0];
+                                            }
+                                        }
+                                        
+                                        // 如果通过员工号没找到，尝试通过员工ID查找
+                                        if (!tempEmployee && identifier.employeeId) {
+                                            const employeeById = await window.dbManager.getById('employees', identifier.employeeId);
+                                            if (employeeById) {
+                                                tempEmployee = employeeById;
+                                            }
+                                        }
+                                    } catch (error) {
+                                        console.warn('查找实际员工信息失败:', error);
+                                    }
+                                    
+                                    // 如果找不到实际的员工信息，创建默认的临时员工对象
+                                    if (!tempEmployee) {
+                                        tempEmployee = {
+                                            id: identifier.employeeId,
+                                            number: identifier.employeeNumber || identifier.employeeId,
+                                            name: identifier.employeeNumber ? `员工${identifier.employeeNumber}` : `员工${identifier.employeeId}`, // 默认名称
+                                            position: position, // 使用当前岗位
+                                            department: '', // 默认为空
+                                            status: 0 // 在职状态
+                                        };
+                                    }
                                     
                                     tempEmployeesMap.set(employeeNumber, tempEmployee);
                                 }
-                            });
+                            }
                             
                             // 转换为数组
                             positionEmployees = Array.from(tempEmployeesMap.values());
+                            console.log(`成功从标识管理创建临时员工对象数量: ${positionEmployees.length}`);
                         }
                     }
                 } catch (error) {
@@ -1515,7 +1618,7 @@ async function _prepareEditShiftOrder(position, shiftCode = null) {
         
         // 不再处理employeeIds，严格只使用员工号进行匹配
         
-        // 如果提供了班次代码，计算有有效标识但没有在原始排班顺序中的员工
+        // 计算有有效标识但没有在原始排班顺序中的员工
         // 这里要在添加剩余员工到orderedEmployees之前计算，确保正确
         if (shiftCode) {
             // 筛选出有有效标识(canWork=true)但没有在原始排班顺序中的员工
@@ -1526,16 +1629,29 @@ async function _prepareEditShiftOrder(position, shiftCode = null) {
             });
             
             console.log(`有有效标识但没有在排班顺序中的员工数量: ${notSetShiftEmployees.length}`);
+        } else {
+            // 如果没有提供班次代码，使用所有不在原始排班顺序中的员工作为剔除列表
+            notSetShiftEmployees = positionEmployees.filter(emp => {
+                const empNumber = String(emp.number);
+                // 检查员工是否不在原始排班顺序中
+                return !originalOrderedEmployeeNumbersSet.has(empNumber);
+            });
         }
         
         // 当数据库中没有排班顺序记录但有临时员工时，直接添加这些临时员工
         if (orderedEmployees.length === 0 && positionEmployees.length > 0) {
             // 当没有数据库记录时，直接使用从标识管理创建的临时员工
             console.log('数据库中没有排班顺序记录，直接使用从标识管理创建的临时员工');
-            orderedEmployees.push(...positionEmployees);
-        } else {
-            // 添加剩余的有有效标识但不在排序列表中的员工
-            // 无论是否有班次代码，都应该添加这些员工
+            if (shiftCode) {
+                // 当有班次代码时，只添加到未设置班次的员工列表，这样它们会显示在剔除列表中
+                notSetShiftEmployees = [...positionEmployees];
+                console.log(`将所有${positionEmployees.length}个员工添加到剔除列表`);
+            } else {
+                // 当没有班次代码时，直接添加到主列表
+                orderedEmployees.push(...positionEmployees);
+            }
+        } else if (!shiftCode) {
+            // 只有在没有班次代码时，才添加剩余的有有效标识但不在排序列表中的员工
             
             // 优先添加通过员工号找到的剩余员工
             validEmployeeNumbers.forEach(empNumber => {
@@ -1548,13 +1664,11 @@ async function _prepareEditShiftOrder(position, shiftCode = null) {
             // 不需要再添加通过ID找到的剩余员工，因为我们已经确保每个员工在employeeMapByNumber中都有映射
             
             // 对这部分员工按姓名排序
-            if (orderedEmployees.length > 0 && !shiftCode) {
-                const startIndex = orderedEmployees.length - validEmployeeNumbers.size;
-                if (startIndex < orderedEmployees.length - 1 && startIndex >= 0) {
-                    const remainingEmployees = orderedEmployees.splice(startIndex);
-                    remainingEmployees.sort((a, b) => a.name.localeCompare(b.name));
-                    orderedEmployees.push(...remainingEmployees);
-                }
+            const startIndex = orderedEmployees.length - validEmployeeNumbers.size;
+            if (startIndex < orderedEmployees.length - 1 && startIndex >= 0) {
+                const remainingEmployees = orderedEmployees.splice(startIndex);
+                remainingEmployees.sort((a, b) => a.name.localeCompare(b.name));
+                orderedEmployees.push(...remainingEmployees);
             }
         }
         
@@ -1586,6 +1700,11 @@ window.editShiftOrderByPositionAndShift = function(position, shiftCode) {
 
 // 显示排班顺序编辑模态框
 function showShiftOrderEditModal(position, employees, orderedEmployeeIds, shiftCode = null, notSetShiftEmployees = []) {
+    console.log(`进入showShiftOrderEditModal函数：传入员工数=${employees ? employees.length : 0}，未设置班次员工数=${notSetShiftEmployees ? notSetShiftEmployees.length : 0}`);
+    // 检查传入的员工对象结构
+    if (employees && employees.length > 0) {
+        console.log(`传入员工对象结构示例：${JSON.stringify(employees[0])}`);
+    }
     const modal = document.getElementById('shiftOrderEditModal');
     const title = document.getElementById('shiftOrderModalTitle');
     const employeeList = document.getElementById('shiftOrderEmployeeList');
@@ -1664,6 +1783,7 @@ function showShiftOrderEditModal(position, employees, orderedEmployeeIds, shiftC
     
     // 添加员工到拖拽列表
     function addEmployeeToDraggableList(employee) {
+        console.log(`添加员工到拖拽列表：${JSON.stringify(employee)}`);
         const item = document.createElement('div');
         item.className = 'shift-order-employee-item';
         item.draggable = true;
@@ -1810,9 +1930,24 @@ function showShiftOrderEditModal(position, employees, orderedEmployeeIds, shiftC
     
     // 将未设置该班次的员工添加到剔除列表中
     if (notSetShiftEmployees && notSetShiftEmployees.length > 0) {
+        // 1. 首先创建一个映射，用于快速检查员工是否已在主列表中
+        const mainListEmployeeNumbers = new Set();
+        employees.forEach(emp => {
+            mainListEmployeeNumbers.add(String(emp.number));
+        });
+        
+        // 2. 直接将当前岗位的未设置班次员工添加到剔除列表，不添加到主列表
         notSetShiftEmployees.forEach(employee => {
-            // 直接调用excludeEmployee函数将员工添加到剔除列表
-            excludeEmployee(employee);
+            // 确保只处理当前岗位的员工
+            if (employee.position === position) {
+                const empNumber = String(employee.number);
+                
+                // 检查该员工是否已经在主列表中
+                if (!mainListEmployeeNumbers.has(empNumber)) {
+                    // 直接添加到剔除列表，不添加到主列表
+                    excludeEmployee(employee);
+                }
+            }
         });
     }
     
@@ -1936,52 +2071,62 @@ function getDragAfterElement(container, y) {
     return closest.element;
 }
 
-// 内部辅助函数：重新加载排班顺序数据
+// 内部辅助函数：重新加载排班顺序数据 - 参考人员管理模块的直接调用方式
 function _reloadShiftOrderData() {
-    return new Promise(function(resolve, reject) {
-        try {
-            // 先确保shiftOrderManager实例已经初始化
-            if (window.shiftOrderManager) {
-                // 先清除缓存，确保获取最新数据
-                window.shiftOrderManager.clearCache && window.shiftOrderManager.clearCache();
-            }
-            
-            if (window.loadShiftOrderData) {
-                var result = window.loadShiftOrderData();
-                if (result && typeof result.then === 'function') {
-                    result.then(function() {
-                        console.log('排班数据重新加载成功，准备刷新表格显示');
-                        // 确保表格重新渲染
-                        _refreshShiftOrderTable();
-                        resolve();
-                    }).catch(reject);
-                } else {
-                    console.log('直接调用loadShiftOrderData，准备刷新表格显示');
-                    // 确保表格重新渲染
-                    _refreshShiftOrderTable();
-                    resolve();
-                }
-            } else {
-                var result = loadAllShiftOrders();
-                if (result && typeof result.then === 'function') {
-                    result.then(function() {
-                        console.log('调用loadAllShiftOrders成功，准备刷新表格显示');
-                        // 确保表格重新渲染
-                        _refreshShiftOrderTable();
-                        resolve();
-                    }).catch(reject);
-                } else {
-                    console.log('直接调用loadAllShiftOrders，准备刷新表格显示');
-                    // 确保表格重新渲染
-                    _refreshShiftOrderTable();
-                    resolve();
-                }
-            }
-        } catch (e) {
-            console.error('重新加载排班数据时发生错误:', e);
-            reject(e);
+    // 简化实现，参考人员管理模块的直接调用方式
+    console.log('[_reloadShiftOrderData] 开始执行自动刷新排班数据');
+    
+    // 先确保shiftOrderManager实例已经初始化并清除缓存
+    if (window.shiftOrderManager) {
+        // 清除缓存，确保获取最新数据
+        if (window.shiftOrderManager.clearCache) {
+            window.shiftOrderManager.clearCache();
         }
-    });
+    }
+    
+    // 直接调用核心加载函数，与人员管理模块保持一致
+    if (window.loadShiftOrderData) {
+        // 直接返回loadShiftOrderData的结果，保持Promise链
+        try {
+            const result = window.loadShiftOrderData();
+            if (result && typeof result.then === 'function') {
+                return result.then(() => {
+                    console.log('[_reloadShiftOrderData] 排班数据重新加载成功，表格已自动渲染');
+                }).catch(error => {
+                    console.error('[_reloadShiftOrderData] loadShiftOrderData执行失败:', error);
+                    throw error;
+                });
+            } else {
+                console.log('[_reloadShiftOrderData] 直接调用loadShiftOrderData，表格已自动渲染');
+                return Promise.resolve();
+            }
+        } catch (error) {
+            console.error('[_reloadShiftOrderData] 执行过程中发生错误:', error);
+            return Promise.reject(error);
+        }
+    } else if (typeof loadAllShiftOrders === 'function') {
+        // 作为备选方案
+        try {
+            const result = loadAllShiftOrders();
+            if (result && typeof result.then === 'function') {
+                return result.then(() => {
+                    console.log('[_reloadShiftOrderData] 调用loadAllShiftOrders成功，表格已自动渲染');
+                }).catch(error => {
+                    console.error('[_reloadShiftOrderData] loadAllShiftOrders执行失败:', error);
+                    throw error;
+                });
+            } else {
+                console.log('[_reloadShiftOrderData] 直接调用loadAllShiftOrders，表格已自动渲染');
+                return Promise.resolve();
+            }
+        } catch (error) {
+            console.error('[_reloadShiftOrderData] 执行过程中发生错误:', error);
+            return Promise.reject(error);
+        }
+    } else {
+        console.error('[_reloadShiftOrderData] 错误: 未找到loadShiftOrderData和loadAllShiftOrders函数');
+        return Promise.reject(new Error('未找到数据加载函数'));
+    }
 }
 
 // 内部辅助函数：强制刷新排班顺序表格
@@ -2023,11 +2168,13 @@ function _refreshShiftOrderTable() {
                     console.warn('获取标识数据失败，显示空列表:', identifierError);
                     // 获取标识数据失败时，显示空列表而不是所有员工
                     filteredEmployees = [];
+                    // 确保修改的是局部变量positions
                     positions = new Set();
                 }
             } else {
                 // identifierManager不存在时，显示空列表
                 filteredEmployees = [];
+                // 确保修改的是局部变量positions
                 positions = new Set();
                 console.warn('identifierManager不存在，显示空列表');
             }
@@ -2067,10 +2214,15 @@ function _saveShiftOrderInternal(position, employeeNumbers, shiftCode = null, ex
         savePromise = window.shiftOrderManager.saveShiftOrder(position, employeeNumbers, excludeAllEmployees);
     }
     
-    // 保存成功后重新加载数据并刷新表格
+    // 保存成功后添加短暂延迟确保数据完全写入，然后重新加载数据并刷新表格
     return savePromise
         .then(function() {
-            console.log('排班顺序已成功保存到存储，准备重新加载数据');
+            console.log('排班顺序已成功保存到存储，等待一小段时间确保数据完全写入');
+            // 添加短暂延迟确保数据完全写入数据库
+            return new Promise(resolve => setTimeout(resolve, 100));
+        })
+        .then(function() {
+            console.log('准备重新加载数据');
             return _reloadShiftOrderData();
         })
         .then(function() {
@@ -2182,10 +2334,15 @@ window.clearShiftOrder = function(position, shiftCode) {
         savePromise = window.shiftOrderManager.saveShiftOrder(position, []);
     }
     
-    // 清空成功后重新加载数据并刷新表格
+    // 清空成功后添加短暂延迟确保数据完全写入，然后重新加载数据并刷新表格
     savePromise
         .then(function() {
-            console.log('排班顺序已成功清空，准备重新加载数据');
+            console.log('排班顺序已成功清空，等待一小段时间确保数据完全写入');
+            // 添加短暂延迟确保数据完全写入数据库
+            return new Promise(resolve => setTimeout(resolve, 100));
+        })
+        .then(function() {
+            console.log('准备重新加载数据');
             return _reloadShiftOrderData();
         })
         .then(function() {
@@ -2445,10 +2602,9 @@ async function renderShiftOrderTable(positions = new Set(), unusedShiftOrderMap 
         // 转换Set为数组，方便遍历，确保positions是有效的可迭代对象
         const positionArray = Array.from(positions || new Set()).sort();
         
-        // 预编译模板片段，提高HTML渲染效率
-        const rowTemplates = [];
-        
         let rowIndex = 1;
+        // 直接构建HTML字符串
+        let tableHTML = '';
         
         // 预获取所有岗位和班次的排班顺序，避免在循环中使用await
         const shiftOrderCache = new Map();
@@ -2792,13 +2948,13 @@ async function renderShiftOrderTable(positions = new Set(), unusedShiftOrderMap 
                 }
                 
                 rowHTML += '</tr>';
-                rowTemplates.push(rowHTML);
+                tableHTML += rowHTML;
             }
         }
         
         // 一次性插入所有行，减少DOM操作
-        if (rowTemplates.length > 0) {
-            tableBody.innerHTML = rowTemplates.join('');
+        if (tableHTML) {
+            tableBody.innerHTML = tableHTML;
             console.log('排班顺序表格渲染完成');
         } else {
             // 如果没有数据，显示空状态
@@ -2898,9 +3054,12 @@ if (typeof window !== 'undefined') {
     // 暴露渲染函数到全局，确保其他文件可以调用
     window.renderShiftOrderTable = renderShiftOrderTable;
     window.updateShiftOrderTableHeader = updateShiftOrderTableHeader;
-    console.log('排班顺序表格渲染函数已成功暴露到全局作用域');
+    // 暴露重新加载数据函数，用于其他模块触发数据刷新
+    window._reloadShiftOrderData = _reloadShiftOrderData;
+    console.log('排班顺序表格渲染函数和刷新函数已成功暴露到全局作用域');
     
-    // 响应标识导入事件，确保导入的标识与单点标识一样关联排班编辑的班次人员列表
+    // 响应标识导入事件，确保导入的标识能正确刷新排班编辑的模态框员工列表
+    // 注意：已禁用自动排序功能，所有排序都将通过手动编辑完成
     window.addEventListener('allIdentifiersReimported', async function(event) {
         try {
             console.log(`接收到标识导入事件，导入了${event.detail?.count || 0}条标识数据`);
@@ -2911,46 +3070,7 @@ if (typeof window !== 'undefined') {
             // 重新初始化排班数据
             await manager.initializeStore();
             
-            // 获取所有员工和班次数据
-            const employees = await window.dbManager.getAll('employees');
-            const shifts = window.shiftManager ? await window.shiftManager.getAllShifts() : [];
-            
-            // 获取所有导入的有效标识（canWork=true）
-            const identifiers = await window.dbManager.getAll('identifiers');
-            const validIdentifiers = identifiers.filter(identifier => identifier.canWork);
-            
-            console.log(`找到${validIdentifiers.length}条有效的标识数据，准备添加到排班顺序中`);
-            
-            // 对每个有效标识执行与单点操作相同的处理逻辑
-            for (const identifier of validIdentifiers) {
-                try {
-                    // 查找对应的员工和班次
-                    // 优先使用员工号进行匹配
-                    const identifierNumber = String(identifier.employeeNumber || identifier.employeeId);
-                    const employee = employees.find(emp => String(emp.number) === identifierNumber);
-                    const shift = shifts.find(s => s.id === identifier.shiftId);
-                    
-                    // 如果通过员工号没找到，再尝试通过ID查找（兼容旧数据）
-                    const employeeById = employee || employees.find(emp => emp.id === identifier.employeeId);
-                    
-                    if (employeeById && shift) {
-                        // 优先使用员工号
-                        const employeeNumber = employeeById.number || employeeById.id;
-
-                        // 将员工添加到对应岗位和班次的排班顺序末尾
-                        await manager.addEmployeeToShiftOrderByShift(
-                            employeeNumber,
-                            employeeById.position,
-                            shift.code
-                        );
-
-                        console.log(`已将员工${employeeById.name}(${employeeNumber})添加到${employeeById.position}岗位${shift.code}班次的排班顺序末尾`);
-                    }
-                } catch (addError) {
-                    console.error(`添加标识到排班顺序失败:`, addError);
-                    // 继续处理下一个标识，不中断整体流程
-                }
-            }
+            console.log('标识导入完成，刷新排班数据但不自动排序（所有排序都将通过手动编辑完成）');
             
             // 刷新排班顺序表格
             const shiftOrderTable = document.getElementById('shiftOrderTable');
@@ -3000,4 +3120,68 @@ if (typeof window !== 'undefined') {
         }
     });
     console.log('已添加标识导入事件监听器');
+    
+    // 响应单个标识变更事件，确保单次新增标识后能正确刷新排班编辑的模态框员工列表
+    // 注意：已禁用自动排序功能，所有排序都将通过手动编辑完成
+    window.addEventListener('identifierChanged', async function(event) {
+        try {
+            const { employeeId, employeeNumber, shiftId, shiftCode, canWork } = event.detail;
+            console.log(`接收到标识变更事件：员工ID=${employeeId}，员工号=${employeeNumber}，班次ID=${shiftId}，班次代码=${shiftCode}，是否启用=${canWork}`);
+            
+            // 重新加载排班数据以确保最新状态
+            if (window.shiftOrderManager) {
+                await window.shiftOrderManager.initializeStore();
+            }
+            
+            console.log('标识变更完成，刷新排班数据但不自动排序（所有排序都将通过手动编辑完成）');
+            
+            // 刷新排班顺序表格
+            const shiftOrderTable = document.getElementById('shiftOrderTable');
+            const shiftOrderTableHeader = document.getElementById('shiftOrderTableHeader');
+            if (shiftOrderTable && shiftOrderTableHeader) {
+                console.log('重新渲染排班顺序表格');
+                
+                // 重新获取活动班次
+                const manager = new ShiftOrderManager();
+                const activeShifts = await manager.getAllActiveShifts();
+                
+                // 更新表头
+                updateShiftOrderTableHeader(shiftOrderTableHeader, activeShifts);
+                
+                // 重新渲染表格
+                renderShiftOrderTable(shiftOrderTable);
+                
+                // 如果有正在打开的排班编辑模态框，需要刷新其中的员工列表
+                const editModal = document.getElementById('shiftOrderEditModal');
+                if (editModal && !editModal.classList.contains('hidden')) {
+                    console.log('刷新排班编辑模态框中的员工列表');
+                    // 检查当前选中的岗位和班次代码
+                    const positionFilter = document.getElementById('shiftOrderPositionFilter');
+                    const selectedPosition = positionFilter ? positionFilter.value : null;
+                    
+                    // 获取模态框标题中的班次代码
+                    const modalTitle = document.querySelector('#shiftOrderEditModal .modal-title');
+                    if (modalTitle && selectedPosition) {
+                        const titleText = modalTitle.textContent;
+                        // 从标题中提取班次代码
+                        const shiftCodeMatch = titleText.match(/班次：(\w+)/);
+                        if (shiftCodeMatch && shiftCodeMatch[1]) {
+                            const shiftCodeFromTitle = shiftCodeMatch[1];
+                            // 重新加载编辑模态框中的员工列表
+                            const editModalContent = document.getElementById('shiftOrderEditModalContent');
+                            if (editModalContent) {
+                                await window.editShiftOrderByPositionAndShift(selectedPosition, shiftCodeFromTitle);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            console.log('标识变更后排班数据已成功更新');
+        } catch (error) {
+            console.error('处理标识变更事件时发生错误:', error);
+            showNotification('更新排班数据失败，请刷新页面重试', 'error');
+        }
+    });
+    console.log('已添加标识变更事件监听器');
 }

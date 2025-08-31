@@ -82,7 +82,28 @@ class IdentifierManager {
             const result = await window.dbManager.save('identifiers', data);
             
             // 添加标识联动排班人员列表的逻辑
+            // 1. 保留原有的空方法调用（用于保持代码兼容性）
             this.notifyShiftOrderManagerAboutIdentifierChange(identifierData.employeeId, identifierData.shiftId, identifierData.canWork);
+            
+            // 2. 添加新的事件触发逻辑，与批量导入行为保持一致
+            // 但不启用自动排序功能，只确保班次编辑的模态框员工列表能刷新数据库中的排班顺序
+            try {
+                if (window.shiftOrderManager) {
+                    console.log('标识数据保存完成，触发标识变更事件以刷新员工列表');
+                    const event = new CustomEvent('identifierChanged', {
+                        detail: {
+                            employeeId: identifierData.employeeId,
+                            employeeNumber: data.employeeNumber,
+                            shiftId: identifierData.shiftId,
+                            shiftCode: data.shiftCode,
+                            canWork: identifierData.canWork
+                        }
+                    });
+                    window.dispatchEvent(event);
+                }
+            } catch (eventError) {
+                console.error('触发标识变更事件失败:', eventError);
+            }
             
             // 同步刷新岗位下拉框并传递员工岗位信息
             try {
@@ -267,13 +288,17 @@ class IdentifierManager {
                 await window.loadPositionsForDepartment(selectedDept);
             }
             
-            // 将员工岗位设置到岗位下拉框
+            // 将员工岗位设置到岗位下拉框（仅当当前不是全部岗位时）
             const positionFilter = document.getElementById('identifierPositionFilter');
             if (positionFilter) {
+                // 检查当前是否为全部岗位（空值）
+                const isAllPositions = positionFilter.value === '';
+                
                 // 先检查是否有对应的选项
                 const hasPosition = Array.from(positionFilter.options).some(option => option.value === employee.position);
                 
-                if (hasPosition) {
+                if (hasPosition && !isAllPositions) {
+                    // 只有当当前不是全部岗位时，才设置岗位下拉框
                     positionFilter.value = employee.position;
                     console.log(`已将岗位下拉框设置为: ${employee.position}`);
                     
@@ -281,6 +306,8 @@ class IdentifierManager {
                     if (typeof Event !== 'undefined') {
                         positionFilter.dispatchEvent(new Event('change'));
                     }
+                } else if (hasPosition && isAllPositions) {
+                    console.log(`当前是全部岗位，保持不变，不自动设置为: ${employee.position}`);
                 } else {
                     console.warn(`岗位下拉框中未找到岗位: ${employee.position}`);
                     // 如果未找到对应的岗位选项，尝试重新从所有员工中加载岗位列表
@@ -290,7 +317,8 @@ class IdentifierManager {
                     }
                     // 再次尝试设置岗位
                     setTimeout(() => {
-                        if (positionFilter && Array.from(positionFilter.options).some(option => option.value === employee.position)) {
+                        if (positionFilter && Array.from(positionFilter.options).some(option => option.value === employee.position) && !isAllPositions) {
+                            // 只有当当前不是全部岗位时，才设置岗位下拉框
                             positionFilter.value = employee.position;
                             if (typeof Event !== 'undefined') {
                                 positionFilter.dispatchEvent(new Event('change'));
@@ -1757,8 +1785,56 @@ async function processAndImportData(jsonData, statusElement, fileName) {
         // 重新加载数据
         setTimeout(() => {
             loadIdentifierData();
-            closeImportIdentifierModal();
-        }, 1000);
+            
+            // 导入成功后自动刷新排班数据，增加延迟确保数据完全保存
+            setTimeout(() => {
+                console.log('----------------------------------------');
+                console.log('[标识导入后] 尝试自动刷新排班数据');
+                console.log('[标识导入后] window._reloadShiftOrderData 存在:', !!window._reloadShiftOrderData);
+                console.log('[标识导入后] _reloadShiftOrderData 存在:', typeof _reloadShiftOrderData === 'function');
+                
+                if (window._reloadShiftOrderData) {
+                    console.log('[标识导入后] 调用window._reloadShiftOrderData()');
+                    window._reloadShiftOrderData().then(() => {
+                        console.log('[标识导入后] 排班数据刷新完成');
+                        // 刷新后关闭模态框
+                        closeImportIdentifierModal();
+                    }).catch(error => {
+                        console.error('[标识导入后] 排班数据刷新失败:', error);
+                        // 即使失败也关闭模态框
+                        closeImportIdentifierModal();
+                    });
+                } else if (typeof _reloadShiftOrderData === 'function') {
+                    console.log('[标识导入后] 调用_reloadShiftOrderData()');
+                    try {
+                        const result = _reloadShiftOrderData();
+                        if (result && typeof result.then === 'function') {
+                            result.then(() => {
+                                console.log('[标识导入后] 排班数据刷新完成');
+                                // 刷新后关闭模态框
+                                closeImportIdentifierModal();
+                            }).catch(error => {
+                                console.error('[标识导入后] 排班数据刷新失败:', error);
+                                // 即使失败也关闭模态框
+                                closeImportIdentifierModal();
+                            });
+                        } else {
+                            console.log('[标识导入后] 排班数据刷新完成');
+                            // 刷新后关闭模态框
+                            closeImportIdentifierModal();
+                        }
+                    } catch (error) {
+                        console.error('[标识导入后] 排班数据刷新失败:', error);
+                        // 即使失败也关闭模态框
+                        closeImportIdentifierModal();
+                    }
+                } else {
+                    console.error('[标识导入后] 错误: 未找到_reloadShiftOrderData函数');
+                    // 即使未找到函数也关闭模态框
+                    closeImportIdentifierModal();
+                }
+            }, 300);
+        }, 800);
     } catch (error) {
         console.error('处理数据时出错:', error);
         // 安全地获取错误信息

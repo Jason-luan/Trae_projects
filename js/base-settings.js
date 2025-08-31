@@ -1251,6 +1251,15 @@ function initImportEmployeeEvents() {
                 // 刷新员工列表
                 loadEmployees();
                 
+                // 导入成功后自动刷新排班数据，添加延迟确保数据完全保存
+                setTimeout(() => {
+                    if (window._reloadShiftOrderData) {
+                        window._reloadShiftOrderData();
+                    } else if (typeof _reloadShiftOrderData === 'function') {
+                        _reloadShiftOrderData();
+                    }
+                }, 300);
+                
                 // 导入完成后显示结果弹窗
                 if (errorCount === 0) {
                     if (confirm(`成功导入${successCount}名员工！`)) {
