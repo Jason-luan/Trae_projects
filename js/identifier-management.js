@@ -116,10 +116,12 @@ class IdentifierManager {
                 // 当标识被选中（canWork=true）时，将员工岗位传递给岗位下拉框
                 if (identifierData.canWork) {
                     console.log('标识被选中，将员工岗位传递给岗位下拉框，员工ID:', identifierData.employeeId);
-                    await this.propagateEmployeePositionToDropdown(identifierData.employeeId);
+                    // 使用防抖机制避免短时间内多次触发岗位筛选
+                    await this.propagateEmployeePositionToDropdown(identifierData.employeeId, true);
                 } else {
                     // 如果标识未被选中，从所有员工中加载岗位下拉框以确保显示所有可用岗位
-                    if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
+                    // 但仅在不是批量操作时执行，避免频繁切换
+                    if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function' && !window.isBulkIdentifierOperation) {
                         console.log('标识未被选中，从所有员工中加载岗位下拉框');
                         await window.loadPositionsForDepartment(''); // 传入空字符串表示从所有部门加载
                     }
@@ -273,65 +275,176 @@ class IdentifierManager {
     }
 
     // 新增方法：将员工岗位传递给岗位下拉框并刷新
-    async propagateEmployeePositionToDropdown(employeeId) {
+    async propagateEmployeePositionToDropdown(employeeId, useDebounce = false) {
         try {
-            // 获取员工信息
-            const employee = await window.dbManager.getById('employees', employeeId);
-            if (!employee || !employee.position) {
-                console.warn('未找到员工或员工没有岗位信息:', employeeId);
+            // 防抖处理
+            if (this.positionFilterDebounceTimer) {
+                clearTimeout(this.positionFilterDebounceTimer);
+            }
+            
+            // 如果是批量操作，直接返回，不执行任何操作
+            if (window.isBulkIdentifierOperation) {
+                console.log('批量操作中，跳过岗位下拉框更新');
                 return;
             }
             
-            console.log(`获取到员工 ${employee.name} 的岗位信息: ${employee.position}`);
-            
-            // 获取当前选中的部门
-            const deptFilter = document.getElementById('identifierDepartmentFilter');
-            const selectedDept = deptFilter && deptFilter.value ? deptFilter.value : '';
-            
-            // 首先刷新岗位下拉框
-            if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
-                console.log('刷新岗位下拉框，部门:', selectedDept);
-                await window.loadPositionsForDepartment(selectedDept);
-            }
-            
-            // 将员工岗位设置到岗位下拉框（仅当当前不是全部岗位时）
-            const positionFilter = document.getElementById('identifierPositionFilter');
-            if (positionFilter) {
-                // 检查当前是否为全部岗位（空值）
-                const isAllPositions = positionFilter.value === '';
+            // 如果不需要防抖，则直接执行
+            if (!useDebounce) {
+                // 获取员工信息
+                const employee = await window.dbManager.getById('employees', employeeId);
+                if (!employee || !employee.position) {
+                    console.warn('未找到员工或员工没有岗位信息:', employeeId);
+                    return;
+                }
                 
-                // 先检查是否有对应的选项
-                const hasPosition = Array.from(positionFilter.options).some(option => option.value === employee.position);
+                console.log(`获取到员工 ${employee.name} 的岗位信息: ${employee.position}`);
                 
-                if (hasPosition && !isAllPositions) {
-                    // 只有当当前不是全部岗位时，才设置岗位下拉框
-                    positionFilter.value = employee.position;
-                    console.log(`已将岗位下拉框设置为: ${employee.position}`);
+                // 获取当前选中的部门
+                const deptFilter = document.getElementById('identifierDepartmentFilter');
+                const selectedDept = deptFilter && deptFilter.value ? deptFilter.value : '';
+                
+                // 首先刷新岗位下拉框
+                if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
+                    console.log('刷新岗位下拉框，部门:', selectedDept);
+                    await window.loadPositionsForDepartment(selectedDept);
+                }
+                
+                // 将员工岗位设置到岗位下拉框（仅当当前不是全部岗位时）
+                const positionFilter = document.getElementById('identifierPositionFilter');
+                if (positionFilter) {
+                    // 检查当前是否为全部岗位（空值）
+                    const isAllPositions = positionFilter.value === '';
                     
-                    // 触发change事件以刷新数据
-                    if (typeof Event !== 'undefined') {
-                        positionFilter.dispatchEvent(new Event('change'));
-                    }
-                } else if (hasPosition && isAllPositions) {
-                    console.log(`当前是全部岗位，保持不变，不自动设置为: ${employee.position}`);
-                } else {
-                    console.warn(`岗位下拉框中未找到岗位: ${employee.position}`);
-                    // 如果未找到对应的岗位选项，尝试重新从所有员工中加载岗位列表
-                    if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
-                        console.log('重新从所有员工中加载岗位列表');
-                        await window.loadPositionsForDepartment(''); // 传入空字符串表示从所有部门加载
-                    }
-                    // 再次尝试设置岗位
-                    setTimeout(() => {
-                        if (positionFilter && Array.from(positionFilter.options).some(option => option.value === employee.position) && !isAllPositions) {
-                            // 只有当当前不是全部岗位时，才设置岗位下拉框
-                            positionFilter.value = employee.position;
-                            if (typeof Event !== 'undefined') {
+                    // 先检查是否有对应的选项
+                    const hasPosition = Array.from(positionFilter.options).some(option => option.value === employee.position);
+                    
+                    if (hasPosition && !isAllPositions && !window.isBulkIdentifierOperation) {
+                        // 只有当当前不是全部岗位且不是批量操作时，才设置岗位下拉框
+                        const oldValue = positionFilter.value;
+                        positionFilter.value = employee.position;
+                        console.log(`已将岗位下拉框设置为: ${employee.position}`);
+                         
+                        // 只有当值真正改变时且不在恢复滚动位置时才触发change事件
+                        if (typeof Event !== 'undefined' && oldValue !== employee.position) {
+                            if (window.isRestoringScrollPosition) {
+                                console.log('正在恢复滚动位置，暂时不触发岗位筛选框change事件');
+                            } else {
                                 positionFilter.dispatchEvent(new Event('change'));
                             }
+                        } else {
+                            console.log(`岗位下拉框已经是: ${employee.position}，无需触发change事件`);
                         }
-                    }, 100);
+                    } else if (hasPosition && isAllPositions) {
+                        console.log(`当前是全部岗位，保持不变，不自动设置为: ${employee.position}`);
+                    } else {
+                        console.warn(`岗位下拉框中未找到岗位: ${employee.position}`);
+                        // 如果未找到对应的岗位选项，尝试重新从所有员工中加载岗位列表
+                        if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
+                            console.log('重新从所有员工中加载岗位列表');
+                            await window.loadPositionsForDepartment(''); // 传入空字符串表示从所有部门加载
+                        }
+                        // 再次尝试设置岗位 - 优化为只在非批量操作时执行
+                        if (!window.isBulkIdentifierOperation) {
+                            setTimeout(() => {
+                                if (positionFilter && Array.from(positionFilter.options).some(option => option.value === employee.position) && !isAllPositions) {
+                                    // 只有当当前不是全部岗位时，才设置岗位下拉框
+                                    positionFilter.value = employee.position;
+                                    if (typeof Event !== 'undefined') {
+                                        if (window.isRestoringScrollPosition) {
+                                            console.log('正在恢复滚动位置，暂时不触发岗位筛选框change事件');
+                                        } else {
+                                            positionFilter.dispatchEvent(new Event('change'));
+                                        }
+                                    }
+                                }
+                            }, 100);
+                        }
+                    }
                 }
+            } else {
+                // 启用防抖，延迟执行岗位筛选变更
+                return new Promise((resolve) => {
+                    this.positionFilterDebounceTimer = setTimeout(async () => {
+                        try {
+                            // 获取员工信息
+                            const employee = await window.dbManager.getById('employees', employeeId);
+                            if (!employee || !employee.position) {
+                                console.warn('未找到员工或员工没有岗位信息:', employeeId);
+                                resolve();
+                                return;
+                            }
+                            
+                            console.log(`获取到员工 ${employee.name} 的岗位信息: ${employee.position}`);
+                            
+                            // 获取当前选中的部门
+                            const deptFilter = document.getElementById('identifierDepartmentFilter');
+                            const selectedDept = deptFilter && deptFilter.value ? deptFilter.value : '';
+                            
+                            // 首先刷新岗位下拉框
+                            if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
+                                console.log('刷新岗位下拉框，部门:', selectedDept);
+                                await window.loadPositionsForDepartment(selectedDept);
+                            }
+                            
+                            // 将员工岗位设置到岗位下拉框（仅当当前不是全部岗位时）
+                            const positionFilter = document.getElementById('identifierPositionFilter');
+                            if (positionFilter) {
+                                // 检查当前是否为全部岗位（空值）
+                                const isAllPositions = positionFilter.value === '';
+                                
+                                // 先检查是否有对应的选项
+                                const hasPosition = Array.from(positionFilter.options).some(option => option.value === employee.position);
+                                
+                                if (hasPosition && !isAllPositions) {
+                                    // 只有当当前不是全部岗位时，才设置岗位下拉框
+                                    const oldValue = positionFilter.value;
+                                    positionFilter.value = employee.position;
+                                    console.log(`已将岗位下拉框设置为: ${employee.position}`);
+                                    
+                                    // 只有当值真正改变时且不在恢复滚动位置时才触发change事件
+                                    if (typeof Event !== 'undefined' && oldValue !== employee.position) {
+                                        if (window.isRestoringScrollPosition) {
+                                            console.log('正在恢复滚动位置，暂时不触发岗位筛选框change事件');
+                                        } else {
+                                            positionFilter.dispatchEvent(new Event('change'));
+                                        }
+                                    } else {
+                                        console.log(`岗位下拉框已经是: ${employee.position}，无需触发change事件`);
+                                    }
+                                } else if (hasPosition && isAllPositions) {
+                                    console.log(`当前是全部岗位，保持不变，不自动设置为: ${employee.position}`);
+                                } else {
+                                    console.warn(`岗位下拉框中未找到岗位: ${employee.position}`);
+                                    // 如果未找到对应的岗位选项，尝试重新从所有员工中加载岗位列表
+                                    if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
+                                        console.log('重新从所有员工中加载岗位列表');
+                                        await window.loadPositionsForDepartment(''); // 传入空字符串表示从所有部门加载
+                                    }
+                                    // 再次尝试设置岗位 - 优化为只在非批量操作时执行
+                                    if (!window.isBulkIdentifierOperation) {
+                                        setTimeout(() => {
+                                            if (positionFilter && Array.from(positionFilter.options).some(option => option.value === employee.position) && !isAllPositions) {
+                                            // 只有当当前不是全部岗位时，才设置岗位下拉框
+                                            positionFilter.value = employee.position;
+                                            if (typeof Event !== 'undefined') {
+                                                if (window.isRestoringScrollPosition) {
+                                                    console.log('正在恢复滚动位置，暂时不触发岗位筛选框change事件');
+                                                } else {
+                                                    positionFilter.dispatchEvent(new Event('change'));
+                                                }
+                                            }
+                                        }
+                                        }, 100);
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.error('传递员工岗位信息失败:', error);
+                        } finally {
+                            resolve();
+                        }
+                    }, 200); // 200ms的防抖延迟
+                });
             }
         } catch (error) {
             console.error('传递员工岗位信息失败:', error);
@@ -623,6 +736,7 @@ class IdentifierManager {
             return null;
         }
     }
+
 }
 
 // 全局变量
@@ -991,7 +1105,7 @@ async function renderIdentifierTable() {
             }
             
             .hover-row:hover {
-                background: rgba(255, 255, 255, 0.05) !important; /* 行悬停背景色 */
+                background: rgba(59, 130, 246, 0.2) !important; /* 更明显的蓝色行悬停背景色 */
             }
         </style>`;
         
@@ -1040,10 +1154,120 @@ async function renderIdentifierTable() {
 function addIdentifierEvents() {
     // 为复选框添加事件
     document.querySelectorAll('.identifier-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', async function() {
+        checkbox.addEventListener('change', async function(e) {
+            // 阻止事件冒泡，防止不必要的DOM操作
+            e.stopPropagation();
+            
             const employeeId = parseInt(this.getAttribute('data-employee-id'));
             const shiftId = parseInt(this.getAttribute('data-shift-id'));
             const canWork = this.checked;
+            
+            // 1. 关键改进：立即缓存滚动位置并设置固定恢复标志
+            const tableScrollWrapper = document.querySelector('.table-scroll-wrapper');
+            const scrollTop = tableScrollWrapper ? tableScrollWrapper.scrollTop : 0;
+            const scrollLeft = tableScrollWrapper ? tableScrollWrapper.scrollLeft : 0;
+            
+            // 立即设置恢复标志 - 预防式解决方案
+            window.isRestoringScrollPosition = true;
+            
+            // 2. 添加临时固定尺寸样式，防止重排
+            if (tableScrollWrapper) {
+                // 保存原始样式
+                const originalStyle = tableScrollWrapper.style.cssText;
+                // 添加固定尺寸
+                tableScrollWrapper.style.overflow = 'hidden';
+                tableScrollWrapper.style.width = tableScrollWrapper.offsetWidth + 'px';
+                tableScrollWrapper.style.height = tableScrollWrapper.offsetHeight + 'px';
+            }
+            
+            // 3. 封装滚动位置恢复逻辑为函数 - 增强版
+            const restoreScrollPosition = () => {
+                if (tableScrollWrapper) {
+                    console.log(`准备恢复滚动位置: scrollTop=${scrollTop}, scrollLeft=${scrollLeft}`);
+                    
+                    // 立即使用requestAnimationFrame恢复滚动位置
+                    requestAnimationFrame(() => {
+                        const currentWrapper = document.querySelector('.table-scroll-wrapper');
+                        if (currentWrapper) {
+                            // 恢复滚动位置
+                            currentWrapper.scrollTop = scrollTop;
+                            currentWrapper.scrollLeft = scrollLeft;
+                        }
+                    });
+                    
+                    // 4. 使用强化的位置稳定检测机制
+                    let stableCount = 0;
+                    const maxStableCount = 8; // 增加连续稳定次数
+                    let attemptCount = 0;
+                    const maxAttempts = 50; // 最大尝试次数
+                    
+                    // 更激进的检查间隔
+                    const checkAndRestoreScroll = () => {
+                        attemptCount++;
+                        if (attemptCount >= maxAttempts) {
+                            console.log('已达到最大尝试次数，滚动位置恢复完成');
+                            // 清除恢复标志
+                            setTimeout(() => {
+                                window.isRestoringScrollPosition = false;
+                                // 恢复原始样式
+                                if (tableScrollWrapper) {
+                                    tableScrollWrapper.style.overflow = 'auto';
+                                    tableScrollWrapper.style.width = '100%';
+                                    tableScrollWrapper.style.height = '500px';
+                                }
+                            }, 50);
+                            return;
+                        }
+                        
+                        const currentWrapper = document.querySelector('.table-scroll-wrapper');
+                        if (currentWrapper) {
+                            // 轻微的位置容差，避免过度校正
+                            const positionStable = Math.abs(currentWrapper.scrollTop - scrollTop) < 2 && 
+                                                 Math.abs(currentWrapper.scrollLeft - scrollLeft) < 2;
+                            
+                            if (positionStable) {
+                                stableCount++;
+                                if (stableCount >= maxStableCount) {
+                                    console.log('滚动位置已稳定保持多次，恢复完成');
+                                    // 清除恢复标志
+                                    setTimeout(() => {
+                                        window.isRestoringScrollPosition = false;
+                                        // 恢复原始样式
+                                        if (tableScrollWrapper) {
+                                            tableScrollWrapper.style.overflow = 'auto';
+                                            tableScrollWrapper.style.width = '100%';
+                                            tableScrollWrapper.style.height = '500px';
+                                        }
+                                    }, 50);
+                                    return;
+                                }
+                            } else {
+                                // 位置有偏差，立即校正
+                                console.log(`滚动位置有偏差，重新校正: 目标scrollTop=${scrollTop}, 当前scrollTop=${currentWrapper.scrollTop}`);
+                                requestAnimationFrame(() => {
+                                    currentWrapper.scrollTop = scrollTop;
+                                    currentWrapper.scrollLeft = scrollLeft;
+                                });
+                                stableCount = 0; // 重置稳定计数器
+                            }
+                        }
+                        
+                        // 增加检查频率
+                        setTimeout(() => {
+                            requestAnimationFrame(checkAndRestoreScroll);
+                        }, 20); // 每20ms检查一次
+                    };
+                    
+                    // 立即开始检查和恢复
+                    checkAndRestoreScroll();
+                } else {
+                    console.warn('未找到表格滚动容器，无法保存滚动位置');
+                    // 清除恢复标志
+                    setTimeout(() => {
+                        window.isRestoringScrollPosition = false;
+                    }, 100);
+                }
+            };
             
             try {
                 // 保存标识数据
@@ -1071,6 +1295,9 @@ function addIdentifierEvents() {
                         createdAt: new Date()
                     });
                 }
+                
+                // 保存成功后，启动滚动位置恢复机制
+                restoreScrollPosition();
             } catch (error) {
                 console.error('保存标识数据失败:', error);
                 // 恢复复选框状态
@@ -1078,6 +1305,9 @@ function addIdentifierEvents() {
                 if (window.showNotification) {
                     window.showNotification('保存标识数据失败: ' + error.message, 'error');
                 }
+                
+                // 出错时也启动滚动位置恢复
+                restoreScrollPosition();
             }
         });
     });
@@ -1111,11 +1341,17 @@ function addIdentifierEvents() {
                     
                     // 设置所有复选框的选中状态（与当前状态相反）
                     const newState = !allChecked;
+                    // 标记为批量操作
+                    window.isBulkIdentifierOperation = true;
                     checkboxes.forEach(checkbox => {
                         checkbox.checked = newState;
                         // 触发change事件以保存数据
                         checkbox.dispatchEvent(new Event('change'));
                     });
+                    // 延迟重置批量操作标记，确保所有change事件处理完成
+                    setTimeout(() => {
+                        window.isBulkIdentifierOperation = false;
+                    }, 500);
                 });
             }
         });
@@ -1139,11 +1375,17 @@ function addIdentifierEvents() {
             
             // 设置所有复选框的选中状态（与当前状态相反）
             const newState = !allChecked;
+            // 标记为批量操作
+            window.isBulkIdentifierOperation = true;
             checkboxes.forEach(checkbox => {
                 checkbox.checked = newState;
                 // 触发change事件以保存数据
                 checkbox.dispatchEvent(new Event('change'));
             });
+            // 延迟重置批量操作标记，确保所有change事件处理完成
+            setTimeout(() => {
+                window.isBulkIdentifierOperation = false;
+            }, 500);
         });
     });
     
