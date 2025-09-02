@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 // 自动选择部门并加载排班顺序数据
-function autoSelectDepartmentAndLoadData() {
+async function autoSelectDepartmentAndLoadData() {
     try {
         console.log('开始执行自动选择部门并加载数据函数');
         
@@ -46,88 +46,28 @@ function autoSelectDepartmentAndLoadData() {
         }
         
         if (deptFilter && identifierDeptFilter) {
-            // 尝试获取之前选择的值（如果有）
-            const lastSelectedDept = localStorage.getItem('lastSelectedDepartment');
-            const lastSelectedPos = localStorage.getItem('lastSelectedPosition');
+            // 不再自动选择部门，保持默认的"全部部门"状态
+            deptFilter.value = "";
+            console.log('保持部门筛选框为默认值（全部部门）');
             
-            console.log('从localStorage获取的历史选择:', { lastSelectedDept, lastSelectedPos });
+            // 保持岗位筛选框为"全部岗位"
+            if (positionFilter) {
+                positionFilter.value = "";
+                console.log('保持排班顺序岗位筛选框为默认值（全部岗位）');
+            }
             
-            // 如果有历史选择，恢复选择
-            if (lastSelectedDept && Array.from(deptFilter.options).some(opt => opt.value === lastSelectedDept)) {
-                deptFilter.value = lastSelectedDept;
-                identifierDeptFilter.value = lastSelectedDept; // 同时更新标识管理的部门选择
-                
-                console.log('恢复历史部门选择:', lastSelectedDept);
-                
-                // 直接加载该部门的岗位（增强可靠性）
-                if (window.loadPositionsForDepartment) {
-                    console.log('直接加载历史选择部门的岗位数据');
-                    window.loadPositionsForDepartment(lastSelectedDept).then(() => {
-                        // 确保岗位筛选框始终显示"全部岗位"，不恢复历史岗位选择
-                        if (positionFilter) {
-                            positionFilter.value = "";
-                            console.log('强制设置排班顺序岗位筛选框为全部岗位');
-                        }
-                        if (identifierPositionFilter) {
-                            identifierPositionFilter.value = "";
-                            console.log('强制设置标识管理岗位筛选框为全部岗位');
-                        }
-                    });
-                }
-                
-                // 触发数据加载 - 只有当排班顺序管理选项卡是当前活动选项卡时才触发
-                if (shiftOrdersTab && shiftOrdersTab.classList.contains('active')) {
-                    if (window.loadShiftOrderData) {
-                        console.log('触发排班顺序数据加载 (因为排班顺序管理是当前活动选项卡)');
-                        window.loadShiftOrderData();
-                    }
-                } else {
-                    console.log('不触发排班顺序数据加载 (因为排班顺序管理不是当前活动选项卡)');
-                }
-                
-                if (window.loadIdentifierData) {
-                    console.log('触发标识数据加载');
-                    window.loadIdentifierData();
-                }
-            } else if (deptFilter.options.length > 1) {
-                // 如果没有有效选择且有多个部门选项，尝试选择第一个实际部门（跳过"全部部门"选项）
-                const firstDeptValue = deptFilter.options[1].value;
-                deptFilter.value = firstDeptValue;
-                identifierDeptFilter.value = firstDeptValue; // 同时更新标识管理的部门选择
-                
-                console.log('自动选择第一个部门:', firstDeptValue);
-                
-                // 增强版：先尝试直接调用loadPositionsForDepartment函数
-                if (window.loadPositionsForDepartment) {
-                    console.log('优先：直接调用loadPositionsForDepartment函数');
-                    window.loadPositionsForDepartment(firstDeptValue).then(() => {
-                        // 确保岗位筛选框始终显示"全部岗位"
-                        if (positionFilter) {
-                            positionFilter.value = "";
-                            console.log('强制设置排班顺序岗位筛选框为全部岗位');
-                        }
-                        if (identifierPositionFilter) {
-                            identifierPositionFilter.value = "";
-                            console.log('强制设置标识管理岗位筛选框为全部岗位');
-                        }
-                    });
-                }
-                
-                // 然后尝试触发部门选择事件（双重保障）
-                try {
-                    const deptEvent = new Event('change', { bubbles: true });
-                    deptFilter.dispatchEvent(deptEvent);
-                    console.log('已触发排班顺序部门筛选框change事件');
-                    
-                    // 同时触发标识管理的部门筛选框事件
-                    if (identifierDeptFilter) {
-                        const identifierDeptEvent = new Event('change', { bubbles: true });
-                        identifierDeptFilter.dispatchEvent(identifierDeptEvent);
-                        console.log('已触发标识管理部门筛选框change事件');
-                    }
-                } catch (eventError) {
-                    console.error('触发部门筛选框change事件失败:', eventError);
-                }
+            // 同样保持标识管理筛选框为默认值
+            identifierDeptFilter.value = "";
+            if (identifierPositionFilter) {
+                identifierPositionFilter.value = "";
+            }
+            
+            // 根据用户需求：在部门和岗位筛选框初始化完成后触发change事件进行表格加载
+            // 网页刷新后不再自动加载表格数据，而是在筛选框初始化后加载完成后触发change事件
+            if (window.loadPositionsForDepartment) {
+                console.log('网页刷新初始化过程中，加载全部部门的岗位数据并触发首次加载');
+                // 加载全部部门的岗位数据，并标记为初始化过程
+                await window.loadPositionsForDepartment(null, null, true);
             }
         }
     } catch (error) {
@@ -315,7 +255,7 @@ function autoSelectDepartmentAndLoadData() {
                     // 如果选择了特定部门，加载该部门的岗位
                     const selectedDept = this.value;
                     if (selectedDept) {
-                        await loadPositionsForDepartment(selectedDept);
+                        await loadPositionsForDepartment(selectedDept, 'identifier');
                     }
                     
                     // 重新加载标识数据以应用筛选
@@ -351,7 +291,7 @@ function autoSelectDepartmentAndLoadData() {
                     // 如果选择了特定部门，加载该部门的岗位
                     const selectedDept = this.value;
                     if (selectedDept) {
-                        await loadPositionsForDepartment(selectedDept);
+                        await loadPositionsForDepartment(selectedDept, 'shiftOrder');
                     }
                     
                     // 重新加载排班顺序数据以应用筛选
@@ -455,7 +395,9 @@ function autoSelectDepartmentAndLoadData() {
             // 加载所有部门到部门筛选下拉框，使用Promise链式调用而不是await
         loadDepartmentsForFilter().then(() => {
             // 部门列表加载完成后，执行自动选择第一个部门并加载数据的逻辑
-            autoSelectDepartmentAndLoadData();
+            autoSelectDepartmentAndLoadData().catch(error => {
+                console.error('自动选择部门并加载数据过程中出现错误:', error);
+            });
         }).catch(error => {
             console.error('加载部门列表失败:', error);
         });
@@ -479,14 +421,6 @@ async function loadDepartmentsForFilter() {
         // 如果两个筛选框都不存在，则返回
         if (!identifierDeptFilter && !shiftOrderDeptFilter) return;
         
-        // 清空现有选项，保留默认选项
-        if (identifierDeptFilter) {
-            identifierDeptFilter.innerHTML = '<option value="">全部部门</option>';
-        }
-        if (shiftOrderDeptFilter) {
-            shiftOrderDeptFilter.innerHTML = '<option value="">全部部门</option>';
-        }
-        
         // 获取所有员工数据
         const employees = await window.dbManager.getAll('employees');
         
@@ -498,21 +432,33 @@ async function loadDepartmentsForFilter() {
             }
         });
         
-        // 添加部门选项到两个筛选框
-        Array.from(departments).sort().forEach(deptName => {
-            if (identifierDeptFilter) {
-                const option1 = document.createElement('option');
-                option1.value = deptName;
-                option1.textContent = deptName;
-                identifierDeptFilter.appendChild(option1);
-            }
-            if (shiftOrderDeptFilter) {
-                const option2 = document.createElement('option');
-                option2.value = deptName;
-                option2.textContent = deptName;
-                shiftOrderDeptFilter.appendChild(option2);
-            }
-        });
+        // 为标识管理筛选框加载部门列表
+        if (identifierDeptFilter) {
+            // 清空现有选项，保留默认选项
+            identifierDeptFilter.innerHTML = '<option value="">全部部门</option>';
+            
+            // 添加部门选项
+            Array.from(departments).sort().forEach(deptName => {
+                const option = document.createElement('option');
+                option.value = deptName;
+                option.textContent = deptName;
+                identifierDeptFilter.appendChild(option);
+            });
+        }
+        
+        // 为排班顺序管理筛选框加载部门列表
+        if (shiftOrderDeptFilter) {
+            // 清空现有选项，保留默认选项
+            shiftOrderDeptFilter.innerHTML = '<option value="">全部部门</option>';
+            
+            // 添加部门选项
+            Array.from(departments).sort().forEach(deptName => {
+                const option = document.createElement('option');
+                option.value = deptName;
+                option.textContent = deptName;
+                shiftOrderDeptFilter.appendChild(option);
+            });
+        }
         
         // 增强版：在部门加载完成后，添加事件监听器确保部门切换时能正确加载岗位
         if (shiftOrderDeptFilter && !shiftOrderDeptFilter.hasOwnProperty('__enhancedListener')) {
@@ -528,20 +474,13 @@ async function loadDepartmentsForFilter() {
                     shiftOrderPositionFilter.innerHTML = '<option value="">全部岗位</option>';
                 }
                 
-                // 同时清空标识管理的岗位筛选
-                const identifierPositionFilter = document.getElementById('identifierPositionFilter');
-                if (identifierPositionFilter) {
-                    identifierPositionFilter.innerHTML = '<option value="">全部岗位</option>';
-                }
+                // 不再同步清空标识管理的岗位筛选
                 
                 // 如果选择了特定部门，加载该部门的岗位
                 const selectedDept = this.value;
                 if (selectedDept) {
                     console.log('部门筛选框变化，重新加载岗位数据:', selectedDept);
-                    // 直接调用loadPositionsForDepartment函数确保岗位加载
-                    if (window.loadPositionsForDepartment) {
-                        await window.loadPositionsForDepartment(selectedDept);
-                    }
+                    await loadPositionsForDepartment(selectedDept, 'shiftOrder');
                 }
                 
                 // 重新加载排班顺序数据以应用筛选
@@ -552,10 +491,10 @@ async function loadDepartmentsForFilter() {
             
             // 标记已添加增强监听器
             newDeptFilter.__enhancedListener = true;
-            console.log('已添加增强版部门筛选框change事件监听器');
+            console.log('已添加增强版排班顺序管理部门筛选框change事件监听器');
         }
         
-        // 同样为标识管理的部门筛选框添加增强的监听器
+        // 同样为标识管理部门筛选框添加增强的事件监听器
         if (identifierDeptFilter && !identifierDeptFilter.hasOwnProperty('__enhancedListener')) {
             // 移除可能存在的旧监听器
             const newIdentifierDeptFilter = identifierDeptFilter.cloneNode(true);
@@ -569,15 +508,7 @@ async function loadDepartmentsForFilter() {
                     identifierPositionFilter.innerHTML = '<option value="">全部岗位</option>';
                 }
                 
-                // 同时同步更新排班顺序管理的部门选择
-                const shiftOrderDeptFilter = document.getElementById('shiftOrderDeptFilter');
-                if (shiftOrderDeptFilter && !shiftOrderDeptFilter.__syncing) {
-                    shiftOrderDeptFilter.__syncing = true;
-                    shiftOrderDeptFilter.value = this.value;
-                    setTimeout(() => {
-                        shiftOrderDeptFilter.__syncing = false;
-                    }, 100);
-                }
+                // 不再同步更新排班顺序管理的部门选择
                 
                 // 如果选择了特定部门，加载该部门的岗位
                 const selectedDept = this.value;
@@ -585,7 +516,7 @@ async function loadDepartmentsForFilter() {
                     console.log('标识管理部门筛选框变化，重新加载岗位数据:', selectedDept);
                     // 直接调用loadPositionsForDepartment函数确保岗位加载
                     if (window.loadPositionsForDepartment) {
-                        await window.loadPositionsForDepartment(selectedDept);
+                        await window.loadPositionsForDepartment(selectedDept, 'identifier');
                     }
                 }
                 
@@ -605,29 +536,35 @@ async function loadDepartmentsForFilter() {
 }
 
 // 根据部门加载岗位列表
-async function loadPositionsForDepartment(deptName) {
+async function loadPositionsForDepartment(deptName, targetFilter = null, isInitialization = false) {
     try {
         console.log('开始加载部门岗位列表，部门名称:', deptName);
         
-        // 获取标识管理和排班顺序管理的岗位筛选框
-        const identifierPositionFilter = document.getElementById('identifierPositionFilter');
-        const shiftOrderPositionFilter = document.getElementById('shiftOrderPositionFilter');
+        // 如果指定了目标筛选框，只更新该筛选框；否则更新所有筛选框
+        let identifierPositionFilter = null;
+        let shiftOrderPositionFilter = null;
+        let identifierPositionValue = '';
+        let shiftOrderPositionValue = '';
+        
+        if (targetFilter === 'identifier' || !targetFilter) {
+            identifierPositionFilter = document.getElementById('identifierPositionFilter');
+            identifierPositionValue = identifierPositionFilter ? identifierPositionFilter.value : '';
+            // 清空现有选项，保留默认选项
+            if (identifierPositionFilter) {
+                identifierPositionFilter.innerHTML = '<option value="">全部岗位</option>';
+            }
+        }
+        
+        if (targetFilter === 'shiftOrder' || !targetFilter) {
+            shiftOrderPositionFilter = document.getElementById('shiftOrderPositionFilter');
+            shiftOrderPositionValue = shiftOrderPositionFilter ? shiftOrderPositionFilter.value : '';
+            // 清空现有选项，保留默认选项
+            if (shiftOrderPositionFilter) {
+                shiftOrderPositionFilter.innerHTML = '<option value="">全部岗位</option>';
+            }
+        }
         
         console.log('找到的岗位筛选框:', {identifierPositionFilter: !!identifierPositionFilter, shiftOrderPositionFilter: !!shiftOrderPositionFilter});
-        
-        // 保存当前选中的值
-        const identifierPositionValue = identifierPositionFilter ? identifierPositionFilter.value : '';
-        const shiftOrderPositionValue = shiftOrderPositionFilter ? shiftOrderPositionFilter.value : '';
-        
-        console.log('保存当前选中的岗位值:', {identifierPositionValue, shiftOrderPositionValue});
-        
-        // 清空现有选项，保留默认选项
-        if (identifierPositionFilter) {
-            identifierPositionFilter.innerHTML = '<option value="">全部岗位</option>';
-        }
-        if (shiftOrderPositionFilter) {
-            shiftOrderPositionFilter.innerHTML = '<option value="">全部岗位</option>';
-        }
         
         // 如果两个筛选框都不存在，则返回
         if (!identifierPositionFilter && !shiftOrderPositionFilter) {
@@ -692,11 +629,11 @@ async function loadPositionsForDepartment(deptName) {
             return;
         }
         
-        // 添加岗位选项到两个筛选框
+        // 添加岗位选项到指定的筛选框
         const sortedPositions = Array.from(positions).sort();
         sortedPositions.forEach(position => {
             // 为标识管理的岗位筛选框创建选项
-            if (identifierPositionFilter) {
+            if (identifierPositionFilter && (targetFilter === 'identifier' || !targetFilter)) {
                 const option1 = document.createElement('option');
                 option1.value = position;
                 option1.textContent = position;
@@ -704,7 +641,7 @@ async function loadPositionsForDepartment(deptName) {
             }
             
             // 为排班顺序管理的岗位筛选框创建选项
-            if (shiftOrderPositionFilter) {
+            if (shiftOrderPositionFilter && (targetFilter === 'shiftOrder' || !targetFilter)) {
                 const option2 = document.createElement('option');
                 option2.value = position;
                 option2.textContent = position;
@@ -713,7 +650,7 @@ async function loadPositionsForDepartment(deptName) {
         });
         
         // 恢复之前选中的值（如果存在）
-        if (identifierPositionFilter) {
+        if (identifierPositionFilter && (targetFilter === 'identifier' || !targetFilter)) {
             if (identifierPositionValue && Array.from(identifierPositionFilter.options).some(opt => opt.value === identifierPositionValue)) {
                 identifierPositionFilter.value = identifierPositionValue;
                 console.log('已恢复标识管理岗位筛选框选中值:', identifierPositionValue);
@@ -722,7 +659,7 @@ async function loadPositionsForDepartment(deptName) {
             }
         }
         
-        if (shiftOrderPositionFilter) {
+        if (shiftOrderPositionFilter && (targetFilter === 'shiftOrder' || !targetFilter)) {
             if (shiftOrderPositionValue && Array.from(shiftOrderPositionFilter.options).some(opt => opt.value === shiftOrderPositionValue)) {
                 shiftOrderPositionFilter.value = shiftOrderPositionValue;
                 console.log('已恢复排班顺序管理岗位筛选框选中值:', shiftOrderPositionValue);
@@ -733,13 +670,20 @@ async function loadPositionsForDepartment(deptName) {
         
         console.log('岗位列表加载完成，已添加到下拉框');
         
-        // 触发change事件以便数据能立即刷新
-        if (identifierPositionFilter && typeof Event !== 'undefined') {
-            identifierPositionFilter.dispatchEvent(new Event('change'));
+        // 仅在初始化过程中触发change事件，用于网页刷新后的首次加载
+        // 这符合用户需求：筛选框初始化完成后触发change事件进行表格加载
+        if (isInitialization && typeof Event !== 'undefined') {
+            if (identifierPositionFilter && (targetFilter === 'identifier' || !targetFilter)) {
+                identifierPositionFilter.dispatchEvent(new Event('change'));
+                console.log('初始化过程中触发标识管理岗位筛选框change事件');
+            }
+            if (shiftOrderPositionFilter && (targetFilter === 'shiftOrder' || !targetFilter)) {
+                shiftOrderPositionFilter.dispatchEvent(new Event('change'));
+                console.log('初始化过程中触发排班顺序管理岗位筛选框change事件');
+            }
         }
-        if (shiftOrderPositionFilter && typeof Event !== 'undefined') {
-            shiftOrderPositionFilter.dispatchEvent(new Event('change'));
-        }
+        
+        // 非初始化过程中，不再自动触发change事件，仅在用户手动切换时触发
     } catch (error) {
         console.error('加载岗位列表失败:', error);
         // 添加错误提示到下拉框
@@ -748,16 +692,34 @@ async function loadPositionsForDepartment(deptName) {
         errorOption.textContent = '加载岗位失败，请刷新页面重试';
         errorOption.disabled = true;
         
-        const identifierPositionFilter = document.getElementById('identifierPositionFilter');
-        const shiftOrderPositionFilter = document.getElementById('shiftOrderPositionFilter');
-        
-        if (identifierPositionFilter) {
-            identifierPositionFilter.innerHTML = '<option value="">全部岗位</option>';
-            identifierPositionFilter.appendChild(errorOption.cloneNode(true));
-        }
-        if (shiftOrderPositionFilter) {
-            shiftOrderPositionFilter.innerHTML = '<option value="">全部岗位</option>';
-            shiftOrderPositionFilter.appendChild(errorOption);
+        // 如果没有传入targetFilter参数，则在错误处理时重新获取筛选框
+        if (!targetFilter) {
+            const identifierPositionFilter = document.getElementById('identifierPositionFilter');
+            const shiftOrderPositionFilter = document.getElementById('shiftOrderPositionFilter');
+            
+            if (identifierPositionFilter) {
+                identifierPositionFilter.innerHTML = '<option value="">全部岗位</option>';
+                identifierPositionFilter.appendChild(errorOption.cloneNode(true));
+            }
+            if (shiftOrderPositionFilter) {
+                shiftOrderPositionFilter.innerHTML = '<option value="">全部岗位</option>';
+                shiftOrderPositionFilter.appendChild(errorOption);
+            }
+        } else {
+            // 根据targetFilter参数只更新指定的筛选框
+            if (targetFilter === 'identifier') {
+                const identifierPositionFilter = document.getElementById('identifierPositionFilter');
+                if (identifierPositionFilter) {
+                    identifierPositionFilter.innerHTML = '<option value="">全部岗位</option>';
+                    identifierPositionFilter.appendChild(errorOption);
+                }
+            } else if (targetFilter === 'shiftOrder') {
+                const shiftOrderPositionFilter = document.getElementById('shiftOrderPositionFilter');
+                if (shiftOrderPositionFilter) {
+                    shiftOrderPositionFilter.innerHTML = '<option value="">全部岗位</option>';
+                    shiftOrderPositionFilter.appendChild(errorOption);
+                }
+            }
         }
     }
 }

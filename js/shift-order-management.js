@@ -8,6 +8,34 @@ class ShiftOrderManager {
             // 创建一个临时的内存存储作为备选方案
             self.memoryStore = [];
         });
+        
+        // 初始化缓存对象
+        this.cache = {};
+        this.shiftOrdersCache = {};
+        this.employeeCache = {};
+    }
+    
+    // 清除缓存方法
+    clearCache() {
+        try {
+            console.log('执行ShiftOrderManager缓存清理...');
+            
+            // 清空所有缓存对象
+            this.cache = {};
+            this.shiftOrdersCache = {};
+            this.employeeCache = {};
+            
+            // 如果有memoryStore，也清空它
+            if (this.memoryStore) {
+                this.memoryStore = [];
+            }
+            
+            console.log('ShiftOrderManager缓存清理完成');
+            return true;
+        } catch (error) {
+            console.error('ShiftOrderManager缓存清理失败:', error);
+            return false;
+        }
     }
 
     // 初始化排班顺序存储空间
@@ -990,7 +1018,9 @@ class ShiftOrderManager {
     // 当员工删除时更新排班顺序
     async updateShiftOrderWhenEmployeeDeleted(employeeId) {
         try {
-            // 第一步：获取员工信息，以获取员工号（系统只通过员工号关联排班数据）
+            console.log('执行增强版updateShiftOrderWhenEmployeeDeleted，员工ID:', employeeId);
+            
+            // 第一步：获取员工信息，以获取员工号
             let employeeNumber = null;
             try {
                 // 尝试通过员工ID查找员工信息
@@ -1000,23 +1030,57 @@ class ShiftOrderManager {
                     employeeNumber = employee.number;
                     console.log(`找到员工ID:${employeeId}对应的员工号:${employeeNumber}`);
                 } else {
-                    console.log(`未找到员工ID:${employeeId}对应的员工号`);
-                    return; // 如果没有员工号，无法继续处理排班表数据
+                    console.log(`未找到员工ID:${employeeId}对应的员工号，将只通过employeeId清理数据`);
                 }
             } catch (empError) {
                 console.error('获取员工信息失败:', empError);
-                return;
+                console.log('将只通过employeeId清理数据');
             }
             
-            // 第二步：参考标识管理的实现方式，先获取该员工在所有排班顺序中的数据
-            console.log(`获取员工号:${employeeNumber}在所有排班顺序中的数据`);
-            const employeeShiftOrders = await this.getShiftOrdersByEmployeeNumber(employeeNumber);
+            // 第二步：获取该员工在所有排班顺序中的数据
+            let employeeShiftOrders = [];
             
+            if (employeeNumber) {
+                try {
+                    console.log(`获取员工号:${employeeNumber}在所有排班顺序中的数据`);
+                    employeeShiftOrders = await this.getShiftOrdersByEmployeeNumber(employeeNumber);
+                } catch (error) {
+                    console.error('通过员工号获取排班顺序数据失败:', error);
+                    employeeShiftOrders = [];
+                }
+            }
+            
+            // 如果通过员工号未找到数据，或者没有员工号，尝试通过employeeId获取数据
+            if (employeeShiftOrders.length === 0) {
+                try {
+                    console.log(`通过employeeId:${employeeId}查找排班顺序数据`);
+                    const allShiftOrders = await window.dbManager.getAll('shiftOrders');
+                    const normalizedEmployeeId = this.normalizeId(employeeId);
+                    
+                    // 查找包含该employeeId的排班顺序
+                    employeeShiftOrders = allShiftOrders.filter(order => {
+                        // 检查employeeIds数组
+                        if (Array.isArray(order.employeeIds)) {
+                            return order.employeeIds.some(id => this.normalizeId(id) === normalizedEmployeeId);
+                        }
+                        return false;
+                    });
+                    
+                    console.log(`通过employeeId找到 ${employeeShiftOrders.length} 个包含该员工的排班顺序`);
+                } catch (error) {
+                    console.error('通过employeeId获取排班顺序数据失败:', error);
+                }
+            }
+            
+            // 处理找到的排班顺序数据
             if (employeeShiftOrders.length > 0) {
-                console.log(`找到 ${employeeShiftOrders.length} 个包含该员工的排班顺序，准备移除`);
+                console.log(`总共找到 ${employeeShiftOrders.length} 个包含该员工的排班顺序，准备清理`);
                 
                 // 逐个处理包含该员工的排班顺序
                 const updatePromises = [];
+                const normalizedEmployeeId = this.normalizeId(employeeId);
+                const normalizedEmployeeNumber = employeeNumber ? this.normalizeId(employeeNumber) : null;
+                
                 for (const shiftOrder of employeeShiftOrders) {
                     try {
                         // 确保employeeNumbers是数组
@@ -1029,16 +1093,18 @@ class ShiftOrderManager {
                             shiftOrder.employeeIds = [];
                         }
                         
-                        // 只通过员工号移除员工（使用规范化ID进行比较）
-                        const normalizedEmployeeNumber = this.normalizeId(employeeNumber);
+                        // 保存原始长度用于比较
                         const originalNumbersLength = shiftOrder.employeeNumbers.length;
-                        shiftOrder.employeeNumbers = shiftOrder.employeeNumbers.filter(number => 
-                            this.normalizeId(number) !== normalizedEmployeeNumber
-                        );
-                        
-                        // 也从employeeIds中移除（为了兼容旧数据）
-                        const normalizedEmployeeId = this.normalizeId(employeeId);
                         const originalIdsLength = shiftOrder.employeeIds.length;
+                        
+                        // 通过员工号移除员工（如果有）
+                        if (normalizedEmployeeNumber) {
+                            shiftOrder.employeeNumbers = shiftOrder.employeeNumbers.filter(number => 
+                                this.normalizeId(number) !== normalizedEmployeeNumber
+                            );
+                        }
+                        
+                        // 通过employeeId移除员工
                         shiftOrder.employeeIds = shiftOrder.employeeIds.filter(id => 
                             this.normalizeId(id) !== normalizedEmployeeId
                         );
@@ -1054,9 +1120,9 @@ class ShiftOrderManager {
                             
                             // 输出详细日志，包括班次信息
                             if (shiftOrder.shiftCode) {
-                                console.log(`已从${shiftOrder.position}岗位${shiftOrder.shiftCode}班次的排班顺序中移除员工号:${employeeNumber}`);
+                                console.log(`已从${shiftOrder.position}岗位${shiftOrder.shiftCode}班次的排班顺序中移除员工`);
                             } else {
-                                console.log(`已从${shiftOrder.position}岗位的排班顺序中移除员工号:${employeeNumber}`);
+                                console.log(`已从${shiftOrder.position}岗位的排班顺序中移除员工`);
                             }
                         }
                     } catch (shiftOrderError) {
@@ -1069,26 +1135,44 @@ class ShiftOrderManager {
                 if (updatePromises.length > 0) {
                     await Promise.all(updatePromises);
                 }
+            } else {
+                console.log('未找到包含该员工的排班顺序数据');
             }
             
-            // 第三步：删除与员工相关的所有排班表数据（只通过员工号）
+            // 第三步：删除与员工相关的所有排班表数据
             try {
-                // 首先尝试直接通过索引查询（使用员工号）
-                console.log(`尝试通过员工号:${employeeNumber}查找排班表数据`);
-                let employeeSchedules = await window.dbManager.getByIndex('schedules', 'employeeId', employeeNumber);
+                let employeeSchedules = [];
+                
+                // 尝试通过员工号查找排班表数据
+                if (employeeNumber) {
+                    try {
+                        console.log(`尝试通过员工号:${employeeNumber}查找排班表数据`);
+                        employeeSchedules = await window.dbManager.getByIndex('schedules', 'employeeId', employeeNumber);
+                    } catch (error) {
+                        console.error('通过索引查询排班表数据失败:', error);
+                    }
+                }
                 
                 // 如果没有找到，再尝试使用规范化ID进行全文搜索
                 if (!employeeSchedules || employeeSchedules.length === 0) {
                     console.log(`直接索引查询未找到排班表数据，尝试全文搜索`);
                     const allSchedules = await window.dbManager.getAll('schedules');
-                    const normalizedEmployeeNumber = this.normalizeId(employeeNumber);
-                    employeeSchedules = allSchedules.filter(schedule => 
-                        this.normalizeId(schedule.employeeId) === normalizedEmployeeNumber
-                    );
+                    
+                    // 同时使用employeeId和employeeNumber进行匹配
+                    const normalizedEmployeeId = this.normalizeId(employeeId);
+                    const normalizedEmployeeNumber = employeeNumber ? this.normalizeId(employeeNumber) : null;
+                    
+                    employeeSchedules = allSchedules.filter(schedule => {
+                        if (!schedule.employeeId) return false;
+                        
+                        const normalizedScheduleEmpId = this.normalizeId(schedule.employeeId);
+                        return normalizedScheduleEmpId === normalizedEmployeeId || 
+                               (normalizedEmployeeNumber && normalizedScheduleEmpId === normalizedEmployeeNumber);
+                    });
                 }
                 
                 if (employeeSchedules && employeeSchedules.length > 0) {
-                    console.log(`找到${employeeSchedules.length}条与员工号:${employeeNumber}相关的排班表数据，准备删除`);
+                    console.log(`找到${employeeSchedules.length}条与员工相关的排班表数据，准备删除`);
                     
                     // 创建删除Promise数组
                     const deleteSchedulePromises = employeeSchedules.map(schedule => 
@@ -1103,14 +1187,22 @@ class ShiftOrderManager {
                     await Promise.allSettled(deleteSchedulePromises);
                     console.log(`已完成所有排班表数据的删除操作`);
                 } else {
-                    console.log(`未找到与员工号:${employeeNumber}相关的排班表数据`);
+                    console.log(`未找到与员工相关的排班表数据`);
                 }
             } catch (scheduleError) {
                 console.error('删除排班表数据时出错:', scheduleError);
                 // 排班表删除失败不应影响主流程
             }
             
-            // 第四步：刷新排班表显示
+            // 第四步：清理空的排班顺序记录
+            try {
+                await this.cleanupEmptyShiftOrders();
+            } catch (cleanupError) {
+                console.error('清理空排班顺序记录时出错:', cleanupError);
+                // 清理失败不应影响主流程
+            }
+            
+            // 第五步：刷新排班表显示
             try {
                 console.log('删除员工排班数据完成，准备刷新排班表显示');
                 
@@ -1130,11 +1222,945 @@ class ShiftOrderManager {
                 }
             } catch (refreshError) {
                 console.error('刷新排班表显示时出错:', refreshError);
-                // 刷新失败不应影响主流程
             }
             
+            console.log('员工排班数据清理完成');
         } catch (error) {
             console.error('删除员工时更新排班顺序出错:', error);
+        }
+    }
+    
+    // 从特定岗位和班次的排班顺序中移除员工
+    async removeEmployeeFromShiftOrder(position, shiftCode, employeeNumber, employeeId) {
+        try {
+            console.log(`开始从${position}岗位${shiftCode}班次的排班顺序中移除员工，员工号:${employeeNumber}`);
+            
+            // 第一步：根据岗位和班次代码查找排班顺序
+            const shiftOrders = await window.dbManager.getAll('shiftOrders');
+            
+            // 查找匹配的排班顺序：岗位匹配，班次代码匹配（如果提供了班次代码）
+            let matchingShiftOrders = [];
+            
+            if (shiftCode) {
+                matchingShiftOrders = shiftOrders.filter(order => 
+                    order.position === position && order.shiftCode === shiftCode
+                );
+            } else {
+                // 兼容没有班次代码的情况
+                matchingShiftOrders = shiftOrders.filter(order => 
+                    order.position === position && !order.shiftCode
+                );
+            }
+            
+            if (matchingShiftOrders.length === 0) {
+                console.log(`未找到${position}岗位${shiftCode}班次的排班顺序`);
+                return;
+            }
+            
+            console.log(`找到${matchingShiftOrders.length}个匹配的排班顺序`);
+            
+            // 第二步：从排班顺序中移除员工
+            const updatePromises = [];
+            const normalizedEmployeeNumber = employeeNumber ? this.normalizeId(employeeNumber) : null;
+            const normalizedEmployeeId = employeeId ? this.normalizeId(employeeId) : null;
+            
+            for (const shiftOrder of matchingShiftOrders) {
+                try {
+                    // 确保employeeNumbers是数组
+                    if (!Array.isArray(shiftOrder.employeeNumbers)) {
+                        shiftOrder.employeeNumbers = [];
+                    }
+                    
+                    // 确保employeeIds是数组
+                    if (!Array.isArray(shiftOrder.employeeIds)) {
+                        shiftOrder.employeeIds = [];
+                    }
+                    
+                    // 保存原始长度用于比较
+                    const originalNumbersLength = shiftOrder.employeeNumbers.length;
+                    const originalIdsLength = shiftOrder.employeeIds.length;
+                    
+                    // 通过员工号移除员工
+                    if (normalizedEmployeeNumber) {
+                        shiftOrder.employeeNumbers = shiftOrder.employeeNumbers.filter(number => 
+                            this.normalizeId(number) !== normalizedEmployeeNumber
+                        );
+                    }
+                    
+                    // 通过员工ID移除员工
+                    if (normalizedEmployeeId) {
+                        shiftOrder.employeeIds = shiftOrder.employeeIds.filter(id => 
+                            this.normalizeId(id) !== normalizedEmployeeId
+                        );
+                    }
+                    
+                    // 检查是否有变化
+                    const hasChanges = shiftOrder.employeeNumbers.length < originalNumbersLength || 
+                                     shiftOrder.employeeIds.length < originalIdsLength;
+                    
+                    // 如果有员工被移除，保存更新后的排班顺序
+                    if (hasChanges) {
+                        shiftOrder.updatedAt = new Date();
+                        updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
+                        
+                        console.log(`已从排班顺序(ID:${shiftOrder.id})中移除员工${employeeNumber}`);
+                    } else {
+                        console.log(`排班顺序(ID:${shiftOrder.id})中未找到员工${employeeNumber}`);
+                    }
+                } catch (shiftOrderError) {
+                    console.error(`处理排班顺序 ${shiftOrder.id} 失败:`, shiftOrderError);
+                    // 继续处理下一个排班顺序，不中断整体流程
+                }
+            }
+            
+            // 等待所有更新操作完成
+            if (updatePromises.length > 0) {
+                await Promise.all(updatePromises);
+                console.log(`已完成${updatePromises.length}个排班顺序的更新`);
+            }
+            
+            // 第三步：清理空的排班顺序记录
+            try {
+                await this.cleanupEmptyShiftOrders();
+            } catch (cleanupError) {
+                console.error('清理空排班顺序记录时出错:', cleanupError);
+                // 清理失败不应影响主流程
+            }
+            
+            // 第四步：刷新排班表显示
+            try {
+                // 清理缓存，确保获取最新数据
+                if (this.clearCache) {
+                    this.clearCache();
+                }
+                
+                // 刷新排班表数据
+                if (window.loadShiftOrderData) {
+                    await window.loadShiftOrderData();
+                } else if (window.loadAllShiftOrders) {
+                    await window.loadAllShiftOrders();
+                }
+                
+                console.log('排班表显示已刷新');
+            } catch (refreshError) {
+                console.error('刷新排班表显示时出错:', refreshError);
+            }
+            
+            console.log(`从${position}岗位${shiftCode}班次的排班顺序中移除员工完成`);
+        } catch (error) {
+            console.error('从排班顺序中移除员工失败:', error);
+            throw error;
+        }
+    }
+    
+    // 清理空的排班顺序记录
+    async cleanupEmptyShiftOrders() {
+        try {
+            console.log('开始清理空的排班顺序记录...');
+            
+            // 获取所有排班顺序
+            const allShiftOrders = await window.dbManager.getAll('shiftOrders');
+            console.log(`总共获取到 ${allShiftOrders.length} 条排班顺序记录`);
+            
+            // 找出空记录（employeeNumbers和employeeIds都为空的记录）
+            const emptyShiftOrders = allShiftOrders.filter(order => {
+                const hasEmployeeNumbers = Array.isArray(order.employeeNumbers) && order.employeeNumbers.length > 0;
+                const hasEmployeeIds = Array.isArray(order.employeeIds) && order.employeeIds.length > 0;
+                return !hasEmployeeNumbers && !hasEmployeeIds;
+            });
+            
+            if (emptyShiftOrders.length > 0) {
+                console.log(`找到 ${emptyShiftOrders.length} 条空的排班顺序记录，准备删除`);
+                
+                // 创建删除Promise数组
+                const deletePromises = emptyShiftOrders.map(order => 
+                    window.dbManager.delete('shiftOrders', order.id)
+                        .then(() => {
+                            console.log(`已删除空排班顺序记录，ID:${order.id}`);
+                        })
+                        .catch(err => {
+                            console.error(`删除空排班顺序记录失败，ID:${order.id}`, err);
+                        })
+                );
+                
+                // 等待所有删除操作完成
+                await Promise.allSettled(deletePromises);
+                console.log(`空排班顺序记录清理完成`);
+            } else {
+                console.log('没有发现空的排班顺序记录');
+            }
+            
+            return emptyShiftOrders.length;
+        } catch (error) {
+            console.error('清理空排班顺序记录时发生错误:', error);
+            throw error;
+        }
+    }
+    
+    // 当部门被删除时更新排班顺序
+    async updateShiftOrderWhenDepartmentDeleted(departmentId) {
+        try {
+            console.log(`开始处理部门删除时的排班顺序更新，部门ID:${departmentId}`);
+            
+            // 第一步：获取部门下的所有岗位
+            const positions = await window.dbManager.getAll('positions');
+            const departmentPositions = positions.filter(position => 
+                position.departmentId && this.normalizeId(position.departmentId) === this.normalizeId(departmentId)
+            );
+            
+            console.log(`找到部门相关岗位数量: ${departmentPositions.length}`);
+            
+            // 如果部门下没有岗位，直接返回
+            if (departmentPositions.length === 0) {
+                console.log(`部门(ID:${departmentId})下没有岗位，无需更新排班顺序`);
+                return;
+            }
+            
+            // 第二步：获取所有排班顺序
+            const allShiftOrders = await window.dbManager.getAll('shiftOrders');
+            console.log(`总共获取到 ${allShiftOrders.length} 条排班顺序记录`);
+            
+            // 第三步：遍历所有排班顺序，清空部门下岗位的员工数据
+            const updatePromises = [];
+            const departmentPositionNames = departmentPositions.map(pos => pos.name);
+            
+            for (const shiftOrder of allShiftOrders) {
+                try {
+                    // 检查排班顺序是否属于要删除的部门下的岗位
+                    if (departmentPositionNames.includes(shiftOrder.position)) {
+                        // 保存原始长度用于比较
+                        const originalNumbersLength = Array.isArray(shiftOrder.employeeNumbers) ? shiftOrder.employeeNumbers.length : 0;
+                        const originalIdsLength = Array.isArray(shiftOrder.employeeIds) ? shiftOrder.employeeIds.length : 0;
+                        
+                        // 清空员工数据
+                        shiftOrder.employeeNumbers = [];
+                        shiftOrder.employeeIds = [];
+                        shiftOrder.updatedAt = new Date();
+                        
+                        updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
+                        
+                        console.log(`已清空排班顺序(ID:${shiftOrder.id})中部门相关岗位的员工数据`);
+                    }
+                } catch (shiftOrderError) {
+                    console.error(`处理排班顺序 ${shiftOrder.id} 失败:`, shiftOrderError);
+                    // 继续处理下一个排班顺序，不中断整体流程
+                }
+            }
+            
+            // 等待所有更新操作完成
+            if (updatePromises.length > 0) {
+                await Promise.allSettled(updatePromises);
+                console.log(`已完成${updatePromises.length}个排班顺序的更新`);
+            }
+            
+            // 第四步：清理空的排班顺序记录
+            try {
+                await this.cleanupEmptyShiftOrders();
+            } catch (cleanupError) {
+                console.error('清理空排班顺序记录时出错:', cleanupError);
+                // 清理失败不应影响主流程
+            }
+            
+            // 第五步：刷新排班表显示
+            try {
+                console.log('部门删除时排班数据清理完成，准备刷新排班表显示');
+                
+                // 清理缓存，确保获取最新数据
+                if (window.shiftOrderManager && window.shiftOrderManager.clearCache) {
+                    window.shiftOrderManager.clearCache();
+                    console.log('已清除排班顺序管理器缓存');
+                }
+                
+                // 刷新排班表数据
+                if (window.loadShiftOrderData) {
+                    await window.loadShiftOrderData();
+                    console.log('通过window.loadShiftOrderData成功刷新排班表显示');
+                } else if (window.loadAllShiftOrders) {
+                    await window.loadAllShiftOrders();
+                    console.log('通过window.loadAllShiftOrders成功刷新排班表显示');
+                }
+            } catch (refreshError) {
+                console.error('刷新排班表显示时出错:', refreshError);
+            }
+            
+            console.log(`部门(ID:${departmentId})相关排班数据清理完成`);
+        } catch (error) {
+            console.error('删除部门时更新排班顺序出错:', error);
+        }
+    }
+    
+    // 当岗位被删除时更新排班顺序
+    async updateShiftOrderWhenPositionDeleted(positionName) {
+        try {
+            console.log(`开始处理岗位删除时的排班顺序更新，岗位名称:${positionName}`);
+            
+            // 第一步：获取所有排班顺序
+            const allShiftOrders = await window.dbManager.getAll('shiftOrders');
+            console.log(`总共获取到 ${allShiftOrders.length} 条排班顺序记录`);
+            
+            // 第二步：遍历所有排班顺序，清空指定岗位的员工数据
+            const updatePromises = [];
+            
+            for (const shiftOrder of allShiftOrders) {
+                try {
+                    // 检查排班顺序是否属于要删除的岗位
+                    if (shiftOrder.position === positionName) {
+                        // 保存原始长度用于比较
+                        const originalNumbersLength = Array.isArray(shiftOrder.employeeNumbers) ? shiftOrder.employeeNumbers.length : 0;
+                        const originalIdsLength = Array.isArray(shiftOrder.employeeIds) ? shiftOrder.employeeIds.length : 0;
+                        
+                        // 清空员工数据
+                        shiftOrder.employeeNumbers = [];
+                        shiftOrder.employeeIds = [];
+                        shiftOrder.updatedAt = new Date();
+                        
+                        updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
+                        
+                        console.log(`已清空排班顺序(ID:${shiftOrder.id})中岗位(${positionName})的员工数据`);
+                    }
+                } catch (shiftOrderError) {
+                    console.error(`处理排班顺序 ${shiftOrder.id} 失败:`, shiftOrderError);
+                    // 继续处理下一个排班顺序，不中断整体流程
+                }
+            }
+            
+            // 等待所有更新操作完成
+            if (updatePromises.length > 0) {
+                await Promise.allSettled(updatePromises);
+                console.log(`已完成${updatePromises.length}个排班顺序的更新`);
+            }
+            
+            // 第三步：清理空的排班顺序记录
+            try {
+                await this.cleanupEmptyShiftOrders();
+            } catch (cleanupError) {
+                console.error('清理空排班顺序记录时出错:', cleanupError);
+                // 清理失败不应影响主流程
+            }
+            
+            // 第四步：刷新排班表显示
+            try {
+                console.log('岗位删除时排班数据清理完成，准备刷新排班表显示');
+                
+                // 清理缓存，确保获取最新数据
+                if (window.shiftOrderManager && window.shiftOrderManager.clearCache) {
+                    window.shiftOrderManager.clearCache();
+                    console.log('已清除排班顺序管理器缓存');
+                }
+                
+                // 刷新排班表数据
+                if (window.loadShiftOrderData) {
+                    await window.loadShiftOrderData();
+                    console.log('通过window.loadShiftOrderData成功刷新排班表显示');
+                } else if (window.loadAllShiftOrders) {
+                    await window.loadAllShiftOrders();
+                    console.log('通过window.loadAllShiftOrders成功刷新排班表显示');
+                }
+            } catch (refreshError) {
+                console.error('刷新排班表显示时出错:', refreshError);
+            }
+            
+            console.log(`岗位(${positionName})相关排班数据清理完成`);
+        } catch (error) {
+            console.error('删除岗位时更新排班顺序出错:', error);
+        }
+    }
+    
+    // 当机构删除时更新排班顺序
+    async updateShiftOrderWhenOrganizationDeleted() {
+        try {
+            console.log('开始处理机构删除时的排班数据清理');
+            
+            // 获取所有排班顺序
+            const allShiftOrders = await window.dbManager.getAll('shiftOrders');
+            console.log(`总共获取到 ${allShiftOrders.length} 条排班顺序记录`);
+            
+            if (allShiftOrders.length === 0) {
+                console.log('没有找到排班顺序数据，无需清理');
+                return;
+            }
+            
+            // 清空所有排班顺序中的员工数据
+            const updatePromises = [];
+            
+            for (const shiftOrder of allShiftOrders) {
+                try {
+                    // 保存原始长度用于记录
+                    const originalNumbersLength = Array.isArray(shiftOrder.employeeNumbers) ? shiftOrder.employeeNumbers.length : 0;
+                    const originalIdsLength = Array.isArray(shiftOrder.employeeIds) ? shiftOrder.employeeIds.length : 0;
+                    
+                    // 清空员工数据
+                    shiftOrder.employeeNumbers = [];
+                    shiftOrder.employeeIds = [];
+                    shiftOrder.updatedAt = new Date();
+                    
+                    updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
+                    
+                    console.log(`已清空排班顺序(ID:${shiftOrder.id})中的员工数据，原员工号数量:${originalNumbersLength}，原员工ID数量:${originalIdsLength}`);
+                } catch (shiftOrderError) {
+                    console.error(`处理排班顺序 ${shiftOrder.id} 失败:`, shiftOrderError);
+                    // 继续处理下一个排班顺序，不中断整体流程
+                }
+            }
+            
+            // 等待所有更新操作完成
+            if (updatePromises.length > 0) {
+                await Promise.allSettled(updatePromises);
+                console.log(`已完成${updatePromises.length}个排班顺序的更新`);
+            }
+            
+            // 清理空的排班顺序记录
+            try {
+                await this.cleanupEmptyShiftOrders();
+                console.log('已清理空的排班顺序记录');
+            } catch (cleanupError) {
+                console.error('清理空排班顺序记录时出错:', cleanupError);
+                // 清理失败不应影响主流程
+            }
+            
+            // 刷新排班表显示
+            try {
+                // 清理缓存，确保获取最新数据
+                if (window.shiftOrderManager && window.shiftOrderManager.clearCache) {
+                    window.shiftOrderManager.clearCache();
+                    console.log('已清除排班顺序管理器缓存');
+                }
+                
+                // 刷新排班表数据
+                if (window.loadShiftOrderData) {
+                    await window.loadShiftOrderData();
+                    console.log('通过window.loadShiftOrderData成功刷新排班表显示');
+                } else if (window.loadAllShiftOrders) {
+                    await window.loadAllShiftOrders();
+                    console.log('通过window.loadAllShiftOrders成功刷新排班表显示');
+                }
+                
+                console.log('排班表显示已刷新');
+            } catch (refreshError) {
+                console.error('刷新排班表显示时出错:', refreshError);
+            }
+            
+            console.log('机构删除时排班数据清理完成');
+        } catch (error) {
+            console.error('机构删除时更新排班顺序出错:', error);
+        }
+    }
+    
+    async updateShiftOrderWhenDepartmentDeleted(departmentId) {
+        try {
+            console.log(`开始处理部门删除时的排班顺序更新，部门ID:${departmentId}`);
+            
+            // 第一步：获取部门下的所有岗位
+            const positions = await window.dbManager.getAll('positions');
+            const departmentPositions = positions.filter(position => 
+                position.departmentId && this.normalizeId(position.departmentId) === this.normalizeId(departmentId)
+            );
+            
+            console.log(`找到部门相关岗位数量: ${departmentPositions.length}`);
+            
+            // 如果部门下没有岗位，直接返回
+            if (departmentPositions.length === 0) {
+                console.log(`部门(ID:${departmentId})下没有岗位，无需更新排班顺序`);
+                return;
+            }
+            
+            // 第二步：获取所有排班顺序
+            const allShiftOrders = await window.dbManager.getAll('shiftOrders');
+            console.log(`总共获取到 ${allShiftOrders.length} 条排班顺序记录`);
+            
+            // 第三步：遍历所有排班顺序，清空部门下岗位的员工数据
+            const updatePromises = [];
+            const departmentPositionNames = departmentPositions.map(pos => pos.name);
+            
+            for (const shiftOrder of allShiftOrders) {
+                try {
+                    // 检查排班顺序是否属于要删除的部门下的岗位
+                    if (departmentPositionNames.includes(shiftOrder.position)) {
+                        // 保存原始长度用于比较
+                        const originalNumbersLength = Array.isArray(shiftOrder.employeeNumbers) ? shiftOrder.employeeNumbers.length : 0;
+                        const originalIdsLength = Array.isArray(shiftOrder.employeeIds) ? shiftOrder.employeeIds.length : 0;
+                        
+                        // 清空员工数据
+                        shiftOrder.employeeNumbers = [];
+                        shiftOrder.employeeIds = [];
+                        shiftOrder.updatedAt = new Date();
+                        
+                        updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
+                        
+                        console.log(`已清空排班顺序(ID:${shiftOrder.id})中部门相关岗位的员工数据`);
+                    }
+                } catch (shiftOrderError) {
+                    console.error(`处理排班顺序 ${shiftOrder.id} 失败:`, shiftOrderError);
+                    // 继续处理下一个排班顺序，不中断整体流程
+                }
+            }
+            
+            // 等待所有更新操作完成
+            if (updatePromises.length > 0) {
+                await Promise.allSettled(updatePromises);
+                console.log(`已完成${updatePromises.length}个排班顺序的更新`);
+            }
+            
+            // 第四步：清理空的排班顺序记录
+            try {
+                await this.cleanupEmptyShiftOrders();
+                console.log('已清理空的排班顺序记录');
+            } catch (cleanupError) {
+                console.error('清理空排班顺序记录时出错:', cleanupError);
+                // 清理失败不应影响主流程
+            }
+            
+            // 第五步：刷新排班表显示
+            try {
+                // 清理缓存，确保获取最新数据
+                if (window.shiftOrderManager && window.shiftOrderManager.clearCache) {
+                    window.shiftOrderManager.clearCache();
+                    console.log('已清除排班顺序管理器缓存');
+                }
+                
+                // 刷新排班表数据
+                if (window.loadShiftOrderData) {
+                    await window.loadShiftOrderData();
+                    console.log('通过window.loadShiftOrderData成功刷新排班表显示');
+                } else if (window.loadAllShiftOrders) {
+                    await window.loadAllShiftOrders();
+                    console.log('通过window.loadAllShiftOrders成功刷新排班表显示');
+                }
+                
+                console.log('排班表显示已刷新');
+            } catch (refreshError) {
+                console.error('刷新排班表显示时出错:', refreshError);
+            }
+            
+            console.log('部门删除时的排班顺序更新完成');
+        } catch (error) {
+            console.error('处理部门删除时更新排班顺序失败:', error);
+        }
+    }
+    
+    // 当岗位被删除时更新排班顺序
+    async updateShiftOrderWhenPositionDeleted(positionName) {
+        try {
+            console.log(`开始处理岗位删除时的排班顺序更新，岗位名称:${positionName}`);
+            
+            // 第一步：获取所有排班顺序
+            const allShiftOrders = await window.dbManager.getAll('shiftOrders');
+            console.log(`总共获取到 ${allShiftOrders.length} 条排班顺序记录`);
+            
+            // 第二步：遍历所有排班顺序，清空指定岗位的员工数据
+            const updatePromises = [];
+            
+            for (const shiftOrder of allShiftOrders) {
+                try {
+                    // 检查排班顺序是否属于要删除的岗位
+                    if (shiftOrder.position === positionName) {
+                        // 保存原始长度用于比较
+                        const originalNumbersLength = Array.isArray(shiftOrder.employeeNumbers) ? shiftOrder.employeeNumbers.length : 0;
+                        const originalIdsLength = Array.isArray(shiftOrder.employeeIds) ? shiftOrder.employeeIds.length : 0;
+                        
+                        // 清空员工数据
+                        shiftOrder.employeeNumbers = [];
+                        shiftOrder.employeeIds = [];
+                        shiftOrder.updatedAt = new Date();
+                        
+                        updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
+                        
+                        console.log(`已清空排班顺序(ID:${shiftOrder.id})中岗位的员工数据`);
+                    }
+                } catch (shiftOrderError) {
+                    console.error(`处理排班顺序 ${shiftOrder.id} 失败:`, shiftOrderError);
+                    // 继续处理下一个排班顺序，不中断整体流程
+                }
+            }
+            
+            // 等待所有更新操作完成
+            if (updatePromises.length > 0) {
+                await Promise.allSettled(updatePromises);
+                console.log(`已完成${updatePromises.length}个排班顺序的更新`);
+            }
+            
+            // 第三步：清理空的排班顺序记录
+            try {
+                await this.cleanupEmptyShiftOrders();
+                console.log('已清理空的排班顺序记录');
+            } catch (cleanupError) {
+                console.error('清理空排班顺序记录时出错:', cleanupError);
+                // 清理失败不应影响主流程
+            }
+            
+            // 第四步：刷新排班表显示
+            try {
+                // 清理缓存，确保获取最新数据
+                if (window.shiftOrderManager && window.shiftOrderManager.clearCache) {
+                    window.shiftOrderManager.clearCache();
+                    console.log('已清除排班顺序管理器缓存');
+                }
+                
+                // 刷新排班表数据
+                if (window.loadShiftOrderData) {
+                    await window.loadShiftOrderData();
+                    console.log('通过window.loadShiftOrderData成功刷新排班表显示');
+                } else if (window.loadAllShiftOrders) {
+                    await window.loadAllShiftOrders();
+                    console.log('通过window.loadAllShiftOrders成功刷新排班表显示');
+                }
+                
+                console.log('排班表显示已刷新');
+            } catch (refreshError) {
+                console.error('刷新排班表显示时出错:', refreshError);
+            }
+            
+            console.log('岗位删除时的排班顺序更新完成');
+        } catch (error) {
+            console.error('处理岗位删除时更新排班顺序失败:', error);
+        }
+    }
+    async updateShiftOrderWhenDepartmentDeleted(departmentId) {
+        try {
+            console.log(`开始处理部门删除时的排班顺序更新，部门ID:${departmentId}`);
+            
+            // 第一步：获取部门下的所有岗位
+            const positions = await window.dbManager.getAll('positions');
+            const departmentPositions = positions.filter(position => 
+                position.departmentId && this.normalizeId(position.departmentId) === this.normalizeId(departmentId)
+            );
+            
+            console.log(`找到部门相关岗位数量: ${departmentPositions.length}`);
+            
+            // 如果部门下没有岗位，直接返回
+            if (departmentPositions.length === 0) {
+                console.log(`部门(ID:${departmentId})下没有岗位，无需更新排班顺序`);
+                return;
+            }
+            
+            // 第二步：获取所有排班顺序
+            const allShiftOrders = await window.dbManager.getAll('shiftOrders');
+            console.log(`总共获取到 ${allShiftOrders.length} 条排班顺序记录`);
+            
+            // 第三步：遍历所有排班顺序，清空部门下岗位的员工数据
+            const updatePromises = [];
+            const departmentPositionNames = departmentPositions.map(pos => pos.name);
+            
+            for (const shiftOrder of allShiftOrders) {
+                try {
+                    // 检查排班顺序是否属于要删除的部门下的岗位
+                    if (departmentPositionNames.includes(shiftOrder.position)) {
+                        // 保存原始长度用于比较
+                        const originalNumbersLength = Array.isArray(shiftOrder.employeeNumbers) ? shiftOrder.employeeNumbers.length : 0;
+                        const originalIdsLength = Array.isArray(shiftOrder.employeeIds) ? shiftOrder.employeeIds.length : 0;
+                        
+                        // 清空员工数据
+                        shiftOrder.employeeNumbers = [];
+                        shiftOrder.employeeIds = [];
+                        shiftOrder.updatedAt = new Date();
+                        
+                        updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
+                        
+                        console.log(`已清空排班顺序(ID:${shiftOrder.id})中部门相关岗位的员工数据`);
+                    }
+                } catch (shiftOrderError) {
+                    console.error(`处理排班顺序 ${shiftOrder.id} 失败:`, shiftOrderError);
+                    // 继续处理下一个排班顺序，不中断整体流程
+                }
+            }
+            
+            // 等待所有更新操作完成
+            if (updatePromises.length > 0) {
+                await Promise.allSettled(updatePromises);
+                console.log(`已完成${updatePromises.length}个排班顺序的更新`);
+            }
+            
+            // 第四步：清理空的排班顺序记录
+            try {
+                await this.cleanupEmptyShiftOrders();
+            } catch (cleanupError) {
+                console.error('清理空排班顺序记录时出错:', cleanupError);
+                // 清理失败不应影响主流程
+            }
+            
+            // 第五步：刷新排班表显示
+            try {
+                // 清理缓存，确保获取最新数据
+                if (this.clearCache) {
+                    this.clearCache();
+                }
+                
+                // 刷新排班表数据
+                if (window.loadShiftOrderData) {
+                    await window.loadShiftOrderData();
+                } else if (window.loadAllShiftOrders) {
+                    await window.loadAllShiftOrders();
+                }
+                
+                console.log('排班表显示已刷新');
+            } catch (refreshError) {
+                console.error('刷新排班表显示时出错:', refreshError);
+            }
+            
+            console.log(`部门删除时的排班顺序更新完成`);
+        } catch (error) {
+            console.error('部门删除时更新排班顺序失败:', error);
+        }
+    }
+    
+    // 当岗位被删除时更新排班顺序
+    async updateShiftOrderWhenPositionDeleted(positionName) {
+        try {
+            console.log(`开始处理岗位删除时的排班顺序更新，岗位名称:${positionName}`);
+            
+            // 第一步：获取所有排班顺序
+            const allShiftOrders = await window.dbManager.getAll('shiftOrders');
+            console.log(`总共获取到 ${allShiftOrders.length} 条排班顺序记录`);
+            
+            // 第二步：遍历所有排班顺序，清空指定岗位的员工数据
+            const updatePromises = [];
+            
+            for (const shiftOrder of allShiftOrders) {
+                try {
+                    // 检查排班顺序是否属于要删除的岗位
+                    if (shiftOrder.position === positionName) {
+                        // 保存原始长度用于比较
+                        const originalNumbersLength = Array.isArray(shiftOrder.employeeNumbers) ? shiftOrder.employeeNumbers.length : 0;
+                        const originalIdsLength = Array.isArray(shiftOrder.employeeIds) ? shiftOrder.employeeIds.length : 0;
+                        
+                        // 清空员工数据
+                        shiftOrder.employeeNumbers = [];
+                        shiftOrder.employeeIds = [];
+                        shiftOrder.updatedAt = new Date();
+                        
+                        updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
+                        
+                        console.log(`已清空排班顺序(ID:${shiftOrder.id})中岗位(${positionName})的员工数据`);
+                    }
+                } catch (shiftOrderError) {
+                    console.error(`处理排班顺序 ${shiftOrder.id} 失败:`, shiftOrderError);
+                    // 继续处理下一个排班顺序，不中断整体流程
+                }
+            }
+            
+            // 等待所有更新操作完成
+            if (updatePromises.length > 0) {
+                await Promise.allSettled(updatePromises);
+                console.log(`已完成${updatePromises.length}个排班顺序的更新`);
+            } else {
+                console.log(`未找到与岗位(${positionName})相关的排班顺序记录`);
+            }
+            
+            // 第三步：清理空的排班顺序记录
+            try {
+                await this.cleanupEmptyShiftOrders();
+            } catch (cleanupError) {
+                console.error('清理空排班顺序记录时出错:', cleanupError);
+                // 清理失败不应影响主流程
+            }
+            
+            // 第四步：刷新排班表显示
+            try {
+                // 清理缓存，确保获取最新数据
+                if (this.clearCache) {
+                    this.clearCache();
+                }
+                
+                // 刷新排班表数据
+                if (window.loadShiftOrderData) {
+                    await window.loadShiftOrderData();
+                } else if (window.loadAllShiftOrders) {
+                    await window.loadAllShiftOrders();
+                }
+                
+                console.log('排班表显示已刷新');
+            } catch (refreshError) {
+                console.error('刷新排班表显示时出错:', refreshError);
+            }
+            
+            console.log(`岗位删除时的排班顺序更新完成`);
+        } catch (error) {
+            console.error('岗位删除时更新排班顺序失败:', error);
+        }
+    }
+    async updateShiftOrderWhenDepartmentDeleted(departmentId) {
+        try {
+            console.log(`开始更新排班顺序，移除部门ID: ${departmentId}下所有岗位的所有员工`);
+            
+            // 第一步：获取该部门下的所有岗位
+            let positions = [];
+            try {
+                positions = await window.dbManager.getByIndex('positions', 'departmentId', departmentId);
+            } catch (error) {
+                console.error('获取部门下岗位信息失败:', error);
+                // 如果获取失败，不中断主流程
+            }
+            
+            if (!positions || positions.length === 0) {
+                console.log(`未找到部门ID: ${departmentId}下的任何岗位，无需更新排班顺序`);
+                return;
+            }
+            
+            // 第二步：获取所有排班顺序
+            const allShiftOrders = await window.dbManager.getAll('shiftOrders');
+            
+            // 获取部门下所有岗位的ID和名称
+            const positionIds = positions.map(pos => pos.id);
+            
+            // 第三步：遍历所有排班顺序，查找属于该部门下岗位的记录
+            const updatePromises = [];
+            
+            for (const shiftOrder of allShiftOrders) {
+                try {
+                    // 如果排班顺序属于该部门下的某个岗位
+                    if (positionIds.includes(shiftOrder.positionId)) {
+                        console.log(`清空部门ID: ${departmentId}下岗位ID: ${shiftOrder.positionId}, 班次ID: ${shiftOrder.shiftId}的排班顺序`);
+                        
+                        // 确保employeeNumbers和employeeIds是数组
+                        if (!Array.isArray(shiftOrder.employeeNumbers)) {
+                            shiftOrder.employeeNumbers = [];
+                        }
+                        
+                        if (!Array.isArray(shiftOrder.employeeIds)) {
+                            shiftOrder.employeeIds = [];
+                        }
+                        
+                        // 检查是否有员工数据需要清空
+                        const hasEmployeeNumbers = shiftOrder.employeeNumbers.length > 0;
+                        const hasEmployeeIds = shiftOrder.employeeIds.length > 0;
+                        
+                        if (hasEmployeeNumbers || hasEmployeeIds) {
+                            // 清空员工号和员工ID数组
+                            shiftOrder.employeeNumbers = [];
+                            shiftOrder.employeeIds = [];
+                            shiftOrder.updatedAt = new Date();
+                            
+                            // 保存更新后的排班顺序
+                            updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
+                        }
+                    }
+                } catch (shiftOrderError) {
+                    console.error(`处理排班顺序 ${shiftOrder.id} 失败:`, shiftOrderError);
+                    // 继续处理下一个排班顺序，不中断整体流程
+                }
+            }
+            
+            // 等待所有更新完成
+            if (updatePromises.length > 0) {
+                await Promise.all(updatePromises);
+                console.log(`已完成${updatePromises.length}个排班顺序的清空操作`);
+            }
+            
+            // 第四步：清理空的排班顺序记录
+            try {
+                await this.cleanupEmptyShiftOrders();
+            } catch (cleanupError) {
+                console.error('清理空排班顺序记录时出错:', cleanupError);
+                // 清理失败不应影响主流程
+            }
+            
+            // 第五步：刷新排班表显示
+            try {
+                // 清理缓存，确保获取最新数据
+                if (this.clearCache) {
+                    this.clearCache();
+                }
+                
+                // 刷新排班表数据
+                if (window.loadShiftOrderData) {
+                    await window.loadShiftOrderData();
+                } else if (window.loadAllShiftOrders) {
+                    await window.loadAllShiftOrders();
+                }
+                
+                console.log('排班表显示已刷新');
+            } catch (refreshError) {
+                console.error('刷新排班表显示时出错:', refreshError);
+            }
+            
+            console.log(`排班顺序更新完成，成功清空部门ID: ${departmentId}下所有岗位的员工排班数据`);
+        } catch (error) {
+            console.error(`更新排班顺序时出错:`, error);
+        }
+    }
+    
+    // 当岗位被删除时更新排班顺序
+    async updateShiftOrderWhenPositionDeleted(positionId) {
+        try {
+            console.log(`开始更新排班顺序，移除岗位ID: ${positionId}下所有班次的员工`);
+            
+            // 第一步：获取所有排班顺序
+            const allShiftOrders = await window.dbManager.getAll('shiftOrders');
+            
+            // 第二步：遍历所有排班顺序，查找属于该岗位的记录
+            const updatePromises = [];
+            
+            for (const shiftOrder of allShiftOrders) {
+                try {
+                    // 如果排班顺序属于该岗位
+                    if (shiftOrder.positionId === positionId) {
+                        console.log(`清空岗位ID: ${positionId}, 班次ID: ${shiftOrder.shiftId}的排班顺序`);
+                        
+                        // 确保employeeNumbers和employeeIds是数组
+                        if (!Array.isArray(shiftOrder.employeeNumbers)) {
+                            shiftOrder.employeeNumbers = [];
+                        }
+                        
+                        if (!Array.isArray(shiftOrder.employeeIds)) {
+                            shiftOrder.employeeIds = [];
+                        }
+                        
+                        // 检查是否有员工数据需要清空
+                        const hasEmployeeNumbers = shiftOrder.employeeNumbers.length > 0;
+                        const hasEmployeeIds = shiftOrder.employeeIds.length > 0;
+                        
+                        if (hasEmployeeNumbers || hasEmployeeIds) {
+                            // 清空员工号和员工ID数组
+                            shiftOrder.employeeNumbers = [];
+                            shiftOrder.employeeIds = [];
+                            shiftOrder.updatedAt = new Date();
+                            
+                            // 保存更新后的排班顺序
+                            updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
+                        }
+                    }
+                } catch (shiftOrderError) {
+                    console.error(`处理排班顺序 ${shiftOrder.id} 失败:`, shiftOrderError);
+                    // 继续处理下一个排班顺序，不中断整体流程
+                }
+            }
+            
+            // 等待所有更新完成
+            if (updatePromises.length > 0) {
+                await Promise.all(updatePromises);
+                console.log(`已完成${updatePromises.length}个排班顺序的清空操作`);
+            }
+            
+            // 第三步：清理空的排班顺序记录
+            try {
+                await this.cleanupEmptyShiftOrders();
+            } catch (cleanupError) {
+                console.error('清理空排班顺序记录时出错:', cleanupError);
+                // 清理失败不应影响主流程
+            }
+            
+            // 第四步：刷新排班表显示
+            try {
+                // 清理缓存，确保获取最新数据
+                if (this.clearCache) {
+                    this.clearCache();
+                }
+                
+                // 刷新排班表数据
+                if (window.loadShiftOrderData) {
+                    await window.loadShiftOrderData();
+                } else if (window.loadAllShiftOrders) {
+                    await window.loadAllShiftOrders();
+                }
+                
+                console.log('排班表显示已刷新');
+            } catch (refreshError) {
+                console.error('刷新排班表显示时出错:', refreshError);
+            }
+            
+            console.log(`排班顺序更新完成，成功清空岗位ID: ${positionId}下所有班次的员工排班数据`);
+        } catch (error) {
+            console.error(`更新排班顺序时出错:`, error);
         }
     }
 }
@@ -1150,8 +2176,8 @@ window.initShiftOrderManagement = async function() {
         // 创建排班顺序管理实例
         window.shiftOrderManager = new ShiftOrderManager();
         
-        // 加载所有岗位的排班顺序
-        await loadAllShiftOrders();
+        // 已移除loadAllShiftOrders()调用，避免与筛选框触发的CHANGE事件加载重复
+        // 现在只通过筛选框CHANGE事件来加载数据
         
         // 绑定事件监听器
         bindShiftOrderEvents();
@@ -1186,6 +2212,8 @@ window.loadShiftOrderData = async function() {
     };
     
     try {
+        console.log('开始加载排班顺序数据');
+        
         // 获取部门和岗位筛选值
         const deptFilter = document.getElementById('shiftOrderDeptFilter');
         const positionFilter = document.getElementById('shiftOrderPositionFilter');
@@ -1238,8 +2266,10 @@ window.loadShiftOrderData = async function() {
                     
                     console.log(`过滤后有有效标识的员工数量: ${filteredEmployees.length}`);
                 } else {
-                    // 如果没有标识数据，不进行过滤，显示所有员工
-                    console.warn('没有找到标识数据，将显示所有员工');
+                    // 如果没有标识数据，显示空列表
+                    console.warn('没有找到标识数据，将显示空列表');
+                    filteredEmployees = [];
+                    positions = new Set();
                 }
                 
                 // 重新计算岗位集合
@@ -1248,12 +2278,16 @@ window.loadShiftOrderData = async function() {
                 }
                 
             } catch (identifierError) {
-                console.warn('获取标识数据失败，将显示所有员工:', identifierError);
-                // 出错时显示所有员工，而不是空列表
+                console.warn('获取标识数据失败，将显示空列表:', identifierError);
+                // 出错时显示空列表
+                filteredEmployees = [];
+                positions = new Set();
             }
         } else {
-            console.warn('identifierManager不存在，将显示所有员工');
-            // identifierManager不存在时显示所有员工
+            console.warn('identifierManager不存在，将显示空列表');
+            // identifierManager不存在时显示空列表
+            filteredEmployees = [];
+            positions = new Set();
         }
         
         // 确保positions不为空，先检查positions是否存在
@@ -2128,37 +3162,33 @@ function getDragAfterElement(container, y) {
     return closest.element;
 }
 
-// 内部辅助函数：重新加载排班顺序数据 - 参考人员管理模块的直接调用方式
+// 内部辅助函数：重新加载排班顺序数据 - 修复重复加载问题
 function _reloadShiftOrderData() {
-    // 简化实现，参考人员管理模块的直接调用方式
-    console.log('[_reloadShiftOrderData] 开始执行自动刷新排班数据');
+    // 精简实现，直接调用加载函数
+    console.log('重新加载排班数据');
     
     // 先确保shiftOrderManager实例已经初始化并清除缓存
-    if (window.shiftOrderManager) {
-        // 清除缓存，确保获取最新数据
-        if (window.shiftOrderManager.clearCache) {
-            window.shiftOrderManager.clearCache();
-        }
+    if (window.shiftOrderManager && window.shiftOrderManager.clearCache) {
+        window.shiftOrderManager.clearCache();
     }
     
-    // 直接调用核心加载函数，与人员管理模块保持一致
+    // 直接调用核心加载函数
     if (window.loadShiftOrderData) {
-        // 直接返回loadShiftOrderData的结果，保持Promise链
         try {
             const result = window.loadShiftOrderData();
             if (result && typeof result.then === 'function') {
                 return result.then(() => {
-                    console.log('[_reloadShiftOrderData] 排班数据重新加载成功，表格已自动渲染');
+                    console.log('排班数据重新加载成功');
                 }).catch(error => {
-                    console.error('[_reloadShiftOrderData] loadShiftOrderData执行失败:', error);
+                    console.error('loadShiftOrderData执行失败:', error);
                     throw error;
                 });
             } else {
-                console.log('[_reloadShiftOrderData] 直接调用loadShiftOrderData，表格已自动渲染');
+                console.log('直接调用loadShiftOrderData完成');
                 return Promise.resolve();
             }
         } catch (error) {
-            console.error('[_reloadShiftOrderData] 执行过程中发生错误:', error);
+            console.error('执行过程中发生错误:', error);
             return Promise.reject(error);
         }
     } else if (typeof loadAllShiftOrders === 'function') {
@@ -2167,21 +3197,21 @@ function _reloadShiftOrderData() {
             const result = loadAllShiftOrders();
             if (result && typeof result.then === 'function') {
                 return result.then(() => {
-                    console.log('[_reloadShiftOrderData] 调用loadAllShiftOrders成功，表格已自动渲染');
+                    console.log('调用loadAllShiftOrders成功');
                 }).catch(error => {
-                    console.error('[_reloadShiftOrderData] loadAllShiftOrders执行失败:', error);
+                    console.error('loadAllShiftOrders执行失败:', error);
                     throw error;
                 });
             } else {
-                console.log('[_reloadShiftOrderData] 直接调用loadAllShiftOrders，表格已自动渲染');
+                console.log('直接调用loadAllShiftOrders完成');
                 return Promise.resolve();
             }
         } catch (error) {
-            console.error('[_reloadShiftOrderData] 执行过程中发生错误:', error);
+            console.error('执行过程中发生错误:', error);
             return Promise.reject(error);
         }
     } else {
-        console.error('[_reloadShiftOrderData] 错误: 未找到loadShiftOrderData和loadAllShiftOrders函数');
+        console.error('错误: 未找到数据加载函数');
         return Promise.reject(new Error('未找到数据加载函数'));
     }
 }
@@ -2452,15 +3482,16 @@ window.addEventListener('employeeAdded', function(e) {
 // 监听员工删除事件，自动从所有排班顺序中移除员工
 window.addEventListener('employeeDeleted', function(e) {
     try {
-        // 优先使用员工号，如果没有则回退到员工ID
-        var employeeNumber = e.detail.employeeNumber || e.detail.employeeId;
-        var identifier = e.detail.employeeNumber ? '员工号' : '员工ID';
+        // 使用员工ID调用功能更完整的updateShiftOrderWhenEmployeeDeleted方法
+        var employeeId = e.detail.employeeId;
         
-        window.shiftOrderManager.removeEmployeeFromShiftOrder(employeeNumber).then(function() {
-            console.log(`已从所有排班顺序中移除${identifier}: ${employeeNumber}`);
-        }).catch(function(error) {
-            console.error('自动从排班顺序中移除员工失败:' + error);
-        });
+        if (window.shiftOrderManager && window.shiftOrderManager.updateShiftOrderWhenEmployeeDeleted) {
+            window.shiftOrderManager.updateShiftOrderWhenEmployeeDeleted(employeeId).then(function() {
+                console.log(`已从所有排班顺序中移除员工ID: ${employeeId} 的数据`);
+            }).catch(function(error) {
+                console.error('自动从排班顺序中移除员工失败:' + error);
+            });
+        }
     } catch (error) {
         console.error('自动从排班顺序中移除员工失败:' + error);
     }
@@ -2483,15 +3514,16 @@ window.addEventListener('allIdentifiersReset', function() {
 });
 
 // 新增：监听班次状态变更事件
+// 根据用户需求：仅记录日志，不再自动刷新表格
 window.addEventListener('shiftStatusChanged', function(e) {
     try {
         var shiftCode = e.detail.shiftCode;
         var status = e.detail.status;
         console.log('接收到班次状态变更事件，班次代码: ' + shiftCode + ', 状态: ' + (status === 0 ? '启用' : '停用'));
         
-        // 如果班次被停用，刷新所有使用该班次的排班顺序
+        // 根据用户需求：不再自动刷新排班表格，仅记录日志
         if (status === 1 && window.shiftOrderManager) {
-            window.loadShiftOrderData();
+            console.log('班次被停用，但根据用户需求不再自动刷新排班表格');
         }
     } catch (error) {
         console.error('处理班次状态变更事件失败:' + error);
@@ -2499,6 +3531,7 @@ window.addEventListener('shiftStatusChanged', function(e) {
 });
 
 // 新增：监听班次数据变更事件
+// 根据用户需求：仅记录日志，不再自动刷新表格
 window.addEventListener('shiftDataChanged', function(e) {
     try {
         var reason = e.detail.reason;
@@ -2506,13 +3539,10 @@ window.addEventListener('shiftDataChanged', function(e) {
         var shiftCode = e.detail.shiftCode;
         console.log('接收到班次数据变更事件，原因: ' + reason + ', 班次ID: ' + shiftId + ', 班次代码: ' + shiftCode);
         
-        // 仅刷新一次当前显示的排班顺序
-        if (window.shiftOrderManager) {
-            window.loadShiftOrderData();
-        }
+        // 根据用户需求：不再自动刷新排班表格，仅记录日志
+        console.log('班次数据变更，但根据用户需求不再自动刷新排班表格');
     } catch (error) {
         console.error('处理班次数据变更事件失败:' + error);
-        // 出错时记录错误，但不再重复刷新，避免多次刷新
     }
 });
 

@@ -123,7 +123,7 @@ class IdentifierManager {
                     // 但仅在不是批量操作时执行，避免频繁切换
                     if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function' && !window.isBulkIdentifierOperation) {
                         console.log('标识未被选中，从所有员工中加载岗位下拉框');
-                        await window.loadPositionsForDepartment(''); // 传入空字符串表示从所有部门加载
+                        await window.loadPositionsForDepartment('', 'identifier'); // 传入空字符串表示从所有部门加载
                     }
                 }
             } catch (refreshError) {
@@ -306,7 +306,7 @@ class IdentifierManager {
                 // 首先刷新岗位下拉框
                 if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
                     console.log('刷新岗位下拉框，部门:', selectedDept);
-                    await window.loadPositionsForDepartment(selectedDept);
+                    await window.loadPositionsForDepartment(selectedDept, 'identifier');
                 }
                 
                 // 将员工岗位设置到岗位下拉框（仅当当前不是全部岗位时）
@@ -341,7 +341,7 @@ class IdentifierManager {
                         // 如果未找到对应的岗位选项，尝试重新从所有员工中加载岗位列表
                         if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
                             console.log('重新从所有员工中加载岗位列表');
-                            await window.loadPositionsForDepartment(''); // 传入空字符串表示从所有部门加载
+                            await window.loadPositionsForDepartment('', 'identifier'); // 传入空字符串表示从所有部门加载
                         }
                         // 再次尝试设置岗位 - 优化为只在非批量操作时执行
                         if (!window.isBulkIdentifierOperation) {
@@ -383,7 +383,7 @@ class IdentifierManager {
                             // 首先刷新岗位下拉框
                             if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
                                 console.log('刷新岗位下拉框，部门:', selectedDept);
-                                await window.loadPositionsForDepartment(selectedDept);
+                                await window.loadPositionsForDepartment(selectedDept, 'identifier');
                             }
                             
                             // 将员工岗位设置到岗位下拉框（仅当当前不是全部岗位时）
@@ -418,7 +418,7 @@ class IdentifierManager {
                                     // 如果未找到对应的岗位选项，尝试重新从所有员工中加载岗位列表
                                     if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
                                         console.log('重新从所有员工中加载岗位列表');
-                                        await window.loadPositionsForDepartment(''); // 传入空字符串表示从所有部门加载
+                                        await window.loadPositionsForDepartment('', 'identifier'); // 传入空字符串表示从所有部门加载
                                     }
                                     // 再次尝试设置岗位 - 优化为只在非批量操作时执行
                                     if (!window.isBulkIdentifierOperation) {
@@ -589,7 +589,7 @@ class IdentifierManager {
                     // 如果没有被选中的标识，从所有员工中加载岗位下拉框以确保显示所有可用岗位
                     if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
                         console.log('批量保存标识后没有被选中的标识，从所有员工中加载岗位下拉框');
-                        await window.loadPositionsForDepartment(''); // 传入空字符串表示从所有部门加载
+                        await window.loadPositionsForDepartment('', 'identifier'); // 传入空字符串表示从所有部门加载
                     }
                 }
             } catch (refreshError) {
@@ -885,20 +885,20 @@ async function renderIdentifierTable() {
         }
         
         // 添加员工行
-        allEmployees.forEach((employee, empIndex) => {
-            const orgName = orgNames.get(employee.orgId) || `机构${employee.orgId}`;
-            
-            // 使用div背景色
-            const rowBgColor = 'background-color: var(--card-bg);';
-            
-            tableHtml += `
+            allEmployees.forEach((employee, empIndex) => {
+                const orgName = orgNames.get(employee.orgId) || `机构${employee.orgId}`;
+                
+                // 使用div背景色
+                const rowBgColor = 'background-color: var(--card-bg);';
+                
+                tableHtml += `
             <tr class="hover-row" style="${rowBgColor}">
-                <td class="fixed-column">${empIndex + 1}</td>
-                <td class="fixed-column">${employee.number}</td>
-                <td class="fixed-column">${employee.name}</td>
-                <td class="fixed-column">${orgName}</td>
-                <td class="fixed-column">${employee.deptName || '-'}</td>
-                <td class="fixed-column">${employee.position || '-'}</td>`;
+                <td class="fixed-column" title="序号: ${empIndex + 1}">${empIndex + 1}</td>
+                <td class="fixed-column" title="员工号: ${employee.number || '-'}">${employee.number || '-'}</td>
+                <td class="fixed-column" title="姓名: ${employee.name || '-'}">${employee.name || '-'}</td>
+                <td class="fixed-column" title="所属机构: ${orgName}">${orgName}</td>
+                <td class="fixed-column" title="所属部门: ${employee.deptName || '-'}">${employee.deptName || '-'}</td>
+                <td class="fixed-column" title="岗位: ${employee.position || '-'}">${employee.position || '-'}</td>`;
             
             // 添加每个班次的标识单元格
             allActiveShifts.forEach(shift => {
@@ -906,7 +906,7 @@ async function renderIdentifierTable() {
                 const canWork = allIdentifiers[key] || false;
                 
                 tableHtml += `
-                <td class="identifier-cell">
+                <td class="identifier-cell" title="班次: ${shift.code}\n员工: ${employee.name}">
                     <label class="checkbox-label">
                         <input type="checkbox" 
                                class="identifier-checkbox" 
@@ -1012,20 +1012,42 @@ async function renderIdentifierTable() {
                 padding: 8px 12px; /* 内边距 */
                 text-align: center; /* 文本居中 */
                 border: 1px solid rgba(255, 255, 255, 0.1); /* 边框样式 */
-                min-width: 120px; /* 增加最小宽度，确保内容不会被过度压缩 */
                 background-color: var(--card-bg); /* 背景色 */
-                white-space: nowrap; /* 文本不换行 */
                 box-sizing: border-box; /* 盒模型包含边框和内边距 */
-                vertical-align: top; /* 内容顶部对齐，方便多行显示 */
+                vertical-align: middle; /* 内容垂直居中 */
+                white-space: nowrap; /* 不允许文本换行 */
+                min-width: fit-content; /* 最小宽度适应内容 */
+                width: auto; /* 宽度自动调整 */
             }
 
-            /* 非固定列单元格 */
+            /* 非固定列单元格 - 自适应内容 */
             .scrollable-table th:not(.fixed-column),
             .scrollable-table td:not(.fixed-column) {
-                white-space: nowrap; /* 文本不换行 */
-                min-width: 120px; /* 非固定列最小宽度 */
+                min-width: 80px; /* 非固定列最小宽度 */
                 position: relative; /* 相对定位 */
                 z-index: 1; /* 层级 */
+                white-space: normal; /* 允许文本换行 */
+                word-wrap: break-word; /* 长单词自动换行 */
+                line-height: 1.4; /* 调整行高，提高可读性 */
+            }
+
+            /* 鼠标悬停显示完整内容 */
+            .scrollable-table td[title]:hover::after {
+                content: attr(title);
+                position: absolute;
+                background-color: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 12px;
+                white-space: pre-wrap;
+                z-index: 1000;
+                max-width: 300px;
+                left: 50%;
+                transform: translateX(-50%);
+                bottom: 100%;
+                margin-bottom: 5px;
+                pointer-events: none;
             }
             
             .scrollable-table thead th {
@@ -1042,17 +1064,17 @@ async function renderIdentifierTable() {
                 border-right: 2px solid rgba(255, 255, 255, 0.1); /* 右侧边框 */
                 box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1); /* 右侧阴影，增强层次感 */
                 overflow: visible; /* 允许内容完整显示 */
-                white-space: nowrap; /* 文本不换行 */
-                vertical-align: top; /* 内容顶部对齐 */
+                white-space: nowrap; /* 不允许文本换行 */
+                vertical-align: middle; /* 内容垂直居中 */
             }
             
             /* 固定列的层级关系和精确宽度 */
             .fixed-column:nth-child(1) { left: 0; z-index: 10; min-width: 40px; width: 40px; } /* 第一列固定位置和宽度 */
-            .fixed-column:nth-child(2) { left: 40px; z-index: 9; min-width: 120px; width: 120px; } /* 第二列固定位置和宽度 */
-            .fixed-column:nth-child(3) { left: 160px; z-index: 8; min-width: 80px; width: 80px; } /* 第三列固定位置和宽度 */
-            .fixed-column:nth-child(4) { left: 240px; z-index: 7; min-width: 100px; width: 100px; } /* 第四列固定位置和宽度 */
-            .fixed-column:nth-child(5) { left: 340px; z-index: 6; min-width: 100px; width: 100px; } /* 第五列固定位置和宽度 */
-            .fixed-column:nth-child(6) { left: 440px; z-index: 5; min-width: 80px; width: 80px; } /* 第六列固定位置和宽度 */
+            .fixed-column:nth-child(2) { left: 40px; z-index: 9; min-width: fit-content; width: auto; } /* 第二列固定位置和宽度 */
+            .fixed-column:nth-child(3) { left: auto; z-index: 8; min-width: fit-content; width: auto; } /* 第三列固定位置和宽度 */
+            .fixed-column:nth-child(4) { left: auto; z-index: 7; min-width: fit-content; width: auto; } /* 第四列固定位置和宽度 */
+            .fixed-column:nth-child(5) { left: auto; z-index: 6; min-width: fit-content; width: auto; } /* 第五列固定位置和宽度 */
+            .fixed-column:nth-child(6) { left: auto; z-index: 5; min-width: fit-content; width: auto; } /* 第六列固定位置和宽度 */
             
             /* 修复第一个非固定列的左边距 */
             .scrollable-table th:nth-child(7),
@@ -1294,6 +1316,35 @@ function addIdentifierEvents() {
                         canWork,
                         createdAt: new Date()
                     });
+                }
+                
+                // 关键改进：当取消员工班次标识时，同步删除排班顺序中的员工信息
+                if (!canWork && window.shiftOrderManager) {
+                    try {
+                        const employee = await window.dbManager.getById('employees', employeeId);
+                        if (employee && employee.number) {
+                            // 获取员工所属岗位
+                            const employeePosition = employee.position;
+                            
+                            // 查找班次信息，获取班次代码
+                            const shifts = await window.shiftManager.getAllShifts();
+                            const shift = shifts.find(s => s.id === shiftId);
+                            
+                            if (shift && shift.code) {
+                                // 从排班顺序中删除该员工
+                                await window.shiftOrderManager.removeEmployeeFromShiftOrder(
+                                    employeePosition,
+                                    shift.code,
+                                    employee.number,
+                                    employeeId
+                                );
+                                console.log(`已从${employeePosition}岗位${shift.code}班次的排班顺序中移除员工${employee.number}`);
+                            }
+                        }
+                    } catch (shiftOrderError) {
+                        console.error('从排班顺序中移除员工失败:', shiftOrderError);
+                        // 这里不抛出错误，避免影响标识的保存
+                    }
                 }
                 
                 // 保存成功后，启动滚动位置恢复机制

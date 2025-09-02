@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>清空数据库</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 2rem;
+        }
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+        }
+        button {
+            background-color: #ff4757;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #ff3742;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .success {
+            color: #2ed573 !important;
+        }
+        .error {
+            color: #ff4757 !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>清空数据库</h1>
+        <p>点击下方按钮将清空智能排班表系统中的所有数据（包括机构、员工、排班等）。</p>
+        <p>此操作不可恢复，请谨慎操作！</p>
+        <button id="clearButton">清空数据库</button>
+        <div id="status"></div>
+    </div>
+
+    <script src="js/indexed-db-manager.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const clearButton = document.getElementById('clearButton');
+            const status = document.getElementById('status');
+            
+            clearButton.addEventListener('click', async function() {
+                if (confirm('确定要清空所有数据库数据吗？此操作不可恢复！')) {
+                    clearButton.disabled = true;
+                    status.textContent = '正在清空数据库...';
+                    
+                    try {
+                        // 确保dbManager已初始化
+                        await window.dbManager.ensureInitialized();
+                        
+                        // 调用清空数据库方法
+                        const success = await window.dbManager.clearAllData();
+                        
+                        if (success) {
+                            status.textContent = '数据库已成功清空！';
+                            status.classList.add('success');
+                            
+                            // 3秒后可以关闭页面或返回首页
+                            setTimeout(function() {
+                                if (confirm('数据库已清空，是否返回首页？')) {
+                                    window.location.href = 'index.html';
+                                }
+                            }, 2000);
+                        } else {
+                            status.textContent = '清空数据库失败，请重试！';
+                            status.classList.add('error');
+                            clearButton.disabled = false;
+                        }
+                    } catch (error) {
+                        console.error('清空数据库时出错:', error);
+                        status.textContent = '清空数据库时发生错误: ' + error.message;
+                        status.classList.add('error');
+                        clearButton.disabled = false;
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -458,24 +458,48 @@ class IndexedDBManager {
                     
                     // 创建员工ID到员工号的映射
                     const employeeIdToNumberMap = {};
+                    // 创建员工号到部门名称的映射
+                    const employeeNumberToDepartmentMap = {};
+                    
                     employees.forEach(emp => {
                         employeeIdToNumberMap[emp.id] = emp.number;
+                        if (emp.number && emp.deptName) {
+                            employeeNumberToDepartmentMap[emp.number] = emp.deptName;
+                        }
                     });
                     
-                    // 转换排班顺序数据，使用employeeNumbers字段，不保留employeeIds
-                    exportData[storeName] = shiftOrders.map(order => ({
-                        ...order,
-                        // 优先使用employeeNumbers字段
-                        employeeNumbers: order.employeeNumbers && Array.isArray(order.employeeNumbers) && order.employeeNumbers.length > 0 
-                            ? order.employeeNumbers
-                            : (order.employeeIds && Array.isArray(order.employeeIds) 
-                                ? order.employeeIds.map(id => employeeIdToNumberMap[id] || id.toString())
-                                : []),
-                        // 删除employeeIds字段，避免导出重复数据
-                        employeeIds: undefined,
-                        // 删除id字段，避免在导入时产生冲突
-                        id: undefined
-                    }));
+                    // 转换排班顺序数据，使用employeeNumbers字段，不保留employeeIds，并添加部门名称
+                    exportData[storeName] = shiftOrders.map(order => {
+                        // 优先使用employeeNumbers字段，并确保只包含有效的员工号
+                        let employeeNumbers = [];
+                        if (order.employeeNumbers && Array.isArray(order.employeeNumbers) && order.employeeNumbers.length > 0) {
+                            // 过滤掉非员工号的数字ID
+                            employeeNumbers = order.employeeNumbers.filter(num => !(/^\d+$/.test(num) && (parseInt(num) < 10000 || employeeIdToNumberMap[parseInt(num)] === undefined)));
+                        } else if (order.employeeIds && Array.isArray(order.employeeIds)) {
+                            // 只保留有对应员工号的ID
+                            employeeNumbers = order.employeeIds
+                                .map(id => employeeIdToNumberMap[id])
+                                .filter(num => num !== undefined);
+                        }
+                        
+                        // 查找部门名称（如果没有专门的部门名称字段，根据员工的部门信息推断）
+                        // 对于排班顺序，我们取第一个员工的部门名称作为排班的部门名称
+                        let departmentName = '';
+                        if (employeeNumbers.length > 0) {
+                            departmentName = employeeNumberToDepartmentMap[employeeNumbers[0]] || '';
+                        }
+                        
+                        return {
+                            ...order,
+                            employeeNumbers: employeeNumbers,
+                            // 添加部门名称字段
+                            departmentName: departmentName,
+                            // 删除employeeIds字段，避免导出重复数据
+                            employeeIds: undefined,
+                            // 删除id字段，避免在导入时产生冲突
+                            id: undefined
+                        };
+                    });
                 } else {
                     exportData[storeName] = await this.getAll(storeName);
                 }
@@ -709,6 +733,52 @@ class IndexedDBManager {
             const store = transaction.objectStore(storeName);
             return store.indexNames.contains(indexName);
         });
+    }
+
+    // 清空所有数据库数据
+    async clearAllData() {
+        try {
+            // 关闭当前数据库连接
+            if (this.db) {
+                this.db.close();
+            }
+            
+            // 删除数据库
+            await new Promise((resolve, reject) => {
+                const request = indexedDB.deleteDatabase(this.dbName);
+                request.onsuccess = () => {
+                    console.log('数据库已成功删除');
+                    resolve();
+                };
+                request.onerror = (event) => {
+                    console.error('删除数据库失败:', event.target.error);
+                    reject(event.target.error);
+                };
+            });
+            
+            // 重新初始化数据库
+            this.db = null;
+            this.initialized = false;
+            this.initPromise = this.initDB();
+            await this.initPromise;
+            
+            // 清除localStorage中的数据
+            if (localStorage.getItem('migratedToIndexedDB')) {
+                localStorage.removeItem('migratedToIndexedDB');
+            }
+            if (localStorage.getItem('scheduleSystemData')) {
+                localStorage.removeItem('scheduleSystemData');
+            }
+            if (localStorage.getItem('institutions')) {
+                localStorage.removeItem('institutions');
+            }
+            
+            console.log('所有数据库数据已成功清空');
+            return true;
+        } catch (error) {
+            console.error('清空数据库数据失败:', error);
+            return false;
+        }
     }
 
 
