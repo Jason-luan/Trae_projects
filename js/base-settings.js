@@ -43,7 +43,7 @@ function showNotification(message, type = 'success') {
 }
 
 // 切换状态 - 优化版，与编辑按钮样式保持一致
-function toggleStatus(element, id, type, currentStatus) {
+function toggleStatus(element, id, type, currentStatus, additionalInfo = null) {
     const newStatus = currentStatus === 0 ? 1 : 0;
     try {
         // 先禁用按钮防止重复点击
@@ -60,8 +60,8 @@ function toggleStatus(element, id, type, currentStatus) {
                 })
                 .then(() => {
                     showNotification('机构状态更新成功');
-            // 重新加载列表以确保数据和UI完全同步
-            loadOrganizations(false);
+                    // 重新加载列表以确保数据和UI完全同步
+                    loadOrganizations(false);
                 })
                 .catch(error => {
                     showNotification('更新状态失败: ' + error.message, 'error');
@@ -81,10 +81,99 @@ function toggleStatus(element, id, type, currentStatus) {
                 .catch(error => {
                     showNotification('更新状态失败: ' + error.message, 'error');
                 });
+        } else if (type === 'department') {
+            // additionalInfo应该包含机构ID和部门名称
+            const { orgId, deptName } = additionalInfo;
+            dbManager.getById('organizations', parseInt(orgId))
+                .then(org => {
+                    if (org) {
+                        // 确保departments字段存在且为数组
+                        if (!org.departments || !Array.isArray(org.departments)) {
+                            org.departments = [];
+                        }
+                        
+                        // 确保departmentStatuses字段存在且为对象
+                        if (!org.departmentStatuses) {
+                            org.departmentStatuses = {};
+                        }
+                        
+                        // 更新部门状态
+                        org.departmentStatuses[deptName] = newStatus;
+                        org.updatedAt = new Date();
+                        return dbManager.save('organizations', org);
+                    }
+                })
+                .then(() => {
+                    showNotification('部门状态更新成功');
+                    // 检查机构是否需要自动停用
+                    checkAndUpdateOrganizationStatus(parseInt(orgId));
+                    // 重新加载列表以确保数据和UI完全同步
+                    loadOrganizations(false);
+                    
+                    // 刷新员工管理模态框中的机构和部门选择框（如果模态框打开）
+                    const employeeModal = document.getElementById('employeeModal');
+                    const employeeOrgIdInput = document.getElementById('employeeOrgIdInput');
+                    const employeeDeptNameInput = document.getElementById('employeeDeptNameInput');
+                    
+                    if (employeeModal && employeeModal.style.display === 'block' && employeeOrgIdInput && employeeDeptNameInput) {
+                        // 获取当前选中的机构ID和名称
+                        const selectedOrgIndex = employeeOrgIdInput.selectedIndex;
+                        let selectedOrgId = null;
+                        
+                        if (selectedOrgIndex > 0) {
+                            selectedOrgId = parseInt(employeeOrgIdInput.value);
+                        }
+                        
+                        // 刷新机构选择框，确保获取最新的机构状态
+                        loadOrganizationsForSelect(selectedOrgId);
+                    }
+                })
+                .catch(error => {
+                    showNotification('更新部门状态失败: ' + error.message, 'error');
+                });
         }
     } catch (error) {
         showNotification('更新状态失败: ' + error, 'error');
     }
+}
+
+// 检查并更新机构状态
+function checkAndUpdateOrganizationStatus(orgId) {
+    dbManager.getById('organizations', parseInt(orgId))
+        .then(org => {
+            if (org) {
+                // 确保departments和departmentStatuses字段存在
+                const departments = org.departments && Array.isArray(org.departments) ? org.departments : [];
+                const departmentStatuses = org.departmentStatuses || {};
+                
+                // 检查所有部门是否都已停用
+                const allDepartmentsDisabled = departments.every(dept => 
+                    departmentStatuses[dept] === 1 // 1表示停用状态
+                );
+                
+                // 检查是否有至少一个部门处于启用状态
+                const hasActiveDepartment = departments.some(dept => 
+                    departmentStatuses[dept] === 0 // 0表示启用状态
+                );
+                
+                // 如果所有部门都已停用且机构当前状态是启用，则停用机构
+                if (allDepartmentsDisabled && org.status === 0) {
+                    org.status = 1;
+                    return dbManager.save('organizations', org);
+                }
+                // 如果有部门启用且机构当前状态是停用，则启用机构
+                else if (hasActiveDepartment && org.status === 1) {
+                    org.status = 0;
+                    return dbManager.save('organizations', org);
+                }
+            }
+        })
+        .then(() => {
+            // 无需通知，因为部门状态更新已有通知
+        })
+        .catch(error => {
+            console.error('检查机构状态失败:', error);
+        });
 }
 
 // 更新分页控件
@@ -225,87 +314,131 @@ window.loadOrganizations = async function(showNotificationFlag = true) {
         tableBody.innerHTML = '';
 
         paginatedOrganizations.forEach((org, index) => {
-            const row = document.createElement('tr');
-            row.className = 'hover-row';
-
-            // 序号（所有数据连续排序）
-            const indexCell = document.createElement('td');
-            indexCell.textContent = (currentPage - 1) * itemsPerPage + index + 1;
-            row.appendChild(indexCell);
-
-            // 机构号
-            const idCell = document.createElement('td');
-            idCell.textContent = org.code || '-';
-            row.appendChild(idCell);
-
-            // 机构名称
-            const nameCell = document.createElement('td');
-            nameCell.textContent = org.name;
-            row.appendChild(nameCell);
-
-            // 部门名称
-            const deptCell = document.createElement('td');
-            // 部门是机构的一个字段，使用org.description作为部门名称
-            deptCell.textContent = org.description || '-';
-            row.appendChild(deptCell);
-
-            // 备注信息
-            const remarkCell = document.createElement('td');
-            remarkCell.textContent = org.remark || '-';
-            row.appendChild(remarkCell);
-
-            // 更新时间
-            const updateTimeCell = document.createElement('td');
-            updateTimeCell.textContent = org.updatedAt ? new Date(org.updatedAt).toLocaleString() : '-';
-            row.appendChild(updateTimeCell);
-
-            // 状态
-            const statusCell = document.createElement('td');
-            const statusBtn = document.createElement('button');
-            // 当前状态为0(启用)时，显示'停用'按钮
-            // 当前状态为1(停用)时，显示'启用'按钮
-            const currentStatus = org.status;
-            statusBtn.textContent = currentStatus === 0 ? '停用' : '启用';
+            // 获取机构的部门列表，如果没有则使用description作为单个部门
+            const departments = org.departments && Array.isArray(org.departments) && org.departments.length > 0 
+                ? org.departments 
+                : org.description ? [org.description] : ['-'];
             
-            // 只使用CSS类，与编辑按钮保持一致的样式
-            statusBtn.className = currentStatus === 0 ? 'btn btn-danger btn-sm' : 'btn btn-success btn-sm';
-            
-            statusBtn.onclick = () => toggleStatus(statusBtn, org.id, 'organization', currentStatus);
-            statusCell.appendChild(statusBtn);
-            row.appendChild(statusCell);
+            // 确保departmentStatuses字段存在
+            const departmentStatuses = org.departmentStatuses || {};
 
-            // 操作
-            const actionCell = document.createElement('td');
-            actionCell.className = 'action-buttons';
+            departments.forEach((dept, deptIndex) => {
+                const row = document.createElement('tr');
+                row.className = 'hover-row';
 
-            // 编辑按钮
-            const editBtn = document.createElement('button');
-            editBtn.className = 'btn btn-primary btn-sm'; // 恢复原样式类
-            editBtn.textContent = '编辑';
-            editBtn.onclick = () => editOrganization(org.id);
-            actionCell.appendChild(editBtn);
+                // 只在第一个部门行显示序号和机构信息
+                if (deptIndex === 0) {
+                    // 序号（所有数据连续排序）
+                    const indexCell = document.createElement('td');
+                    indexCell.textContent = (currentPage - 1) * itemsPerPage + index + 1;
+                    // 设置rowspan，合并所有部门行的序号单元格
+                    indexCell.rowSpan = departments.length;
+                    row.appendChild(indexCell);
 
-            // 删除按钮
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'btn btn-danger btn-sm'; // 恢复原样式类
-            deleteBtn.textContent = '删除';
-            deleteBtn.onclick = () => {
-                // 创建隐藏输入字段存储要删除的机构ID
-                let deleteIdInput = document.getElementById('deleteOrganizationId');
-                if (!deleteIdInput) {
-                    deleteIdInput = document.createElement('input');
-                    deleteIdInput.type = 'hidden';
-                    deleteIdInput.id = 'deleteOrganizationId';
-                    document.body.appendChild(deleteIdInput);
+                    // 机构号
+                    const idCell = document.createElement('td');
+                    idCell.textContent = org.code || '-';
+                    idCell.rowSpan = departments.length;
+                    row.appendChild(idCell);
+
+                    // 机构名称
+                    const nameCell = document.createElement('td');
+                    nameCell.textContent = org.name;
+                    nameCell.rowSpan = departments.length;
+                    row.appendChild(nameCell);
+                } else {
+                    // 非第一个部门行，添加空单元格
+                    const emptyCell1 = document.createElement('td');
+                    const emptyCell2 = document.createElement('td');
+                    const emptyCell3 = document.createElement('td');
+                    row.appendChild(emptyCell1);
+                    row.appendChild(emptyCell2);
+                    row.appendChild(emptyCell3);
                 }
-                deleteIdInput.value = org.id;
-                document.getElementById('deleteInstitutionName').textContent = org.name;
-                document.getElementById('institutionDeleteModal').style.display = 'block';
-            };
-            actionCell.appendChild(deleteBtn);
 
-            row.appendChild(actionCell);
-            tableBody.appendChild(row);
+                // 部门名称
+                const deptCell = document.createElement('td');
+                deptCell.textContent = dept;
+                row.appendChild(deptCell);
+
+                // 只在第一个部门行显示备注信息
+                if (deptIndex === 0) {
+                    const remarkCell = document.createElement('td');
+                    remarkCell.textContent = org.remark || '-';
+                    remarkCell.rowSpan = departments.length;
+                    row.appendChild(remarkCell);
+
+                    // 更新时间
+                    const updateTimeCell = document.createElement('td');
+                    updateTimeCell.textContent = org.updatedAt ? new Date(org.updatedAt).toLocaleString() : '-';
+                    updateTimeCell.rowSpan = departments.length;
+                    row.appendChild(updateTimeCell);
+                } else {
+                    // 非第一个部门行，添加空单元格
+                    const emptyCell1 = document.createElement('td');
+                    const emptyCell2 = document.createElement('td');
+                    row.appendChild(emptyCell1);
+                    row.appendChild(emptyCell2);
+                }
+
+                // 状态 - 现在显示的是部门状态
+                const statusCell = document.createElement('td');
+                const statusBtn = document.createElement('button');
+                // 获取部门状态，如果不存在则默认为启用(0)
+                const deptStatus = departmentStatuses[dept] !== undefined ? departmentStatuses[dept] : 0;
+                statusBtn.textContent = deptStatus === 0 ? '停用' : '启用';
+                
+                // 只使用CSS类，与编辑按钮保持一致的样式
+                statusBtn.className = deptStatus === 0 ? 'btn btn-danger btn-sm' : 'btn btn-success btn-sm';
+                
+                // 传递机构ID和部门名称作为额外信息
+                statusBtn.onclick = () => toggleStatus(statusBtn, dept, 'department', deptStatus, { orgId: org.id, deptName: dept });
+                statusCell.appendChild(statusBtn);
+                row.appendChild(statusCell);
+
+                // 操作
+                const actionCell = document.createElement('td');
+                actionCell.className = 'action-buttons';
+                
+                // 只在第一个部门行显示编辑和删除按钮
+                if (deptIndex === 0) {
+                    // 编辑按钮
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'btn btn-primary btn-sm'; // 恢复原样式类
+                    editBtn.textContent = '编辑';
+                    editBtn.onclick = () => editOrganization(org.id);
+                    actionCell.appendChild(editBtn);
+
+                    // 删除按钮
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'btn btn-danger btn-sm'; // 恢复原样式类
+                    deleteBtn.textContent = '删除';
+                    deleteBtn.onclick = () => {
+                        // 创建隐藏输入字段存储要删除的机构ID
+                        let deleteIdInput = document.getElementById('deleteOrganizationId');
+                        if (!deleteIdInput) {
+                            deleteIdInput = document.createElement('input');
+                            deleteIdInput.type = 'hidden';
+                            deleteIdInput.id = 'deleteOrganizationId';
+                            document.body.appendChild(deleteIdInput);
+                        }
+                        deleteIdInput.value = org.id;
+                        document.getElementById('deleteInstitutionName').textContent = org.name;
+                        document.getElementById('institutionDeleteModal').style.display = 'block';
+                    };
+                    actionCell.appendChild(deleteBtn);
+                    
+                    // 设置rowspan，合并所有部门行的操作单元格
+                    actionCell.rowSpan = departments.length;
+                } else {
+                    // 非第一个部门行，操作列留空
+                    actionCell.textContent = '-';
+                }
+                
+                row.appendChild(actionCell);
+                
+                tableBody.appendChild(row);
+            });
         });
 
         // 更新分页
@@ -329,6 +462,10 @@ window.deleteOrganization = function() {
         
         // 先获取要删除的机构的所有员工
         dbManager.getByIndex('employees', 'orgId', orgId)
+            .catch(error => {
+                console.error('删除机构过程中获取员工失败:', error);
+                showNotification('删除机构失败: ' + error.message, 'error');
+            })
             .then(employees => {
                 console.log(`获取到机构 ${orgId} 的员工数量:`, employees.length);
                 
@@ -766,9 +903,6 @@ window.loadEmployees = async function() {
                 currentEmployeeId = emp.id;
                 document.getElementById('employeeNumberInput').value = emp.number;
                 document.getElementById('employeeNameInput').value = emp.name;
-                document.getElementById('employeeOrgIdInput').value = emp.orgId;
-                // 根据orgId查找机构名称，确保ID类型匹配
-                const org = organizations.find(o => Number(o.id) === Number(emp.orgId));
                 document.getElementById('employeePositionInput').value = emp.position || '';
                 // 状态选择 - 根据用户要求：0是在职，1是离职，2是休假
                 const statusSelect = document.getElementById('employeeStatusInput');
@@ -783,7 +917,7 @@ window.loadEmployees = async function() {
                 }
                 document.getElementById('employeeModalTitle').textContent = '编辑员工';
                 document.getElementById('employeeIdInput').value = emp.id;
-                 
+                  
                 // 设置更新日期为当天
                 const today = new Date();
                 const year = today.getFullYear();
@@ -791,16 +925,21 @@ window.loadEmployees = async function() {
                 const day = String(today.getDate()).padStart(2, '0');
                 const formattedDate = `${year}-${month}-${day}`;
                 document.getElementById('employeeCreateDateInput').value = formattedDate;
-                 
+                  
                 // 将日期标签改为更新日期
                 document.querySelector('label[for="employeeCreateDateInput"]').textContent = '更新日期 *';
-                 
+                  
+                // 先刷新机构选择框，确保获取最新的机构状态
+                loadOrganizationsForSelect(emp.orgId);
+                
                 document.getElementById('employeeModal').style.display = 'block';
                 
-                // 延迟加载部门，确保模态框已显示
+                // 延迟加载部门，确保模态框已显示且机构选择框已刷新
                 setTimeout(() => {
-                    loadDepartmentsForSelect(org ? org.name : '', emp.deptName);
-                }, 50);
+                    // 重新根据orgId查找机构名称，确保获取最新数据
+                    const updatedOrg = organizations.find(o => Number(o.id) === Number(emp.orgId));
+                    loadDepartmentsForSelect(updatedOrg ? updatedOrg.name : '', emp.deptName);
+                }, 100);
             };
             actionCell.appendChild(editBtn);
 
@@ -937,9 +1076,10 @@ function loadOrganizationsForSelect(selectedOrgId = null) {
                 // 使用Set来跟踪已添加的机构名称，避免重复
                 const addedOrganizations = new Set();
 
-                // 只加载启用状态的机构
+                // 加载启用状态的机构，同时确保即使机构停用，只要是员工所属的机构仍能显示
                 organizations.forEach(org => {
-                    if (org.name && !addedOrganizations.has(org.name) && org.status === 0) {
+                    if (org.name && !addedOrganizations.has(org.name) && 
+                        (org.status === 0 || (selectedOrgId !== null && org.id === selectedOrgId))) {
                         const option = document.createElement('option');
                         option.value = org.id;
                         option.textContent = org.name;
@@ -998,7 +1138,7 @@ function processOrganizationDepartments(org) {
     return org.departments || [];
 }
 
-// 加载部门数据到下拉框
+// 加载部门数据到下拉框 - 仅显示已启用的部门
 function loadDepartmentsForSelect(orgName, selectedDept = '') {
     try {
         // 获取所有机构，找到名称匹配的所有机构
@@ -1036,9 +1176,16 @@ function loadDepartmentsForSelect(orgName, selectedDept = '') {
                     // 检查机构是否有departments字段，如果没有则使用description作为单个部门
                     const departments = org.departments && Array.isArray(org.departments) ? org.departments : [org.description];
                     
+                    // 获取部门状态信息
+                    const departmentStatuses = org.departmentStatuses || {};
+                    
                     departments.forEach(dept => {
                         if (dept) {
-                            uniqueDepartments.add(dept);
+                            // 只收集状态为0(启用)的部门
+                            const deptStatus = departmentStatuses[dept] !== undefined ? departmentStatuses[dept] : 0;
+                            if (deptStatus === 0) {
+                                uniqueDepartments.add(dept);
+                            }
                         }
                     });
                 });
@@ -1054,6 +1201,16 @@ function loadDepartmentsForSelect(orgName, selectedDept = '') {
                     }
                     deptSelect.appendChild(option);
                 });
+                
+                // 检查是否有已启用的部门
+                if (deptSelect.options.length <= 1) {
+                    // 如果没有已启用的部门，添加一个提示选项
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = '该机构下暂无启用的部门';
+                    option.disabled = true;
+                    deptSelect.appendChild(option);
+                }
                 
                 // 如果提供了selectedDept但没有匹配的选项，手动设置选中
                 if (selectedDept && !Array.from(uniqueDepartments).includes(selectedDept)) {
@@ -1622,8 +1779,15 @@ window.initBaseSettings = function() {
 
             // 验证机构状态
             const org = await dbManager.getById('organizations', parseInt(orgId));
-            if (!org || org.status !== 0) {
-                showNotification('所选机构未启用，无法添加员工', 'warning');
+            if (!org) {
+                showNotification('所选机构不存在', 'warning');
+                return;
+            }
+            
+            // 只有在添加新员工时才验证机构是否启用
+            // 编辑现有员工时允许在停用机构中更新
+            if (!id && org.status !== 0) {
+                showNotification('所选机构未启用，无法添加新员工', 'warning');
                 return;
             }
 
