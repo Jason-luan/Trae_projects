@@ -584,16 +584,18 @@
         <div id="institutionDeleteModal" class="modal" style="display: none;">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3>删除机构</h3>
+                    <h3>删除部门</h3>
                     <button class="modal-close">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <p>确定要删除机构 <span id="deleteInstitutionName"></span> 吗？</p>
-                    <p class="warning-text">删除后将无法恢复，且该机构下的所有部门和人员也将被删除。</p>
+                    <p>确定要删除<span id="deleteInstitutionName"></span>吗？</p>
+                    <p class="warning-text">删除后将无法恢复，且该部门下的所有人员也将被删除。</p>
+                    <input type="hidden" id="deleteOrganizationId">
+                    <input type="hidden" id="deleteDepartmentName">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary">取消</button>
-                    <button type="button" class="btn btn-danger">确认删除</button>
+                    <button type="button" class="btn btn-danger" onclick="window.deleteOrganization()">确认删除</button>
                 </div>
             </div>
         </div>

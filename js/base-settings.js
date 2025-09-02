@@ -400,39 +400,48 @@ window.loadOrganizations = async function(showNotificationFlag = true) {
                 const actionCell = document.createElement('td');
                 actionCell.className = 'action-buttons';
                 
-                // 只在第一个部门行显示编辑和删除按钮
                 if (deptIndex === 0) {
-                    // 编辑按钮
+                    // 编辑按钮只在第一个部门行显示
                     const editBtn = document.createElement('button');
                     editBtn.className = 'btn btn-primary btn-sm'; // 恢复原样式类
                     editBtn.textContent = '编辑';
                     editBtn.onclick = () => editOrganization(org.id);
                     actionCell.appendChild(editBtn);
-
-                    // 删除按钮
-                    const deleteBtn = document.createElement('button');
-                    deleteBtn.className = 'btn btn-danger btn-sm'; // 恢复原样式类
-                    deleteBtn.textContent = '删除';
-                    deleteBtn.onclick = () => {
-                        // 创建隐藏输入字段存储要删除的机构ID
-                        let deleteIdInput = document.getElementById('deleteOrganizationId');
-                        if (!deleteIdInput) {
-                            deleteIdInput = document.createElement('input');
-                            deleteIdInput.type = 'hidden';
-                            deleteIdInput.id = 'deleteOrganizationId';
-                            document.body.appendChild(deleteIdInput);
-                        }
-                        deleteIdInput.value = org.id;
-                        document.getElementById('deleteInstitutionName').textContent = org.name;
-                        document.getElementById('institutionDeleteModal').style.display = 'block';
-                    };
-                    actionCell.appendChild(deleteBtn);
+                }
+                
+                // 删除按钮在每个部门行都显示，改为按部门删除
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn btn-danger btn-sm'; // 恢复原样式类
+                deleteBtn.textContent = '删除';
+                deleteBtn.onclick = () => {
+                    // 创建隐藏输入字段存储要删除的机构ID和部门名称
+                    let deleteOrgIdInput = document.getElementById('deleteOrganizationId');
+                    let deleteDeptNameInput = document.getElementById('deleteDepartmentName');
                     
+                    if (!deleteOrgIdInput) {
+                        deleteOrgIdInput = document.createElement('input');
+                        deleteOrgIdInput.type = 'hidden';
+                        deleteOrgIdInput.id = 'deleteOrganizationId';
+                        document.body.appendChild(deleteOrgIdInput);
+                    }
+                    
+                    if (!deleteDeptNameInput) {
+                        deleteDeptNameInput = document.createElement('input');
+                        deleteDeptNameInput.type = 'hidden';
+                        deleteDeptNameInput.id = 'deleteDepartmentName';
+                        document.body.appendChild(deleteDeptNameInput);
+                    }
+                    
+                    deleteOrgIdInput.value = org.id;
+                    deleteDeptNameInput.value = dept;
+                    document.getElementById('deleteInstitutionName').textContent = org.name + ' - ' + dept;
+                    document.getElementById('institutionDeleteModal').style.display = 'block';
+                };
+                actionCell.appendChild(deleteBtn);
+                
+                if (deptIndex === 0) {
                     // 设置rowspan，合并所有部门行的操作单元格
                     actionCell.rowSpan = departments.length;
-                } else {
-                    // 非第一个部门行，操作列留空
-                    actionCell.textContent = '-';
                 }
                 
                 row.appendChild(actionCell);
@@ -451,39 +460,41 @@ window.loadOrganizations = async function(showNotificationFlag = true) {
     }
 }
 
-// 删除机构
+// 删除机构 - 现在改为按部门删除
 window.deleteOrganization = function() {
-    const id = document.getElementById('deleteOrganizationId').value;
-    if (!id) return;
+    const orgId = document.getElementById('deleteOrganizationId').value;
+    const deptName = document.getElementById('deleteDepartmentName').value;
+    
+    if (!orgId || !deptName) return;
 
     try {
-        const orgId = parseInt(id);
-        console.log(`开始删除机构: ${orgId}`);
+        console.log(`开始删除部门: 机构ID=${orgId}, 部门名称=${deptName}`);
         
-        // 先获取要删除的机构的所有员工
-        dbManager.getByIndex('employees', 'orgId', orgId)
-            .catch(error => {
-                console.error('删除机构过程中获取员工失败:', error);
-                showNotification('删除机构失败: ' + error.message, 'error');
-            })
+        // 先获取该部门下的所有员工
+        dbManager.getAll('employees')
             .then(employees => {
-                console.log(`获取到机构 ${orgId} 的员工数量:`, employees.length);
+                // 筛选出属于该机构和部门的员工
+                const deptEmployees = employees.filter(emp => 
+                    Number(emp.orgId) === Number(orgId) && emp.deptName === deptName
+                );
+                
+                console.log(`获取到部门 ${deptName} 的员工数量:`, deptEmployees.length);
                 
                 // 清理排班顺序中的员工数据，但保留排班顺序结构
                 const cleanShiftOrdersPromise = async function() {
                     try {
-                        console.log('开始清理所有排班顺序中的机构员工数据...');
+                        console.log('开始清理所有排班顺序中的部门员工数据...');
                         
                         // 获取所有排班顺序
                         const allShiftOrders = await window.dbManager.getAll('shiftOrders');
                         console.log('获取到的排班顺序总数:', allShiftOrders.length);
                         
                         // 只使用员工号进行匹配
-                        const employeeNumbersArray = employees.map(emp => String(emp.number).trim());
+                        const employeeNumbersArray = deptEmployees.map(emp => String(emp.number).trim());
                         const employeeNumbersSet = new Set(employeeNumbersArray);
                         
                         // 打印员工号列表，用于调试
-                        console.log('机构员工号列表:', employeeNumbersArray);
+                        console.log('部门员工号列表:', employeeNumbersArray);
                         
                         // 处理排班顺序
                         const updatePromises = [];
@@ -500,15 +511,15 @@ window.deleteOrganization = function() {
                                         console.log(`处理排班顺序 ${shiftOrder.id} (${shiftOrder.position}, ${shiftOrder.shiftCode}) 中的员工号:`, shiftOrder.employeeNumbers);
                                     }
                                     
-                                    // 过滤掉机构员工
+                                    // 过滤掉部门员工
                                     const filteredNumbers = [];
                                     for (const num of shiftOrder.employeeNumbers) {
                                         const normalizedNum = String(num).trim();
-                                        // 如果不是本机构员工，则保留
+                                        // 如果不是本部门员工，则保留
                                         if (!employeeNumbersSet.has(normalizedNum)) {
                                             filteredNumbers.push(num);
                                         } else {
-                                            console.log(`找到并移除机构员工号: ${normalizedNum}`);
+                                            console.log(`找到并移除部门员工号: ${normalizedNum}`);
                                         }
                                     }
                                     
@@ -530,7 +541,7 @@ window.deleteOrganization = function() {
                                 if (hasChanges) {
                                     shiftOrder.updatedAt = new Date();
                                     updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
-                                    console.log(`已更新排班顺序 ${shiftOrder.id}，移除了${originalLength - shiftOrder.employeeNumbers.length}个机构员工`);
+                                    console.log(`已更新排班顺序 ${shiftOrder.id}，移除了${originalLength - shiftOrder.employeeNumbers.length}个部门员工`);
                                 }
                             } catch (orderError) {
                                 console.error(`处理排班顺序 ${shiftOrder.id} 失败:`, orderError);
@@ -560,14 +571,14 @@ window.deleteOrganization = function() {
                 // 清理排班表数据
                 const cleanScheduleDataPromise = async function() {
                     try {
-                        console.log('开始清理排班表中的机构员工数据...');
+                        console.log('开始清理排班表中的部门员工数据...');
                         
                         // 获取所有排班表数据
                         const allSchedules = await window.dbManager.getAll('schedules');
                         console.log('获取到的排班表数据总数:', allSchedules.length);
                         
                         // 只使用员工号的集合
-                        const employeeNumbersSet = new Set(employees.map(emp => String(emp.number).trim()));
+                        const employeeNumbersSet = new Set(deptEmployees.map(emp => String(emp.number).trim()));
                         
                         // 找出需要删除的排班表数据
                         const schedulesToDelete = allSchedules.filter(schedule => {
@@ -599,18 +610,31 @@ window.deleteOrganization = function() {
                     }
                 };
                 
-                // 先清理数据，然后再删除机构和员工
+                // 先清理数据，然后删除部门员工
                 return Promise.all([
                     cleanShiftOrdersPromise(),
                     cleanScheduleDataPromise()
                 ]).then(() => {
-                    // 删除机构和员工
-                    return Promise.all([
-                        // 删除机构
-                        dbManager.delete('organizations', orgId),
-                        // 删除员工
-                        Promise.all(employees.map(emp => dbManager.delete('employees', emp.id)))
-                    ]);
+                    // 删除部门下的员工
+                    return Promise.all(deptEmployees.map(emp => dbManager.delete('employees', emp.id)));
+                }).then(() => {
+                    // 从机构中移除该部门
+                    return dbManager.getById('organizations', parseInt(orgId))
+                        .then(org => {
+                            if (org && org.departments && Array.isArray(org.departments)) {
+                                // 过滤掉要删除的部门
+                                org.departments = org.departments.filter(d => d !== deptName);
+                                
+                                // 同时清理部门状态
+                                if (org.departmentStatuses && org.departmentStatuses[deptName] !== undefined) {
+                                    delete org.departmentStatuses[deptName];
+                                }
+                                
+                                // 保存更新后的机构
+                                return dbManager.save('organizations', org);
+                            }
+                            return Promise.resolve();
+                        });
                 });
             })
             .then(() => {
@@ -629,16 +653,16 @@ window.deleteOrganization = function() {
                     window.loadAllShiftOrders();
                 }
                 
-                showNotification('机构删除成功，相关数据已同步清理');
+                showNotification('部门删除成功，相关数据已同步清理');
                 loadOrganizations(false);
             })
             .catch(error => {
-                console.error('删除机构过程中发生错误:', error);
-                showNotification('删除机构失败: ' + error.message, 'error');
+                console.error('删除部门过程中发生错误:', error);
+                showNotification('删除部门失败: ' + error.message, 'error');
             });
     } catch (error) {
-        console.error('删除机构捕获到异常:', error);
-        showNotification('删除机构失败: ' + error, 'error');
+        console.error('删除部门捕获到异常:', error);
+        showNotification('删除部门失败: ' + error, 'error');
     }
 }
 
