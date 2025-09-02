@@ -341,8 +341,7 @@ window.deleteOrganization = function() {
                         const allShiftOrders = await window.dbManager.getAll('shiftOrders');
                         console.log('获取到的排班顺序总数:', allShiftOrders.length);
                         
-                        // 员工ID和员工号的映射 - 确保完全匹配
-                        const employeeIds = new Set(employees.map(emp => emp.id));
+                        // 只使用员工号进行匹配
                         const employeeNumbersArray = employees.map(emp => String(emp.number).trim());
                         const employeeNumbersSet = new Set(employeeNumbersArray);
                         
@@ -378,15 +377,16 @@ window.deleteOrganization = function() {
                                     
                                     shiftOrder.employeeNumbers = filteredNumbers;
                                     hasChanges = hasChanges || shiftOrder.employeeNumbers.length !== originalLength;
+                                } else {
+                                    // 如果没有employeeNumbers，设置为空数组
+                                    shiftOrder.employeeNumbers = [];
+                                    hasChanges = true;
                                 }
                                 
-                                // 清理employeeIds数组
-                                if (Array.isArray(shiftOrder.employeeIds)) {
-                                    const originalLength = shiftOrder.employeeIds.length;
-                                    shiftOrder.employeeIds = shiftOrder.employeeIds.filter(id => 
-                                        !employeeIds.has(id)
-                                    );
-                                    hasChanges = hasChanges || shiftOrder.employeeIds.length !== originalLength;
+                                // 移除employeeIds字段，不再使用
+                                if ('employeeIds' in shiftOrder) {
+                                    delete shiftOrder.employeeIds;
+                                    hasChanges = true;
                                 }
                                 
                                 // 如果有变化，保存更新后的排班顺序
@@ -429,16 +429,15 @@ window.deleteOrganization = function() {
                         const allSchedules = await window.dbManager.getAll('schedules');
                         console.log('获取到的排班表数据总数:', allSchedules.length);
                         
-                        // 员工ID和员工号的集合
+                        // 只使用员工号的集合
                         const employeeNumbersSet = new Set(employees.map(emp => String(emp.number).trim()));
-                        const employeeIdsSet = new Set(employees.map(emp => emp.id));
                         
                         // 找出需要删除的排班表数据
                         const schedulesToDelete = allSchedules.filter(schedule => {
                             if (!schedule.employeeId) return false;
                             
                             const empId = String(schedule.employeeId).trim();
-                            return employeeNumbersSet.has(empId) || employeeIdsSet.has(empId);
+                            return employeeNumbersSet.has(empId);
                         });
                         
                         console.log(`需要删除的排班表数据数量:`, schedulesToDelete.length);
@@ -870,8 +869,8 @@ async function deleteEmployee(employeeNumber) {
         }
         
         // 步骤4: 先从排班顺序中移除员工
-        if (window.shiftOrderManager && window.shiftOrderManager.updateShiftOrderWhenEmployeeDeleted) {
-            await window.shiftOrderManager.updateShiftOrderWhenEmployeeDeleted(employee.id)
+        if (window.shiftOrderManager && window.shiftOrderManager.removeEmployeeFromShiftOrder) {
+            await window.shiftOrderManager.removeEmployeeFromShiftOrder(employeeNumber)
                 .then(() => {
                     console.log(`已从所有排班顺序中移除员工${employee.name}(${employeeNumber})`);
                 })
@@ -1090,7 +1089,7 @@ window.initTabs = function() {
     const tabContents = document.querySelectorAll('.tab-content');
 
     tabButtons.forEach(button => {
-        button.addEventListener('click', () => {
+        button.addEventListener('click', async () => {
             // 移除所有活动状态
             tabButtons.forEach(btn => btn.classList.remove('active'));
             tabContents.forEach(content => content.classList.remove('active'));
@@ -1108,10 +1107,58 @@ window.initTabs = function() {
                 window.loadShifts();
             }
             
-            // 添加：当切换到标识管理选项卡时，重新加载标识数据
-            if (button.dataset.tab === 'identifiers' && window.loadIdentifierData) {
-                console.log('切换到标识管理选项卡，正在加载标识数据...');
-                window.loadIdentifierData();
+            // 添加：当切换到标识管理选项卡时，重新加载标识数据和筛选框
+            if (button.dataset.tab === 'identifiers') {
+                console.log('切换到标识管理选项卡，正在初始化筛选框并加载标识数据...');
+                // 保存当前选中的部门值
+                const identifierDeptFilterBefore = document.getElementById('identifierDeptFilter');
+                const selectedDept = identifierDeptFilterBefore ? identifierDeptFilterBefore.value : '';
+                
+                // 初始化部门和岗位筛选框
+                if (window.loadDepartmentsForFilter) {
+                    await window.loadDepartmentsForFilter();
+                }
+                
+                // 初始化岗位筛选框，使用保存的部门值
+                const identifierDeptFilter = document.getElementById('identifierDeptFilter');
+                if (identifierDeptFilter && window.loadPositionsForDepartment) {
+                    // 恢复之前选中的部门值
+                    if (selectedDept) {
+                        identifierDeptFilter.value = selectedDept;
+                    }
+                    await window.loadPositionsForDepartment(identifierDeptFilter.value, 'identifier', true);
+                }
+                // 加载标识数据
+                if (window.loadIdentifierData) {
+                    window.loadIdentifierData();
+                }
+            }
+            
+            // 添加：当切换到排班顺序管理选项卡时，重新初始化筛选框并加载数据
+            if (button.dataset.tab === 'shiftOrders') {
+                console.log('切换到排班顺序管理选项卡，正在初始化筛选框并加载排班顺序数据...');
+                // 保存当前选中的部门值
+                const shiftOrderDeptFilterBefore = document.getElementById('shiftOrderDeptFilter');
+                const selectedDept = shiftOrderDeptFilterBefore ? shiftOrderDeptFilterBefore.value : '';
+                
+                // 初始化部门和岗位筛选框
+                if (window.loadDepartmentsForFilter) {
+                    await window.loadDepartmentsForFilter();
+                }
+                
+                // 初始化岗位筛选框，使用保存的部门值
+                const shiftOrderDeptFilter = document.getElementById('shiftOrderDeptFilter');
+                if (shiftOrderDeptFilter && window.loadPositionsForDepartment) {
+                    // 恢复之前选中的部门值
+                    if (selectedDept) {
+                        shiftOrderDeptFilter.value = selectedDept;
+                    }
+                    await window.loadPositionsForDepartment(shiftOrderDeptFilter.value, 'shiftOrder', true);
+                }
+                // 加载排班顺序数据
+                if (window.loadShiftOrderData) {
+                    window.loadShiftOrderData();
+                }
             }
         });
     });

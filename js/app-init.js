@@ -590,16 +590,52 @@ async function loadPositionsForDepartment(deptName, targetFilter = null, isIniti
             return;
         }
         
-        // 获取该部门的所有员工或所有员工（如果没有指定部门）
+        // 如果部门为空（全部部门），则只显示"全部岗位"，不添加其他岗位选项
+        if (!deptName) {
+            console.log('部门为空（全部部门），岗位筛选框只显示"全部岗位"');
+            
+            // 恢复之前选中的值（如果存在）
+            if (identifierPositionFilter && (targetFilter === 'identifier' || !targetFilter)) {
+                if (identifierPositionValue && Array.from(identifierPositionFilter.options).some(opt => opt.value === identifierPositionValue)) {
+                    identifierPositionFilter.value = identifierPositionValue;
+                    console.log('已恢复标识管理岗位筛选框选中值:', identifierPositionValue);
+                } else {
+                    console.log('未找到匹配的岗位值，保持默认选中（全部岗位）');
+                }
+            }
+            
+            if (shiftOrderPositionFilter && (targetFilter === 'shiftOrder' || !targetFilter)) {
+                if (shiftOrderPositionValue && Array.from(shiftOrderPositionFilter.options).some(opt => opt.value === shiftOrderPositionValue)) {
+                    shiftOrderPositionFilter.value = shiftOrderPositionValue;
+                    console.log('已恢复排班顺序管理岗位筛选框选中值:', shiftOrderPositionValue);
+                } else {
+                    console.log('未找到匹配的岗位值，保持默认选中（全部岗位）');
+                }
+            }
+            
+            // 仅在初始化过程中触发change事件
+            if (isInitialization && typeof Event !== 'undefined') {
+                if (identifierPositionFilter && (targetFilter === 'identifier' || !targetFilter)) {
+                    identifierPositionFilter.dispatchEvent(new Event('change'));
+                    console.log('初始化过程中触发标识管理岗位筛选框change事件');
+                }
+                if (shiftOrderPositionFilter && (targetFilter === 'shiftOrder' || !targetFilter)) {
+                    shiftOrderPositionFilter.dispatchEvent(new Event('change'));
+                    console.log('初始化过程中触发排班顺序管理岗位筛选框change事件');
+                }
+            }
+            
+            return;
+        }
+        
+        // 获取该部门的所有员工
         const employees = await window.dbManager.getAll('employees');
         console.log('总共获取到员工数:', employees.length);
         
-        // 如果指定了部门，则筛选该部门的员工；否则使用所有员工
-        const targetEmployees = deptName ? 
-            employees.filter(emp => emp.deptName === deptName) : 
-            employees;
+        // 筛选该部门的员工
+        const targetEmployees = employees.filter(emp => emp.deptName === deptName);
         
-        console.log(deptName ? `部门内员工数: ${targetEmployees.length}` : '使用所有员工: ' + targetEmployees.length);
+        console.log(`部门内员工数: ${targetEmployees.length}`);
         
         // 收集岗位
         const positions = new Set();

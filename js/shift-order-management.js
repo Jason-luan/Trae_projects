@@ -92,52 +92,7 @@ class ShiftOrderManager {
         }
     }
 
-    // 内部辅助函数：清理并验证员工数据数组（优先使用员工号）
-    async _cleanAndValidateEmployeeIds(employeeData) {
-        try {
-            if (!employeeData || !Array.isArray(employeeData)) {
-                return [];
-            }
-            
-            // 获取所有员工数据
-            const allEmployees = await window.dbManager.getAll('employees');
-            
-            // 创建员工号到员工ID的映射和员工ID到员工号的映射
-            const employeeNumberToIdMap = {};
-            const employeeIdToNumberMap = {};
-            allEmployees.forEach(emp => {
-                if (emp.number) {
-                    employeeNumberToIdMap[emp.number] = emp.id;
-                    employeeIdToNumberMap[emp.id] = emp.number;
-                }
-            });
-            
-            // 创建有效的员工ID集合和员工号集合
-            const validEmployeeIds = new Set(allEmployees.map(emp => emp.id));
-            const validEmployeeNumbers = new Set(allEmployees.map(emp => emp.number).filter(num => num));
-            
-            // 清理并验证员工数据数组（返回员工号数组）
-            const cleanedEmployeeNumbers = [];
-            employeeData.forEach(data => {
-                // 如果是有效的员工号，直接添加
-                if (validEmployeeNumbers.has(data)) {
-                    cleanedEmployeeNumbers.push(data);
-                }
-                // 如果是员工ID，转换为员工号后添加
-                else if (validEmployeeIds.has(data) && employeeIdToNumberMap[data]) {
-                    cleanedEmployeeNumbers.push(employeeIdToNumberMap[data]);
-                }
-                // 否则忽略这个无效的数据
-            });
-            
-            return cleanedEmployeeNumbers;
-        } catch (error) {
-            console.error('清理员工数据数组失败:', error);
-            return [];
-        }
-    }
-    
-    // 内部辅助函数：专门清理并验证员工号数组
+    // 内部辅助函数：清理并验证员工号数组
     async _cleanAndValidateEmployeeNumbers(employeeNumbers) {
         try {
             if (!employeeNumbers || !Array.isArray(employeeNumbers)) {
@@ -202,7 +157,7 @@ class ShiftOrderManager {
                     );
                     
                     if (foundOrder) {
-                        console.log('从IndexedDB获取排班顺序成功, 原始顺序:', foundOrder.employeeIds || foundOrder.employeeNumbers);
+                        console.log('从IndexedDB获取排班顺序成功, 原始顺序:', foundOrder.employeeNumbers);
                     }
                 }
             } catch (dbError) {
@@ -216,7 +171,7 @@ class ShiftOrderManager {
                 );
                 
                 if (foundOrder) {
-                    console.log('从内存获取排班顺序成功, 原始顺序:', foundOrder.employeeIds || foundOrder.employeeNumbers);
+                    console.log('从内存获取排班顺序成功, 原始顺序:', foundOrder.employeeNumbers);
                 }
             }
             
@@ -224,30 +179,23 @@ class ShiftOrderManager {
                 // 确保返回的是一个新对象，避免修改原始数据
                 const result = { ...foundOrder };
                 
-                // 优先使用employeeNumbers，如果没有则使用employeeIds
-                const rawNumbers = result.employeeNumbers && Array.isArray(result.employeeNumbers) ? result.employeeNumbers : [];
-                const rawIds = result.employeeIds && Array.isArray(result.employeeIds) ? result.employeeIds : [];
-                
-                // 合并员工号和员工ID，优先使用员工号
-                const allEmployeeNumbers = [...new Set([...rawNumbers, ...rawIds])];
-                
                 // 清理并规范化员工号数组
-                result.employeeNumbers = [];
-                for (const num of allEmployeeNumbers) {
-                    // 处理null、undefined、空字符串
-                    if (!num) continue;
-                    
-                    // 统一转换为字符串类型，确保类型一致性
-                    const normalizedNum = String(num).trim();
-                    
-                    // 只添加非空的员工号
-                    if (normalizedNum) {
-                        result.employeeNumbers.push(normalizedNum);
+                const cleanedNumbers = [];
+                if (result.employeeNumbers && Array.isArray(result.employeeNumbers)) {
+                    for (const num of result.employeeNumbers) {
+                        // 处理null、undefined、空字符串
+                        if (!num) continue;
+                        
+                        // 统一转换为字符串类型，确保类型一致性
+                        const normalizedNum = String(num).trim();
+                        
+                        // 只添加非空的员工号
+                        if (normalizedNum) {
+                            cleanedNumbers.push(normalizedNum);
+                        }
                     }
                 }
-                
-                // 保持employeeIds与employeeNumbers同步，确保兼容性
-                result.employeeIds = [...result.employeeNumbers];
+                result.employeeNumbers = cleanedNumbers;
                 
                 console.log('规范化后员工号列表:', result.employeeNumbers);
                 return result;
@@ -261,160 +209,20 @@ class ShiftOrderManager {
         }
     }
 
-    // 获取指定岗位的排班顺序（兼容旧版方法）
-    async getShiftOrderByPosition(position) {
-        try {
-            console.log(`尝试获取岗位排班顺序: position=${position}`);
-            
-            // 首先尝试从IndexedDB获取
-            try {
-                const exists = await window.dbManager.checkObjectStoreExists('shiftOrders');
-                if (exists) {
-                    const results = await window.dbManager.getByIndex('shiftOrders', 'position', position);
-                    if (results && results.length > 0) {
-                        console.log('从IndexedDB获取岗位排班顺序成功:', results[0]);
-                        
-                        // 优先使用employeeNumbers，如果没有则使用employeeIds
-                        const rawNumbers = results[0].employeeNumbers && Array.isArray(results[0].employeeNumbers) ? results[0].employeeNumbers : [];
-                        const rawIds = results[0].employeeIds && Array.isArray(results[0].employeeIds) ? results[0].employeeIds : [];
-                        
-                        console.log('原始employeeNumbers:', rawNumbers);
-                        console.log('原始employeeIds:', rawIds);
-                        
-                        // 合并员工号和员工ID，优先使用员工号
-                        const allEmployeeNumbers = [...new Set([...rawNumbers, ...rawIds])];
-                        
-                        // 清理并规范化员工号数组
-                        const cleanedNumbers = [];
-                        for (const num of allEmployeeNumbers) {
-                            // 处理null、undefined、空字符串
-                            if (!num) continue;
-                            
-                            // 统一转换为字符串类型，确保类型一致性
-                            const normalizedNum = String(num).trim();
-                            
-                            // 只添加非空的员工号
-                            if (normalizedNum) {
-                                cleanedNumbers.push(normalizedNum);
-                            }
-                        }
-                        
-                        // 创建处理后的结果对象
-                        const result = { ...results[0] };
-                        
-                        // 同时设置员工号和员工ID，确保兼容性
-                        result.employeeNumbers = cleanedNumbers;
-                        result.employeeIds = [...cleanedNumbers];
-                        
-                        console.log('规范化后员工号列表:', result.employeeNumbers);
-                        console.log('规范化后员工ID列表:', result.employeeIds);
-                        
-                        return result;
-                    }
-                }
-            } catch (dbError) {
-                console.warn('IndexedDB获取失败，将从内存获取: ' + dbError);
-            }
-            
-            // 如果IndexedDB没有，从内存存储中获取
-            if (this.memoryStore) {
-                const memoryResults = this.memoryStore.filter(order => 
-                    order.position === position && !order.shiftCode
-                );
-                
-                if (memoryResults && memoryResults.length > 0) {
-                    console.log('从内存获取岗位排班顺序成功:', memoryResults[0]);
-                    
-                    // 创建处理后的结果对象
-                    const result = { ...memoryResults[0] };
-                    
-                    // 优先使用employeeNumbers，如果没有则使用employeeIds
-                    const rawNumbers = result.employeeNumbers && Array.isArray(result.employeeNumbers) ? result.employeeNumbers : [];
-                    const rawIds = result.employeeIds && Array.isArray(result.employeeIds) ? result.employeeIds : [];
-                    
-                    // 合并员工号和员工ID，优先使用员工号
-                    const allEmployeeNumbers = [...new Set([...rawNumbers, ...rawIds])];
-                    
-                    // 清理并规范化员工号数组
-                    const cleanedNumbers = [];
-                    for (const num of allEmployeeNumbers) {
-                        if (!num) continue;
-                        const normalizedNum = String(num).trim();
-                        if (normalizedNum) {
-                            cleanedNumbers.push(normalizedNum);
-                        }
-                    }
-                    
-                    // 同时设置员工号和员工ID，确保兼容性
-                    result.employeeNumbers = cleanedNumbers;
-                    result.employeeIds = [...cleanedNumbers];
-                    
-                    console.log('规范化后员工号列表:', result.employeeNumbers);
-                    
-                    return result;
-                }
-            }
-            
-            console.log(`未找到岗位排班顺序: position=${position}`);
-            return null;
-        } catch (error) {
-            console.error('获取岗位排班顺序失败: ' + error);
-            return null;
-        }
-    }
 
-    // 获取指定岗位的所有排班顺序
-    async getShiftOrdersByPosition(position) {
-        try {
-            const exists = await window.dbManager.checkObjectStoreExists('shiftOrders');
-            if (!exists) {
-                return [];
-            }
-            
-            const allOrders = await window.dbManager.getAll('shiftOrders');
-            const filteredOrders = allOrders.filter(order => order.position === position);
-            
-            // 对每个排班顺序清理并验证员工数据
-            const cleanedOrders = [];
-            for (let i = 0; i < filteredOrders.length; i++) {
-                const order = filteredOrders[i];
-                const result = { ...order };
-                
-                // 优先使用employeeNumbers，如果没有则使用employeeIds
-                const rawNumbers = result.employeeNumbers && Array.isArray(result.employeeNumbers) ? result.employeeNumbers : [];
-                const rawIds = result.employeeIds && Array.isArray(result.employeeIds) ? result.employeeIds : [];
-                
-                // 合并员工号和员工ID，优先使用员工号
-                const allEmployeeNumbers = [...new Set([...rawNumbers, ...rawIds])];
-                
-                // 清理并规范化员工号数组
-                const cleanedNumbers = [];
-                for (const num of allEmployeeNumbers) {
-                    if (!num) continue;
-                    const normalizedNum = String(num).trim();
-                    if (normalizedNum) {
-                        cleanedNumbers.push(normalizedNum);
-                    }
-                }
-                
-                // 同时设置员工号和员工ID，确保兼容性
-                result.employeeNumbers = cleanedNumbers;
-                result.employeeIds = [...cleanedNumbers];
-                
-                cleanedOrders.push(result);
-            }
-            
-            return cleanedOrders;
-        } catch (error) {
-            console.error('获取排班顺序失败:', error);
-            return [];
-        }
-    }
+
+
 
     // 保存指定岗位和班次的排班顺序
     async saveShiftOrderByShift(position, shiftCode, employeeNumbers, excludeAllEmployees = false) {
         try {
-            console.log('尝试保存排班顺序: ' + JSON.stringify({position: position, shiftCode: shiftCode, employeeNumbers: employeeNumbers, excludeAllEmployees: excludeAllEmployees}));
+            console.log('3. 调用 ShiftOrderManager.saveShiftOrderByShift() 方法保存数据');
+            console.log('   - 原始保存数据:', {position, shiftCode, employeeNumbers, excludeAllEmployees});
+            
+            // 确保position和shiftCode都有值
+            if (!position || !shiftCode) {
+                throw new Error('岗位和班次代码不能为空');
+            }
             
             // 创建保存数据
             const data = {
@@ -422,25 +230,57 @@ class ShiftOrderManager {
                 shiftCode: shiftCode,
                 employeeNumbers: employeeNumbers, // 始终保存employeeNumbers，用于标识哪些员工在剔除列表中
                 excludeAllEmployees: excludeAllEmployees, // 添加标记表示是否是剔除列表所有人员
-                updatedAt: new Date()
+                updatedAt: new Date(),
+                // 确保只有基于班次的排班数据会被保存
+                isShiftBased: true
             };
+            
+            console.log('4. 准备保存到数据库的数据对象:');
+            console.log('   - 完整数据:', JSON.stringify(data, null, 2));
+            
+            // 获取部门信息：通过岗位名称查找对应的部门
+            if (window.dbManager && typeof window.dbManager.getAll === 'function') {
+                try {
+                    const employees = await window.dbManager.getAll('employees');
+                    // 查找第一个拥有该岗位的员工，获取其部门名称
+                    const employeeWithPosition = employees.find(emp => emp.position === position);
+                    if (employeeWithPosition && employeeWithPosition.deptName) {
+                        data.departmentName = employeeWithPosition.deptName;
+                        console.log(`已获取到岗位[${position}]的部门信息: ${data.departmentName}`);
+                    } else {
+                        console.log(`未找到岗位[${position}]对应的部门信息`);
+                    }
+                } catch (error) {
+                    console.error('获取部门信息失败:', error);
+                }
+            }
+            
+
             
             // 首选：尝试使用全局dbManager保存
             try {
                 if (window.dbManager && typeof window.dbManager.save === 'function') {
                     // 先查找是否已存在相同岗位和班次的记录
+                    console.log('5. 检查是否存在相同岗位和班次的记录');
                     const allOrders = await window.dbManager.getAll('shiftOrders');
                     const existingOrder = allOrders.find(order => 
                         order.position === position && order.shiftCode === shiftCode
                     );
                     
                     if (existingOrder) {
+                        console.log('   - 找到现有记录，使用ID:', existingOrder.id);
                         data.id = existingOrder.id;
+                    } else {
+                        console.log('   - 未找到现有记录，将创建新记录');
                     }
                     
                     // 使用全局dbManager保存数据
+                    console.log('6. 执行数据库保存操作:');
+                    console.log('   - 存储名: shiftOrders');
+                    console.log('   - 准备保存的最终数据:', JSON.stringify(data, null, 2));
                     const result = await window.dbManager.save('shiftOrders', data);
-                    console.log('全局dbManager保存成功: ' + JSON.stringify(data));
+                    console.log('7. 数据库保存成功!');
+                    console.log('   - 保存结果:', result);
                     
                     // 触发自动刷新
                     this._autoRefreshAfterSave();
@@ -452,7 +292,6 @@ class ShiftOrderManager {
                 console.warn('全局dbManager保存失败，使用内存存储: ' + dbError);
                 
                 // 降级到内存存储
-                // 注意：使用employeeNumbers字段
                 this._saveToMemory(data);
                 
                 // 触发自动刷新
@@ -471,8 +310,17 @@ class ShiftOrderManager {
             this.memoryStore = [];
         }
         
+        // 确保只有有效的基于班次的排班数据才会被保存
+        if (!data.position || !data.shiftCode) {
+            console.error('岗位和班次代码不能为空，无法保存到内存');
+            return;
+        }
+        
         // 增强employeeNumbers数据处理
         const dataToSave = { ...data };
+        
+        // 确保标记为基于班次的排班数据
+        dataToSave.isShiftBased = true;
         
         // 处理employeeNumbers，确保它是一个有效的数组
         if (data.employeeNumbers) {
@@ -502,6 +350,8 @@ class ShiftOrderManager {
             // 如果没有提供employeeNumbers，设置为空数组
             dataToSave.employeeNumbers = [];
         }
+        
+
         
         // 查找是否已存在相同岗位和班次的记录
         var existingIndex = -1;
@@ -542,58 +392,9 @@ class ShiftOrderManager {
         
         console.log('数据已保存到内存存储');
     }
+    
+    // 清理内存存储中的旧版基于岗位的排班数据
 
-    // 保存指定岗位的排班顺序（兼容旧版方法）
-    async saveShiftOrder(position, employeeNumbers, excludeAllEmployees = false) {
-        try {
-            console.log('尝试保存排班顺序: ' + JSON.stringify({position: position, employeeNumbers: employeeNumbers, excludeAllEmployees: excludeAllEmployees}));
-            
-            // 创建保存数据
-            const data = {
-                position: position,
-                employeeNumbers: employeeNumbers, // 始终保存employeeNumbers，用于标识哪些员工在剔除列表中
-                excludeAllEmployees: excludeAllEmployees, // 添加标记表示是否是剔除列表所有人员
-                updatedAt: new Date()
-            };
-            
-            // 首选：尝试使用全局dbManager保存
-            try {
-                if (window.dbManager && typeof window.dbManager.save === 'function') {
-                    // 先查找是否已存在相同岗位的记录
-                    const allOrders = await window.dbManager.getAll('shiftOrders');
-                    const existingOrder = allOrders.find(order => 
-                        order.position === position && !order.shiftCode
-                    );
-                    
-                    if (existingOrder) {
-                        data.id = existingOrder.id;
-                    }
-                    
-                    // 使用全局dbManager保存数据
-                    const result = await window.dbManager.save('shiftOrders', data);
-                    console.log('全局dbManager保存成功: ' + JSON.stringify(data));
-                    
-                    // 触发自动刷新
-                    this._autoRefreshAfterSave();
-                    return result;
-                } else {
-                    throw new Error('全局dbManager不可用');
-                }
-            } catch (dbError) {
-                console.warn('全局dbManager保存失败，使用内存存储: ' + dbError);
-                
-                // 降级到内存存储
-                this._saveToMemory(data);
-                
-                // 触发自动刷新
-                this._autoRefreshAfterSave();
-                return 'memory_backup';
-            }
-        } catch (error) {
-            console.error('保存排班顺序失败: ' + error);
-            throw error;
-        }
-    }
 
     // 自动刷新排班数据（私有方法）
     _autoRefreshAfterSave() {
@@ -650,69 +451,87 @@ class ShiftOrderManager {
                 
                 // 先添加IndexedDB的结果
                 for (const order of dbResults) {
-                    const key = `${order.position}_${order.shiftCode || ''}`;
-                    mergedResultsMap.set(key, order);
+                    if (order.position && order.shiftCode) {
+                        const key = `${order.position}_${order.shiftCode}`;
+                        mergedResultsMap.set(key, order);
+                    }
                 }
                 
                 // 再添加内存存储的结果，覆盖相同键的记录（优先使用更新的数据）
                 for (const order of this.memoryStore) {
-                    const key = `${order.position}_${order.shiftCode || ''}`;
-                    mergedResultsMap.set(key, order);
+                    if (order.position && order.shiftCode) {
+                        const key = `${order.position}_${order.shiftCode}`;
+                        mergedResultsMap.set(key, order);
+                    }
                 }
                 
                 // 将Map转换为数组
                 allResults = Array.from(mergedResultsMap.values());
             } else {
                 // 如果没有内存存储，直接使用IndexedDB的结果
-                allResults = dbResults;
+                // 但只保留有position和shiftCode的记录
+                allResults = dbResults.filter(order => order.position && order.shiftCode);
             }
+            
+            console.log(`合并后去重的排班数据数量: ${allResults.length}`);
             
             // 对所有结果进行员工数据清理和验证，确保数据一致性
             const cleanedResults = [];
             for (const order of allResults) {
                 try {
-                    // 优先处理employeeNumbers字段（新格式）
+                    // 统一使用employeeNumbers字段
+                    const cleanedNumbers = [];
+                    
+                    // 只处理employeeNumbers字段
+                    let rawNumbers = [];
                     if (order.employeeNumbers) {
-                        // 清理并验证employeeNumbers数组
-                        const cleanedNumbers = [];
-                        const rawNumbers = Array.isArray(order.employeeNumbers) ? order.employeeNumbers : [order.employeeNumbers];
-                        
-                        for (const number of rawNumbers) {
-                            if (!number) continue;
-                            const normalizedNumber = String(number).trim();
-                            if (normalizedNumber) {
-                                cleanedNumbers.push(normalizedNumber);
-                            }
-                        }
-                        
-                        // 添加清理后的排班顺序对象
-                        cleanedResults.push({
-                            ...order,
-                            employeeNumbers: cleanedNumbers
-                        });
-                    } else {
-                        // 兼容旧数据，处理employeeIds字段
-                        const cleanedIds = await this._cleanAndValidateEmployeeIds(order.employeeIds || []);
-                        // 添加清理后的排班顺序对象
-                        cleanedResults.push({
-                            ...order,
-                            employeeIds: cleanedIds
-                        });
+                        rawNumbers = Array.isArray(order.employeeNumbers) ? order.employeeNumbers : [order.employeeNumbers];
                     }
+                    
+                    // 清理并规范化员工号
+                    for (const number of rawNumbers) {
+                        if (!number) continue;
+                        const normalizedNumber = String(number).trim();
+                        if (normalizedNumber) {
+                            cleanedNumbers.push(normalizedNumber);
+                        }
+                    }
+                    
+                    // 添加清理后的排班顺序对象，确保标记为基于班次
+                    cleanedResults.push({
+                        position: order.position,
+                        shiftCode: order.shiftCode,
+                        employeeNumbers: cleanedNumbers,
+                        excludeAllEmployees: order.excludeAllEmployees || false,
+                        updatedAt: order.updatedAt || new Date(),
+                        isShiftBased: true // 确保标记为基于班次
+                        // 只保留必要字段，避免数据冗余
+                    });
                 } catch (cleanError) {
                     console.warn('清理排班顺序员工数据失败:', cleanError);
-                    // 即使清理失败，也添加原始数据，避免数据丢失
-                    cleanedResults.push(order);
+                    // 即使清理失败，也添加简化的原始数据，避免数据丢失
+                    cleanedResults.push({
+                        position: order.position,
+                        shiftCode: order.shiftCode,
+                        employeeNumbers: order.employeeNumbers || [],
+                        excludeAllEmployees: order.excludeAllEmployees || false,
+                        isShiftBased: true
+                    });
                 }
             }
             
             return cleanedResults;
         } catch (error) {
             console.error('获取所有排班顺序失败: ' + error);
-            // 如果发生错误，尝试返回内存存储中的数据
+            // 如果发生错误，尝试返回内存存储中的数据，并确保只返回基于班次的
             if (this.memoryStore) {
                 console.log('返回内存存储中的排班顺序数据');
-                return this.memoryStore;
+                // 从内存存储中也只返回基于班次的排班数据
+                const memoryShiftBasedOrders = this.memoryStore.filter(order => {
+                    const isShiftBased = order.isShiftBased || (order.shiftCode && order.shiftCode !== '');
+                    return isShiftBased;
+                });
+                return memoryShiftBasedOrders;
             }
             return [];
         }
@@ -768,54 +587,7 @@ class ShiftOrderManager {
         }
     }
 
-    // 添加新员工到对应岗位的排班顺序末尾（兼容旧版方法）
-    async addEmployeeToShiftOrder(employeeNumber, position) {
-        try {
-            // 获取当前岗位的排班顺序
-            let shiftOrder = await this.getShiftOrderByPosition(position);
-            
-            if (!shiftOrder) {
-                // 如果该岗位还没有排班顺序，创建一个新的
-                shiftOrder = {
-                    position: position,
-                    employeeNumbers: []
-                };
-            }
-            
-            // 确保使用employeeNumbers字段
-            if (!shiftOrder.employeeNumbers) {
-                shiftOrder.employeeNumbers = [];
-            }
-            
-            // 检查员工是否已在排班顺序中
-            var employeeFound = false;
-            for (var i = 0; i < shiftOrder.employeeNumbers.length; i++) {
-                if (shiftOrder.employeeNumbers[i] === employeeNumber) {
-                    employeeFound = true;
-                    break;
-                }
-            }
-            
-            if (!employeeFound) {
-                // 将新员工号添加到排班顺序末尾
-                shiftOrder.employeeNumbers.push(employeeNumber);
-                shiftOrder.updatedAt = new Date();
-                
-                // 保存更新后的排班顺序
-                const result = await window.dbManager.save('shiftOrders', shiftOrder);
-                
-                // 添加自动刷新逻辑
-                this._autoRefreshAfterSave();
-                
-                return result;
-            }
-            
-            return shiftOrder;
-        } catch (error) {
-            console.error('添加员工到排班顺序失败:', error);
-            throw error;
-        }
-    }
+
 
     // 获取指定员工号在所有排班顺序中的数据
     async getShiftOrdersByEmployeeNumber(employeeNumber) {
@@ -834,12 +606,6 @@ class ShiftOrderManager {
                         isEmployeeFound = true;
                     }
                 }
-                // 兼容旧版employeeIds数组
-                else if (Array.isArray(shiftOrder.employeeIds)) {
-                    if (shiftOrder.employeeIds.includes(employeeNumber)) {
-                        isEmployeeFound = true;
-                    }
-                }
                 
                 if (isEmployeeFound) {
                     result.push(shiftOrder);
@@ -853,52 +619,7 @@ class ShiftOrderManager {
         }
     }
 
-    // 从排班顺序中移除员工
-    async removeEmployeeFromShiftOrder(employeeNumber) {
-        try {
-            // 获取所有排班顺序
-            const allShiftOrders = await this.getAllShiftOrders();
-            let hasChanges = false;
-            
-            // 检查并更新每个排班顺序
-            for (const shiftOrder of allShiftOrders) {
-                // 优先处理employeeNumbers数组
-                if (Array.isArray(shiftOrder.employeeNumbers)) {
-                    const index = shiftOrder.employeeNumbers.indexOf(employeeNumber);
-                    if (index > -1) {
-                        // 移除员工号
-                        shiftOrder.employeeNumbers.splice(index, 1);
-                        shiftOrder.updatedAt = new Date();
-                        
-                        // 保存更新后的排班顺序
-                        await window.dbManager.save('shiftOrders', shiftOrder);
-                        hasChanges = true;
-                    }
-                }
-                // 兼容旧版employeeIds数组
-                else if (Array.isArray(shiftOrder.employeeIds)) {
-                    const index = shiftOrder.employeeIds.indexOf(employeeNumber);
-                    if (index > -1) {
-                        // 移除员工ID
-                        shiftOrder.employeeIds.splice(index, 1);
-                        shiftOrder.updatedAt = new Date();
-                        
-                        // 保存更新后的排班顺序
-                        await window.dbManager.save('shiftOrders', shiftOrder);
-                        hasChanges = true;
-                    }
-                }
-            }
-            
-            // 如果有数据变更，添加自动刷新逻辑
-            if (hasChanges) {
-                this._autoRefreshAfterSave();
-            }
-        } catch (error) {
-            console.error('从排班顺序中移除员工失败:', error);
-            throw error;
-        }
-    }
+
 
     // 更新指定班次的排班顺序
     async updateShiftOrderPositionByShift(shiftOrderId, employeeNumbers) {
@@ -933,38 +654,7 @@ class ShiftOrderManager {
         }
     }
 
-    // 更新排班顺序（兼容旧版方法）
-    async updateShiftOrderPosition(shiftOrderId, employeeNumbers) {
-        try {
-            // 检查存储空间是否存在，如果不存在则尝试初始化
-            let exists = await window.dbManager.checkObjectStoreExists('shiftOrders');
-            if (!exists) {
-                console.log('排班顺序存储空间不存在，尝试初始化...');
-                await this.initializeStore();
-                // 再次检查是否初始化成功
-                exists = await window.dbManager.checkObjectStoreExists('shiftOrders');
-                if (!exists) {
-                    console.error('初始化排班顺序存储空间失败');
-                    throw new Error('初始化排班顺序存储空间失败');
-                }
-            }
-            
-            // 获取现有排班顺序
-            const shiftOrder = await window.dbManager.getById('shiftOrders', shiftOrderId);
-            if (!shiftOrder) {
-                throw new Error('排班顺序不存在');
-            }
-            
-            // 只更新员工号字段，按员工号匹配
-            shiftOrder.employeeNumbers = employeeNumbers;
-            shiftOrder.updatedAt = new Date();
-            
-            return await window.dbManager.save('shiftOrders', shiftOrder);
-        } catch (error) {
-            console.error('更新排班顺序失败:', error);
-            throw error;
-        }
-    }
+
     
     // 当员工新增时更新排班顺序
     async updateShiftOrderWhenEmployeeAdded(newEmployee) {
@@ -1030,46 +720,24 @@ class ShiftOrderManager {
                     employeeNumber = employee.number;
                     console.log(`找到员工ID:${employeeId}对应的员工号:${employeeNumber}`);
                 } else {
-                    console.log(`未找到员工ID:${employeeId}对应的员工号，将只通过employeeId清理数据`);
+                    console.log(`未找到员工ID:${employeeId}对应的员工号，无法清理排班数据`);
+                    return;
                 }
             } catch (empError) {
                 console.error('获取员工信息失败:', empError);
-                console.log('将只通过employeeId清理数据');
+                console.log('无法获取员工号，无法清理排班数据');
+                return;
             }
             
             // 第二步：获取该员工在所有排班顺序中的数据
             let employeeShiftOrders = [];
             
-            if (employeeNumber) {
-                try {
-                    console.log(`获取员工号:${employeeNumber}在所有排班顺序中的数据`);
-                    employeeShiftOrders = await this.getShiftOrdersByEmployeeNumber(employeeNumber);
-                } catch (error) {
-                    console.error('通过员工号获取排班顺序数据失败:', error);
-                    employeeShiftOrders = [];
-                }
-            }
-            
-            // 如果通过员工号未找到数据，或者没有员工号，尝试通过employeeId获取数据
-            if (employeeShiftOrders.length === 0) {
-                try {
-                    console.log(`通过employeeId:${employeeId}查找排班顺序数据`);
-                    const allShiftOrders = await window.dbManager.getAll('shiftOrders');
-                    const normalizedEmployeeId = this.normalizeId(employeeId);
-                    
-                    // 查找包含该employeeId的排班顺序
-                    employeeShiftOrders = allShiftOrders.filter(order => {
-                        // 检查employeeIds数组
-                        if (Array.isArray(order.employeeIds)) {
-                            return order.employeeIds.some(id => this.normalizeId(id) === normalizedEmployeeId);
-                        }
-                        return false;
-                    });
-                    
-                    console.log(`通过employeeId找到 ${employeeShiftOrders.length} 个包含该员工的排班顺序`);
-                } catch (error) {
-                    console.error('通过employeeId获取排班顺序数据失败:', error);
-                }
+            try {
+                console.log(`获取员工号:${employeeNumber}在所有排班顺序中的数据`);
+                employeeShiftOrders = await this.getShiftOrdersByEmployeeNumber(employeeNumber);
+            } catch (error) {
+                console.error('通过员工号获取排班顺序数据失败:', error);
+                employeeShiftOrders = [];
             }
             
             // 处理找到的排班顺序数据
@@ -1078,8 +746,7 @@ class ShiftOrderManager {
                 
                 // 逐个处理包含该员工的排班顺序
                 const updatePromises = [];
-                const normalizedEmployeeId = this.normalizeId(employeeId);
-                const normalizedEmployeeNumber = employeeNumber ? this.normalizeId(employeeNumber) : null;
+                const normalizedEmployeeNumber = this.normalizeId(employeeNumber);
                 
                 for (const shiftOrder of employeeShiftOrders) {
                     try {
@@ -1088,30 +755,16 @@ class ShiftOrderManager {
                             shiftOrder.employeeNumbers = [];
                         }
                         
-                        // 确保employeeIds是数组
-                        if (!Array.isArray(shiftOrder.employeeIds)) {
-                            shiftOrder.employeeIds = [];
-                        }
-                        
                         // 保存原始长度用于比较
                         const originalNumbersLength = shiftOrder.employeeNumbers.length;
-                        const originalIdsLength = shiftOrder.employeeIds.length;
                         
-                        // 通过员工号移除员工（如果有）
-                        if (normalizedEmployeeNumber) {
-                            shiftOrder.employeeNumbers = shiftOrder.employeeNumbers.filter(number => 
-                                this.normalizeId(number) !== normalizedEmployeeNumber
-                            );
-                        }
-                        
-                        // 通过employeeId移除员工
-                        shiftOrder.employeeIds = shiftOrder.employeeIds.filter(id => 
-                            this.normalizeId(id) !== normalizedEmployeeId
+                        // 通过员工号移除员工
+                        shiftOrder.employeeNumbers = shiftOrder.employeeNumbers.filter(number => 
+                            this.normalizeId(number) !== normalizedEmployeeNumber
                         );
                         
                         // 检查是否有变化
-                        const hasChanges = shiftOrder.employeeNumbers.length < originalNumbersLength || 
-                                          shiftOrder.employeeIds.length < originalIdsLength;
+                        const hasChanges = shiftOrder.employeeNumbers.length < originalNumbersLength;
                         
                         // 如果有员工被移除，保存更新后的排班顺序
                         if (hasChanges) {
@@ -1230,9 +883,96 @@ class ShiftOrderManager {
         }
     }
     
-    // 从特定岗位和班次的排班顺序中移除员工
+    // 支持两种调用方式：
+    // 1. removeEmployeeFromShiftOrder(employeeNumber) - 从所有班次中移除员工
+    // 2. removeEmployeeFromShiftOrder(position, shiftCode, employeeNumber, employeeId) - 从特定岗位和班次中移除员工
     async removeEmployeeFromShiftOrder(position, shiftCode, employeeNumber, employeeId) {
         try {
+            // 检查是否是单参数调用（从所有班次中移除员工）
+            if (arguments.length === 1 && typeof position === 'string') {
+                const singleEmployeeNumber = position;
+                console.log(`开始从所有排班顺序中移除员工，员工号:${singleEmployeeNumber}`);
+                
+                // 直接从数据库获取所有排班数据
+                let allShiftOrders = [];
+                try {
+                    // 直接从dbManager获取所有数据，不经过过滤
+                    allShiftOrders = await window.dbManager.getAll('shiftOrders');
+                } catch (dbError) {
+                    console.error('获取所有排班数据失败，使用内存中的数据:', dbError);
+                    // 如果数据库操作失败，尝试使用内存中的数据作为备选
+                    if (this.shiftOrders && this.shiftOrders.length > 0) {
+                        allShiftOrders = [...this.shiftOrders];
+                    }
+                }
+                
+                if (!Array.isArray(allShiftOrders)) {
+                    console.error('获取的排班数据不是数组:', allShiftOrders);
+                    return;
+                }
+                
+                console.log(`找到${allShiftOrders.length}条排班数据`);
+                
+                // 标记是否有变更
+                let orderChanged = false;
+                const updatePromises = [];
+                const normalizedEmpNum = this.normalizeId(singleEmployeeNumber);
+                
+                // 遍历所有排班数据
+                for (const shiftOrder of allShiftOrders) {
+                    try {
+                        // 确保employeeNumbers是数组
+                        if (!Array.isArray(shiftOrder.employeeNumbers)) {
+                            shiftOrder.employeeNumbers = [];
+                        }
+                        
+                        // 记录原始长度用于比较
+                        const originalNumbersLength = shiftOrder.employeeNumbers.length;
+                        
+                        // 从employeeNumbers中移除员工
+                        shiftOrder.employeeNumbers = shiftOrder.employeeNumbers.filter(num => 
+                            this.normalizeId(num) !== normalizedEmpNum
+                        );
+                        
+                        // 检查是否有员工被移除
+                        const hasChanged = shiftOrder.employeeNumbers.length < originalNumbersLength;
+                        
+                        if (hasChanged) {
+                            orderChanged = true;
+                            shiftOrder.updatedAt = new Date();
+                            updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
+                            console.log(`已从排班顺序(ID:${shiftOrder.id})中移除员工${singleEmployeeNumber}`);
+                        }
+                    } catch (shiftOrderError) {
+                        console.error(`处理排班顺序 ${shiftOrder.id} 失败:`, shiftOrderError);
+                        // 继续处理下一个排班顺序，不中断整体流程
+                    }
+                }
+                
+                // 如果有变更，保存所有更新
+                if (updatePromises.length > 0) {
+                    await Promise.all(updatePromises);
+                    console.log(`已完成${updatePromises.length}个排班顺序的更新`);
+                }
+                
+                // 清理空的排班顺序记录
+                try {
+                    await this.cleanupEmptyShiftOrders();
+                } catch (cleanupError) {
+                    console.error('清理空排班顺序记录时出错:', cleanupError);
+                    // 清理失败不应影响主流程
+                }
+                
+                // 如果有变更，刷新数据显示
+                if (orderChanged) {
+                    await this._autoRefreshAfterSave();
+                }
+                
+                console.log('从所有排班顺序中移除员工操作完成');
+                return;
+            }
+            
+            // 以下是原始的从特定岗位和班次中移除员工的逻辑
             console.log(`开始从${position}岗位${shiftCode}班次的排班顺序中移除员工，员工号:${employeeNumber}`);
             
             // 第一步：根据岗位和班次代码查找排班顺序
@@ -1271,14 +1011,8 @@ class ShiftOrderManager {
                         shiftOrder.employeeNumbers = [];
                     }
                     
-                    // 确保employeeIds是数组
-                    if (!Array.isArray(shiftOrder.employeeIds)) {
-                        shiftOrder.employeeIds = [];
-                    }
-                    
                     // 保存原始长度用于比较
                     const originalNumbersLength = shiftOrder.employeeNumbers.length;
-                    const originalIdsLength = shiftOrder.employeeIds.length;
                     
                     // 通过员工号移除员工
                     if (normalizedEmployeeNumber) {
@@ -1287,16 +1021,8 @@ class ShiftOrderManager {
                         );
                     }
                     
-                    // 通过员工ID移除员工
-                    if (normalizedEmployeeId) {
-                        shiftOrder.employeeIds = shiftOrder.employeeIds.filter(id => 
-                            this.normalizeId(id) !== normalizedEmployeeId
-                        );
-                    }
-                    
                     // 检查是否有变化
-                    const hasChanges = shiftOrder.employeeNumbers.length < originalNumbersLength || 
-                                     shiftOrder.employeeIds.length < originalIdsLength;
+                    const hasChanges = shiftOrder.employeeNumbers.length < originalNumbersLength;
                     
                     // 如果有员工被移除，保存更新后的排班顺序
                     if (hasChanges) {
@@ -1362,11 +1088,10 @@ class ShiftOrderManager {
             const allShiftOrders = await window.dbManager.getAll('shiftOrders');
             console.log(`总共获取到 ${allShiftOrders.length} 条排班顺序记录`);
             
-            // 找出空记录（employeeNumbers和employeeIds都为空的记录）
+            // 找出空记录（employeeNumbers为空的记录）
             const emptyShiftOrders = allShiftOrders.filter(order => {
                 const hasEmployeeNumbers = Array.isArray(order.employeeNumbers) && order.employeeNumbers.length > 0;
-                const hasEmployeeIds = Array.isArray(order.employeeIds) && order.employeeIds.length > 0;
-                return !hasEmployeeNumbers && !hasEmployeeIds;
+                return !hasEmployeeNumbers;
             });
             
             if (emptyShiftOrders.length > 0) {
@@ -1430,11 +1155,9 @@ class ShiftOrderManager {
                     if (departmentPositionNames.includes(shiftOrder.position)) {
                         // 保存原始长度用于比较
                         const originalNumbersLength = Array.isArray(shiftOrder.employeeNumbers) ? shiftOrder.employeeNumbers.length : 0;
-                        const originalIdsLength = Array.isArray(shiftOrder.employeeIds) ? shiftOrder.employeeIds.length : 0;
                         
                         // 清空员工数据
                         shiftOrder.employeeNumbers = [];
-                        shiftOrder.employeeIds = [];
                         shiftOrder.updatedAt = new Date();
                         
                         updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
@@ -1507,11 +1230,9 @@ class ShiftOrderManager {
                     if (shiftOrder.position === positionName) {
                         // 保存原始长度用于比较
                         const originalNumbersLength = Array.isArray(shiftOrder.employeeNumbers) ? shiftOrder.employeeNumbers.length : 0;
-                        const originalIdsLength = Array.isArray(shiftOrder.employeeIds) ? shiftOrder.employeeIds.length : 0;
                         
                         // 清空员工数据
                         shiftOrder.employeeNumbers = [];
-                        shiftOrder.employeeIds = [];
                         shiftOrder.updatedAt = new Date();
                         
                         updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
@@ -1587,16 +1308,14 @@ class ShiftOrderManager {
                 try {
                     // 保存原始长度用于记录
                     const originalNumbersLength = Array.isArray(shiftOrder.employeeNumbers) ? shiftOrder.employeeNumbers.length : 0;
-                    const originalIdsLength = Array.isArray(shiftOrder.employeeIds) ? shiftOrder.employeeIds.length : 0;
                     
                     // 清空员工数据
                     shiftOrder.employeeNumbers = [];
-                    shiftOrder.employeeIds = [];
                     shiftOrder.updatedAt = new Date();
                     
                     updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
                     
-                    console.log(`已清空排班顺序(ID:${shiftOrder.id})中的员工数据，原员工号数量:${originalNumbersLength}，原员工ID数量:${originalIdsLength}`);
+                    console.log(`已清空排班顺序(ID:${shiftOrder.id})中的员工数据，原员工号数量:${originalNumbersLength}`);
                 } catch (shiftOrderError) {
                     console.error(`处理排班顺序 ${shiftOrder.id} 失败:`, shiftOrderError);
                     // 继续处理下一个排班顺序，不中断整体流程
@@ -1678,11 +1397,9 @@ class ShiftOrderManager {
                     if (departmentPositionNames.includes(shiftOrder.position)) {
                         // 保存原始长度用于比较
                         const originalNumbersLength = Array.isArray(shiftOrder.employeeNumbers) ? shiftOrder.employeeNumbers.length : 0;
-                        const originalIdsLength = Array.isArray(shiftOrder.employeeIds) ? shiftOrder.employeeIds.length : 0;
                         
                         // 清空员工数据
                         shiftOrder.employeeNumbers = [];
-                        shiftOrder.employeeIds = [];
                         shiftOrder.updatedAt = new Date();
                         
                         updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
@@ -1756,11 +1473,9 @@ class ShiftOrderManager {
                     if (shiftOrder.position === positionName) {
                         // 保存原始长度用于比较
                         const originalNumbersLength = Array.isArray(shiftOrder.employeeNumbers) ? shiftOrder.employeeNumbers.length : 0;
-                        const originalIdsLength = Array.isArray(shiftOrder.employeeIds) ? shiftOrder.employeeIds.length : 0;
                         
                         // 清空员工数据
                         shiftOrder.employeeNumbers = [];
-                        shiftOrder.employeeIds = [];
                         shiftOrder.updatedAt = new Date();
                         
                         updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
@@ -1847,11 +1562,9 @@ class ShiftOrderManager {
                     if (departmentPositionNames.includes(shiftOrder.position)) {
                         // 保存原始长度用于比较
                         const originalNumbersLength = Array.isArray(shiftOrder.employeeNumbers) ? shiftOrder.employeeNumbers.length : 0;
-                        const originalIdsLength = Array.isArray(shiftOrder.employeeIds) ? shiftOrder.employeeIds.length : 0;
                         
                         // 清空员工数据
                         shiftOrder.employeeNumbers = [];
-                        shiftOrder.employeeIds = [];
                         shiftOrder.updatedAt = new Date();
                         
                         updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
@@ -1921,11 +1634,9 @@ class ShiftOrderManager {
                     if (shiftOrder.position === positionName) {
                         // 保存原始长度用于比较
                         const originalNumbersLength = Array.isArray(shiftOrder.employeeNumbers) ? shiftOrder.employeeNumbers.length : 0;
-                        const originalIdsLength = Array.isArray(shiftOrder.employeeIds) ? shiftOrder.employeeIds.length : 0;
                         
                         // 清空员工数据
                         shiftOrder.employeeNumbers = [];
-                        shiftOrder.employeeIds = [];
                         shiftOrder.updatedAt = new Date();
                         
                         updatePromises.push(window.dbManager.save('shiftOrders', shiftOrder));
@@ -2011,23 +1722,17 @@ class ShiftOrderManager {
                     if (positionIds.includes(shiftOrder.positionId)) {
                         console.log(`清空部门ID: ${departmentId}下岗位ID: ${shiftOrder.positionId}, 班次ID: ${shiftOrder.shiftId}的排班顺序`);
                         
-                        // 确保employeeNumbers和employeeIds是数组
+                        // 确保employeeNumbers是数组
                         if (!Array.isArray(shiftOrder.employeeNumbers)) {
                             shiftOrder.employeeNumbers = [];
                         }
                         
-                        if (!Array.isArray(shiftOrder.employeeIds)) {
-                            shiftOrder.employeeIds = [];
-                        }
-                        
                         // 检查是否有员工数据需要清空
                         const hasEmployeeNumbers = shiftOrder.employeeNumbers.length > 0;
-                        const hasEmployeeIds = shiftOrder.employeeIds.length > 0;
                         
-                        if (hasEmployeeNumbers || hasEmployeeIds) {
-                            // 清空员工号和员工ID数组
+                        if (hasEmployeeNumbers) {
+                            // 清空员工号数组
                             shiftOrder.employeeNumbers = [];
-                            shiftOrder.employeeIds = [];
                             shiftOrder.updatedAt = new Date();
                             
                             // 保存更新后的排班顺序
@@ -2096,23 +1801,17 @@ class ShiftOrderManager {
                     if (shiftOrder.positionId === positionId) {
                         console.log(`清空岗位ID: ${positionId}, 班次ID: ${shiftOrder.shiftId}的排班顺序`);
                         
-                        // 确保employeeNumbers和employeeIds是数组
+                        // 确保employeeNumbers是数组
                         if (!Array.isArray(shiftOrder.employeeNumbers)) {
                             shiftOrder.employeeNumbers = [];
                         }
                         
-                        if (!Array.isArray(shiftOrder.employeeIds)) {
-                            shiftOrder.employeeIds = [];
-                        }
-                        
                         // 检查是否有员工数据需要清空
                         const hasEmployeeNumbers = shiftOrder.employeeNumbers.length > 0;
-                        const hasEmployeeIds = shiftOrder.employeeIds.length > 0;
                         
-                        if (hasEmployeeNumbers || hasEmployeeIds) {
-                            // 清空员工号和员工ID数组
+                        if (hasEmployeeNumbers) {
+                            // 清空员工号数组
                             shiftOrder.employeeNumbers = [];
-                            shiftOrder.employeeIds = [];
                             shiftOrder.updatedAt = new Date();
                             
                             // 保存更新后的排班顺序
@@ -2251,13 +1950,12 @@ window.loadShiftOrderData = async function() {
                 
                 // 检查是否有标识数据，如果有则进行过滤
                 if (allIdentifiers && allIdentifiers.length > 0) {
-                    // 只保留至少有一个有效标识（canWork=true）的员工，优先使用员工号匹配
+                    // 只保留至少有一个有效标识（canWork=true）的员工，只用员工号匹配
                     const employeesWithValidIdentifiers = filteredEmployees.filter(employee => {
                         const empNumber = normalizeId(employee.number);
-                        const empId = normalizeId(employee.id);
                         return allIdentifiers.some(id => {
                             const identifierNumber = normalizeId(id.employeeNumber || id.employeeId);
-                            return (identifierNumber === empNumber || identifierNumber === empId) && id.canWork === true;
+                            return identifierNumber === empNumber && id.canWork === true;
                         });
                     });
                     
@@ -2266,8 +1964,8 @@ window.loadShiftOrderData = async function() {
                     
                     console.log(`过滤后有有效标识的员工数量: ${filteredEmployees.length}`);
                 } else {
-                    // 如果没有标识数据，显示空列表
-                    console.warn('没有找到标识数据，将显示空列表');
+                    // 如果没有标识数据，显示空列表（只加载有有效标识的员工）
+                    console.warn('没有找到标识数据，将显示空列表（只加载有有效标识的员工）');
                     filteredEmployees = [];
                     positions = new Set();
                 }
@@ -2278,14 +1976,14 @@ window.loadShiftOrderData = async function() {
                 }
                 
             } catch (identifierError) {
-                console.warn('获取标识数据失败，将显示空列表:', identifierError);
-                // 出错时显示空列表
+                console.warn('获取标识数据失败，将显示空列表（只加载有有效标识的员工）:', identifierError);
+                // 出错时显示空列表（只加载有有效标识的员工）
                 filteredEmployees = [];
                 positions = new Set();
             }
         } else {
-            console.warn('identifierManager不存在，将显示空列表');
-            // identifierManager不存在时显示空列表
+            console.warn('identifierManager不存在，将显示空列表（只加载有有效标识的员工）');
+            // identifierManager不存在时显示空列表（只加载有有效标识的员工）
             filteredEmployees = [];
             positions = new Set();
         }
@@ -2349,27 +2047,22 @@ function updateShiftOrderTableHeader(tableHeader, activeShifts) {
 }
 
 // 内部辅助函数：通用的员工排序逻辑
-function sortEmployeesByOrder(employees, orderedEmployeeIds) {
+function sortEmployeesByOrder(employees, orderedEmployeeNumbers) {
     return [...employees].sort((a, b) => {
-        // 优先使用员工号进行比较，没有则使用ID
-        const findIndexWithNumberAndId = (emp) => {
-            // 优先使用员工号查找
+        // 只使用员工号进行比较
+        const findIndexWithNumber = (emp) => {
             if (emp.number) {
-                const indexByNumber = orderedEmployeeIds.findIndex(id => 
+                const indexByNumber = orderedEmployeeNumbers.findIndex(id => 
                     String(id) === String(emp.number) || 
                     normalizeId(String(id)) === normalizeId(String(emp.number))
                 );
-                if (indexByNumber !== -1) return indexByNumber;
+                return indexByNumber;
             }
-            // 没有员工号或未找到时，使用ID查找
-            return orderedEmployeeIds.findIndex(id => 
-                String(id) === String(emp.id) || 
-                normalizeId(String(id)) === normalizeId(String(emp.id))
-            );
+            return -1;
         };
         
-        const indexA = findIndexWithNumberAndId(a);
-        const indexB = findIndexWithNumberAndId(b);
+        const indexA = findIndexWithNumber(a);
+        const indexB = findIndexWithNumber(b);
         
         if (indexA !== -1 && indexB !== -1) {
             // 两个员工都在排班顺序中，按照排班顺序排序
@@ -2628,7 +2321,6 @@ async function _prepareEditShiftOrder(position, shiftCode = null) {
         // 获取当前排班顺序
         let shiftOrder;
         let orderedEmployeeNumbers = [];
-        let orderedEmployeeIds = []; // 保留用于兼容旧版数据
         
         if (shiftCode) {
             shiftOrder = await window.shiftOrderManager.getShiftOrderByPositionAndShift(position, shiftCode);
@@ -2637,9 +2329,8 @@ async function _prepareEditShiftOrder(position, shiftCode = null) {
         }
         
         if (shiftOrder) {
-            // 优先使用employeeNumbers，如果没有则回退到employeeIds
+            // 只使用employeeNumbers
             orderedEmployeeNumbers = shiftOrder.employeeNumbers || [];
-            orderedEmployeeIds = shiftOrder.employeeIds || [];
         }
         
         // 创建员工号到员工对象的映射，使用规范化处理
@@ -2765,24 +2456,14 @@ async function _prepareEditShiftOrder(position, shiftCode = null) {
         
         console.log(`最终准备的员工列表数量: ${orderedEmployees.length}`);
         
-        // 显示编辑模态框，传递原始的orderedEmployeeIds和employeeNumbers以确保顺序一致性
+        // 显示编辑模态框，传递有序员工列表
         // 同时传递未设置该班次的员工列表
-        showShiftOrderEditModal(position, orderedEmployees, orderedEmployeeIds, shiftCode, notSetShiftEmployees);
+        showShiftOrderEditModal(position, orderedEmployees, shiftCode, notSetShiftEmployees);
     } catch (error) {
         console.error('编辑排班顺序失败:', error);
         showNotification('编辑排班顺序失败: ' + error.message, 'error');
     }
 }
-
-// 按岗位编辑排班顺序（兼容旧版方法）
-window.editShiftOrder = function(position) {
-    return _prepareEditShiftOrder(position);
-};
-
-// 按岗位编辑排班顺序
-window.editShiftOrderByPosition = function(position) {
-    return _prepareEditShiftOrder(position);
-};
 
 // 按岗位和班次编辑排班顺序
 window.editShiftOrderByPositionAndShift = function(position, shiftCode) {
@@ -2790,7 +2471,7 @@ window.editShiftOrderByPositionAndShift = function(position, shiftCode) {
 };
 
 // 显示排班顺序编辑模态框
-function showShiftOrderEditModal(position, employees, orderedEmployeeIds, shiftCode = null, notSetShiftEmployees = []) {
+function showShiftOrderEditModal(position, employees, shiftCode = null, notSetShiftEmployees = []) {
     console.log(`进入showShiftOrderEditModal函数：传入员工数=${employees ? employees.length : 0}，未设置班次员工数=${notSetShiftEmployees ? notSetShiftEmployees.length : 0}`);
     // 检查传入的员工对象结构
     if (employees && employees.length > 0) {
@@ -3078,11 +2759,12 @@ function showShiftOrderEditModal(position, employees, orderedEmployeeIds, shiftC
                 console.log('从DOM获取的shiftCode:' + latestShiftCode);
                 
                 if (latestShiftCode) {
-                    // 如果有shiftCode，调用按班次保存的方法
+                    // 调用按班次保存的方法
                     window.saveShiftOrderByShift();
                 } else {
-                    // 否则调用默认保存方法
-                    window.saveShiftOrder();
+                    // 不再支持岗位级排班顺序保存，必须提供shiftCode
+                    console.error('不支持岗位级排班顺序保存，必须选择具体班次');
+                    showNotification('请选择具体班次后再保存', 'error');
                 }
             });
         })(shiftCode);
@@ -3287,6 +2969,8 @@ function _refreshShiftOrderTable() {
 
 // 内部辅助函数：保存排班顺序的通用逻辑
 function _saveShiftOrderInternal(position, employeeNumbers, shiftCode = null, excludeAllEmployees = false) {
+    console.log('8. 进入内部保存函数 _saveShiftOrderInternal()');
+    console.log('   - 参数:', {position, employeeNumbers, shiftCode, excludeAllEmployees});
     // 关闭模态框
     document.getElementById('shiftOrderEditModal').style.display = 'none';
     
@@ -3296,9 +2980,14 @@ function _saveShiftOrderInternal(position, employeeNumbers, shiftCode = null, ex
         // 如果是剔除列表所有人员，我们存储一个特殊的标记值
         // 表示所有人员都没有排序（值为0）
         const saveData = excludeAllEmployees ? { position, shiftCode, excludeAllEmployees: true, employeeNumbers } : { position, shiftCode, employeeNumbers };
+        console.log('9. 准备调用 ShiftOrderManager.saveShiftOrderByShift 方法');
+        console.log('   - 保存数据准备:', saveData);
         savePromise = window.shiftOrderManager.saveShiftOrderByShift(position, shiftCode, employeeNumbers, excludeAllEmployees);
     } else {
-        savePromise = window.shiftOrderManager.saveShiftOrder(position, employeeNumbers, excludeAllEmployees);
+        // 不再支持岗位级排班顺序保存，只支持班次级保存
+        console.error('不支持岗位级排班顺序保存，必须提供shiftCode');
+        showNotification('不支持岗位级排班顺序保存，请选择具体班次', 'error');
+        return Promise.reject(new Error('不支持岗位级排班顺序保存，必须提供shiftCode'));
     }
     
     // 保存成功后添加短暂延迟确保数据完全写入，然后重新加载数据并刷新表格
@@ -3324,53 +3013,21 @@ function _saveShiftOrderInternal(position, employeeNumbers, shiftCode = null, ex
         });
 }
 
-// 保存排班顺序（兼容旧版）
-window.saveShiftOrder = function() {
-    var position = document.getElementById('shiftOrderPositionInput').value;
-    var excludeAllEmployees = document.getElementById('excludeAllEmployees').checked;
-    
-    var employeeNumbers = [];
-    
-    // 如果勾选了'剔除列表所有人员'，将剔除列表中的所有人员添加到员工列表中
-    if (excludeAllEmployees) {
-        var excludedEmployeeItems = document.querySelectorAll('#excludedEmployeesList .shift-order-employee-item');
-        for (var i = 0; i < excludedEmployeeItems.length; i++) {
-            var employeeNumber = excludedEmployeeItems[i].dataset.employeeNumber || excludedEmployeeItems[i].dataset.employeeId;
-            if (employeeNumber) {
-                employeeNumbers.push(employeeNumber);
-            }
-        }
-    } else {
-        // 否则，获取普通员工列表
-        var employeeItems = document.querySelectorAll('#shiftOrderEmployeeList .shift-order-employee-item');
-        for (var i = 0; i < employeeItems.length; i++) {
-            var employeeNumber = employeeItems[i].dataset.employeeNumber || employeeItems[i].dataset.employeeId;
-            if (employeeNumber) {
-                employeeNumbers.push(employeeNumber);
-            }
-        }
-        
-        if (employeeNumbers.length === 0) {
-            showNotification('请添加员工', 'error');
-            return;
-        }
-    }
-    
-    if (!position) {
-        showNotification('请选择岗位', 'error');
-        return;
-    }
-    
-    // 保存排班顺序
-    return _saveShiftOrderInternal(position, employeeNumbers, null, excludeAllEmployees);
-};
+
 
 // 按班次保存排班顺序
 window.saveShiftOrderByShift = function() {
+    console.log('======= 开始保存排班顺序 =======');
+    console.log('1. 调用入口函数: window.saveShiftOrderByShift()');
     var position = document.getElementById('shiftOrderPositionInput').value;
     var shiftCodeInput = document.getElementById('shiftOrderShiftCodeInput');
     var shiftCode = shiftCodeInput ? shiftCodeInput.value : null;
     var excludeAllEmployees = document.getElementById('excludeAllEmployees').checked;
+    
+    console.log('2. 从表单获取数据:');
+    console.log('   - 岗位:', position);
+    console.log('   - 班次代码:', shiftCode);
+    console.log('   - 是否为剔除列表所有人员:', excludeAllEmployees);
     
     var employeeNumbers = [];
     
@@ -3418,7 +3075,10 @@ window.clearShiftOrder = function(position, shiftCode) {
     if (shiftCode) {
         savePromise = window.shiftOrderManager.saveShiftOrderByShift(position, shiftCode, []);
     } else {
-        savePromise = window.shiftOrderManager.saveShiftOrder(position, []);
+        // 不再支持岗位级排班顺序清空，必须提供shiftCode
+        console.error('不支持岗位级排班顺序清空，必须提供shiftCode');
+        showNotification('不支持岗位级排班顺序清空，请选择具体班次', 'error');
+        return Promise.reject(new Error('不支持岗位级排班顺序清空，必须提供shiftCode'));
     }
     
     // 清空成功后添加短暂延迟确保数据完全写入，然后重新加载数据并刷新表格
@@ -3756,14 +3416,11 @@ async function renderShiftOrderTable(positions = new Set(), unusedShiftOrderMap 
                 try {
                     console.log(`使用班次 ${mainShiftCode} 的排班顺序对员工进行排序`);
                     
-                    // 优先使用employeeNumbers数组
-                    const useNumbers = mainShiftOrder.employeeNumbers && Array.isArray(mainShiftOrder.employeeNumbers) && mainShiftOrder.employeeNumbers.length > 0;
-                    const useIds = !useNumbers && mainShiftOrder.employeeIds && Array.isArray(mainShiftOrder.employeeIds) && mainShiftOrder.employeeIds.length > 0;
+                    // 只使用employeeNumbers数组
+                    const hasEmployeeNumbers = mainShiftOrder.employeeNumbers && Array.isArray(mainShiftOrder.employeeNumbers) && mainShiftOrder.employeeNumbers.length > 0;
                     
-                    if (useNumbers) {
+                    if (hasEmployeeNumbers) {
                         console.log(`排班顺序员工号: ${JSON.stringify(mainShiftOrder.employeeNumbers)}`);
-                    } else if (useIds) {
-                        console.log(`排班顺序员工ID: ${JSON.stringify(mainShiftOrder.employeeIds)}`);
                     }
                     
                     // 创建一个包含所有员工的映射，使用多种键格式
@@ -3794,8 +3451,8 @@ async function renderShiftOrderTable(positions = new Set(), unusedShiftOrderMap 
                     const orderedEmps = [];
                     const remainingEmps = new Set(positionEmployees); // 使用Set存储剩余员工
                     
-                    // 优先遍历employeeNumbers数组，如果存在
-                    const orderArray = useNumbers ? mainShiftOrder.employeeNumbers : useIds ? mainShiftOrder.employeeIds : [];
+                    // 只遍历employeeNumbers数组
+                    const orderArray = hasEmployeeNumbers ? mainShiftOrder.employeeNumbers : [];
                     
                     // 遍历排班顺序中的所有标识
                     orderArray.forEach(empIdentifier => {
@@ -3838,18 +3495,17 @@ async function renderShiftOrderTable(positions = new Set(), unusedShiftOrderMap 
                 const firstShiftOrder = shiftOrderCache.get(firstShiftKey);
                 
                 if (firstShiftOrder) {
-                    // 优先使用employeeNumbers数组
+                    // 使用employeeNumbers数组
                     const useNumbers = firstShiftOrder.employeeNumbers && Array.isArray(firstShiftOrder.employeeNumbers) && firstShiftOrder.employeeNumbers.length > 0;
-                    const useIds = !useNumbers && firstShiftOrder.employeeIds && Array.isArray(firstShiftOrder.employeeIds) && firstShiftOrder.employeeIds.length > 0;
                     
-                    if (useNumbers || useIds) {
+                    if (useNumbers) {
                         console.log(`使用第一个有效班次 ${firstShiftCode} 的排班顺序对员工进行排序`);
                         
                         // 这里复用上面的排序逻辑，但简化处理
                         const orderedEmps = [];
                         const remainingEmps = new Set(positionEmployees);
                         
-                        const orderArray = useNumbers ? firstShiftOrder.employeeNumbers : firstShiftOrder.employeeIds;
+                        const orderArray = firstShiftOrder.employeeNumbers;
                         
                         orderArray.forEach(empIdentifier => {
                             const empIdentifierStr = String(empIdentifier);
@@ -3906,18 +3562,13 @@ async function renderShiftOrderTable(positions = new Set(), unusedShiftOrderMap 
                             const normalizedEmployeeId = normalizeId(employee.id);
                             const normalizedEmployeeNumber = normalizeId(employee.number);
                             
-                            // 同时检查employeeNumbers和employeeIds数组
+                            // 只检查employeeNumbers数组
                             const isExcluded = (
-                                (shiftOrder.employeeNumbers && Array.isArray(shiftOrder.employeeNumbers) && 
+                                shiftOrder.employeeNumbers && Array.isArray(shiftOrder.employeeNumbers) && 
                                 shiftOrder.employeeNumbers.some(id => {
                                     const normalizedId = normalizeId(id);
                                     return normalizedId === normalizedEmployeeId || normalizedId === normalizedEmployeeNumber;
-                                })) ||
-                                (shiftOrder.employeeIds && Array.isArray(shiftOrder.employeeIds) && 
-                                shiftOrder.employeeIds.some(id => {
-                                    const normalizedId = normalizeId(id);
-                                    return normalizedId === normalizedEmployeeId || normalizedId === normalizedEmployeeNumber;
-                                }))
+                                })
                             );
                             
                             if (isExcluded) {
@@ -3925,102 +3576,62 @@ async function renderShiftOrderTable(positions = new Set(), unusedShiftOrderMap 
                                 orderNumber = '0';
                             } else {
                                 // 不在剔除列表中，继续使用原有的逻辑来获取顺序号
-                                // 优先使用employeeNumbers数组
-                                const useNumbers = shiftOrder.employeeNumbers && Array.isArray(shiftOrder.employeeNumbers) && shiftOrder.employeeNumbers.length > 0;
-                                const useIds = !useNumbers && shiftOrder.employeeIds && Array.isArray(shiftOrder.employeeIds) && shiftOrder.employeeIds.length > 0;
+                                // 只使用employeeNumbers数组
+                                const hasEmployeeNumbers = shiftOrder.employeeNumbers && Array.isArray(shiftOrder.employeeNumbers) && shiftOrder.employeeNumbers.length > 0;
                                 
-                                if (useNumbers) {
+                                if (hasEmployeeNumbers) {
                                     console.log(`获取到排班顺序员工号: ${JSON.stringify(shiftOrder.employeeNumbers)}`);
-                                } else if (useIds) {
-                                    console.log(`获取到排班顺序员工ID: ${JSON.stringify(shiftOrder.employeeIds)}`);
                                 }
                                 
-                                if (useNumbers || useIds) {
+                                if (hasEmployeeNumbers) {
                                     // 规范化员工ID和员工号
                                     const normalizedEmployeeId = normalizeId(employee.id);
                                     const normalizedEmployeeNumber = normalizeId(employee.number);
                                     
-                                    // 选择要使用的数组
-                                    const orderArray = useNumbers ? shiftOrder.employeeNumbers : shiftOrder.employeeIds;
+                                    // 只使用employeeNumbers数组
+                                    const orderArray = shiftOrder.employeeNumbers;
                                     
-                                    // 尝试使用ID或员工号查找（使用规范化格式）
+                                    // 尝试使用规范化格式查找员工号
                                     const index = orderArray.findIndex(id => {
                                         const normalizedId = normalizeId(id);
-                                        return normalizedId === normalizedEmployeeId || normalizedId === normalizedEmployeeNumber;
+                                        return normalizedId === normalizedEmployeeNumber;
                                     });
                                     
                                     if (index !== -1) {
                                         orderNumber = (index + 1).toString();
                                         console.log(`匹配: 员工${employee.name}在${shift.code}班次的顺序是${orderNumber}`);
                                     } else {
-                                        // 尝试通过employeeIdMap查找（使用双重循环确保全面查找）
-                                        let foundIndex = -1;
-                                        for (let l = 0; l < shiftOrder.employeeIds.length; l++) {
-                                            const storedId = shiftOrder.employeeIds[l];
-                                            const storedEmployee = employeeIdMap.get(normalizeId(storedId));
-                                            if (storedEmployee && 
-                                                (normalizeId(storedEmployee.number) === normalizedEmployeeNumber ||
-                                                 storedEmployee.id === employee.id || 
-                                                 normalizeId(storedEmployee.id) === normalizedEmployeeId)) {
-                                                foundIndex = l;
-                                                break;
-                                            }
-                                        }
-                                        
-                                        if (foundIndex !== -1) {
-                                            orderNumber = (foundIndex + 1).toString();
-                                            console.log(`通过employeeIdMap匹配: 员工${employee.name}在${shift.code}班次的顺序是${orderNumber}`);
-                                        }
+                                        // 没有找到员工顺序，保持原有的orderNumber
                                     }
                                 }
                             }
                         } else {
-                            // 优先使用employeeNumbers数组
-                            const useNumbers = shiftOrder.employeeNumbers && Array.isArray(shiftOrder.employeeNumbers) && shiftOrder.employeeNumbers.length > 0;
-                            const useIds = !useNumbers && shiftOrder.employeeIds && Array.isArray(shiftOrder.employeeIds) && shiftOrder.employeeIds.length > 0;
+                            // 只使用employeeNumbers数组
+                            const hasEmployeeNumbers = shiftOrder.employeeNumbers && Array.isArray(shiftOrder.employeeNumbers) && shiftOrder.employeeNumbers.length > 0;
                             
-                            if (useNumbers) {
+                            if (hasEmployeeNumbers) {
                                 console.log(`获取到排班顺序员工号: ${JSON.stringify(shiftOrder.employeeNumbers)}`);
-                            } else if (useIds) {
-                                console.log(`获取到排班顺序员工ID: ${JSON.stringify(shiftOrder.employeeIds)}`);
                             }
                             
-                            if (useNumbers || useIds) {
+                            if (hasEmployeeNumbers) {
                                 // 规范化员工ID和员工号
                                 const normalizedEmployeeId = normalizeId(employee.id);
                                 const normalizedEmployeeNumber = normalizeId(employee.number);
                                 
-                                // 选择要使用的数组
-                                const orderArray = useNumbers ? shiftOrder.employeeNumbers : shiftOrder.employeeIds;
+                                // 只使用employeeNumbers数组
+                                const orderArray = shiftOrder.employeeNumbers;
                                 
-                                // 尝试使用ID或员工号查找（使用规范化格式）
+                                // 尝试使用规范化格式查找员工号
                                 const index = orderArray.findIndex(id => {
                                     const normalizedId = normalizeId(id);
-                                    return normalizedId === normalizedEmployeeId || normalizedId === normalizedEmployeeNumber;
+                                    return normalizedId === normalizedEmployeeNumber;
                                 });
                                 
                                 if (index !== -1) {
                                     orderNumber = (index + 1).toString();
                                     console.log(`匹配: 员工${employee.name}在${shift.code}班次的顺序是${orderNumber}`);
                                 } else {
-                                    // 尝试通过employeeIdMap查找（使用双重循环确保全面查找）
-                                    let foundIndex = -1;
-                                    for (let l = 0; l < shiftOrder.employeeIds.length; l++) {
-                                        const storedId = shiftOrder.employeeIds[l];
-                                        const storedEmployee = employeeIdMap.get(normalizeId(storedId));
-                                        if (storedEmployee && 
-                                            (normalizeId(storedEmployee.number) === normalizedEmployeeNumber ||
-                                             storedEmployee.id === employee.id || 
-                                             normalizeId(storedEmployee.id) === normalizedEmployeeId)) {
-                                            foundIndex = l;
-                                            break;
-                                        }
-                                    }
-                                    
-                                    if (foundIndex !== -1) {
-                                        orderNumber = (foundIndex + 1).toString();
-                                        console.log(`通过employeeIdMap匹配: 员工${employee.name}在${shift.code}班次的顺序是${orderNumber}`);
-                                    }
+                                    // 没有找到员工顺序，保持原有的orderNumber
                                 }
                             }
                         }

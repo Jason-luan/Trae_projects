@@ -204,7 +204,7 @@ class ShiftManager {
                             if (order.shiftCode === shiftCode) {
                                 // 如果班次被停用，从排班顺序中移除该班次的所有员工
                                 if (status === 1) { // 1表示停用
-                                    order.employeeIds = [];
+                                    order.employeeNumbers = [];
                                     order.updatedAt = new Date();
                                     updatePromises.push(dbManager.save('shiftOrders', order));
                                     console.log(`已清空${order.position}岗位${order.shiftCode}班次的排班顺序，因为该班次已被停用`);

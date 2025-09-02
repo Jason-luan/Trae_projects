@@ -1040,7 +1040,7 @@ async function renderIdentifierTable() {
                 padding: 4px 8px;
                 border-radius: 4px;
                 font-size: 12px;
-                white-space: pre-wrap;
+                white-space: nowrap;
                 z-index: 1000;
                 max-width: 300px;
                 left: 50%;
@@ -1318,8 +1318,8 @@ function addIdentifierEvents() {
                     });
                 }
                 
-                // 关键改进：当取消员工班次标识时，同步删除排班顺序中的员工信息
-                if (!canWork && window.shiftOrderManager) {
+                // 关键改进：当班次标识变化时，同步更新排班顺序中的员工信息
+                if (window.shiftOrderManager) {
                     try {
                         const employee = await window.dbManager.getById('employees', employeeId);
                         if (employee && employee.number) {
@@ -1331,18 +1331,29 @@ function addIdentifierEvents() {
                             const shift = shifts.find(s => s.id === shiftId);
                             
                             if (shift && shift.code) {
-                                // 从排班顺序中删除该员工
-                                await window.shiftOrderManager.removeEmployeeFromShiftOrder(
-                                    employeePosition,
-                                    shift.code,
-                                    employee.number,
-                                    employeeId
-                                );
-                                console.log(`已从${employeePosition}岗位${shift.code}班次的排班顺序中移除员工${employee.number}`);
+                                if (canWork) {
+                                    // 当班次勾选时，将员工添加到排班顺序
+                                    await window.shiftOrderManager.addEmployeeToShiftOrder(
+                                        employeePosition,
+                                        shift.code,
+                                        employee.number,
+                                        employeeId
+                                    );
+                                    console.log(`已将员工${employee.number}添加到${employeePosition}岗位${shift.code}班次的排班顺序中`);
+                                } else {
+                                    // 当取消勾选时，从排班顺序中移除员工
+                                    await window.shiftOrderManager.removeEmployeeFromShiftOrder(
+                                        employeePosition,
+                                        shift.code,
+                                        employee.number,
+                                        employeeId
+                                    );
+                                    console.log(`已从${employeePosition}岗位${shift.code}班次的排班顺序中移除员工${employee.number}`);
+                                }
                             }
                         }
                     } catch (shiftOrderError) {
-                        console.error('从排班顺序中移除员工失败:', shiftOrderError);
+                        console.error('更新排班顺序失败:', shiftOrderError);
                         // 这里不抛出错误，避免影响标识的保存
                     }
                 }

@@ -164,7 +164,8 @@ class IndexedDBManager {
                     // 创建索引
                     shiftOrderStore.createIndex('position', 'position', { unique: false });
                     shiftOrderStore.createIndex('shiftCode', 'shiftCode', { unique: false });
-                    shiftOrderStore.createIndex('employeeIds', 'employeeIds', { unique: false, multiEntry: true });
+                    shiftOrderStore.createIndex('employeeNumbers', 'employeeNumbers', { unique: false, multiEntry: true });
+                    shiftOrderStore.createIndex('departmentName', 'departmentName', { unique: false });
                     shiftOrderStore.createIndex('date', 'date', { unique: false });
                     shiftOrderStore.createIndex('createdAt', 'createdAt', { unique: false });
                     shiftOrderStore.createIndex('updatedAt', 'updatedAt', { unique: false });
@@ -452,54 +453,49 @@ class IndexedDBManager {
                         shiftId: undefined
                     }));
                 } else if (storeName === 'shiftOrders') {
-                    // 导出排班顺序数据时，将员工ID转换为员工号
+                    // 导出排班顺序数据，直接使用employeeNumbers和departmentName
                     const shiftOrders = await this.getAll(storeName);
-                    const employees = await this.getAll('employees');
                     
-                    // 创建员工ID到员工号的映射
-                    const employeeIdToNumberMap = {};
-                    // 创建员工号到部门名称的映射
-                    const employeeNumberToDepartmentMap = {};
-                    
-                    employees.forEach(emp => {
-                        employeeIdToNumberMap[emp.id] = emp.number;
-                        if (emp.number && emp.deptName) {
-                            employeeNumberToDepartmentMap[emp.number] = emp.deptName;
-                        }
-                    });
-                    
-                    // 转换排班顺序数据，使用employeeNumbers字段，不保留employeeIds，并添加部门名称
-                    exportData[storeName] = shiftOrders.map(order => {
-                        // 优先使用employeeNumbers字段，并确保只包含有效的员工号
-                        let employeeNumbers = [];
-                        if (order.employeeNumbers && Array.isArray(order.employeeNumbers) && order.employeeNumbers.length > 0) {
-                            // 过滤掉非员工号的数字ID
-                            employeeNumbers = order.employeeNumbers.filter(num => !(/^\d+$/.test(num) && (parseInt(num) < 10000 || employeeIdToNumberMap[parseInt(num)] === undefined)));
-                        } else if (order.employeeIds && Array.isArray(order.employeeIds)) {
-                            // 只保留有对应员工号的ID
-                            employeeNumbers = order.employeeIds
-                                .map(id => employeeIdToNumberMap[id])
-                                .filter(num => num !== undefined);
-                        }
-                        
-                        // 查找部门名称（如果没有专门的部门名称字段，根据员工的部门信息推断）
-                        // 对于排班顺序，我们取第一个员工的部门名称作为排班的部门名称
-                        let departmentName = '';
-                        if (employeeNumbers.length > 0) {
-                            departmentName = employeeNumberToDepartmentMap[employeeNumbers[0]] || '';
-                        }
-                        
-                        return {
-                            ...order,
-                            employeeNumbers: employeeNumbers,
-                            // 添加部门名称字段
-                            departmentName: departmentName,
-                            // 删除employeeIds字段，避免导出重复数据
-                            employeeIds: undefined,
-                            // 删除id字段，避免在导入时产生冲突
-                            id: undefined
-                        };
-                    });
+                    // 转换排班顺序数据，只导出有排序的数据（employeeNumbers数组不为空）
+                    exportData[storeName] = shiftOrders
+                        .filter(order => {
+                            // 只处理包含shiftCode的新版排班顺序数据
+                            return order.shiftCode && typeof order.shiftCode === 'string' && order.shiftCode.trim() !== '';
+                        })
+                        .map(order => {
+                            // 确保position字段始终保留，避免数据丢失
+                            if (!order.position || typeof order.position !== 'string' || order.position.trim() === '') {
+                                console.warn('排班顺序记录缺少有效的position字段:', order);
+                            }
+                            
+                            // 优先使用employeeNumbers字段，并确保只包含有效的员工号
+                            let employeeNumbers = [];
+                            if (order.employeeNumbers && Array.isArray(order.employeeNumbers) && order.employeeNumbers.length > 0) {
+                                // 清理员工号数组，只保留有效的非空字符串
+                                employeeNumbers = order.employeeNumbers
+                                    .filter(num => num && typeof num === 'string' && num.trim() !== '')
+                                    .map(num => num.trim());
+                            }
+                            
+                            // 获取部门名称，直接使用order.departmentName
+                            let departmentName = order.departmentName || '';
+                            
+                            return {
+                                ...order,
+                                // 确保position字段存在
+                                position: order.position || '',
+                                // 确保employeeNumbers是有效的数组
+                                employeeNumbers: employeeNumbers,
+                                // 直接使用存储的部门名称
+                                departmentName: departmentName,
+                                // 删除不需要的字段
+                                employeeIds: undefined,
+                                id: undefined
+                            };
+                        }).filter(order => {
+                            // 只导出有排序的数据（即employeeNumbers数组不为空）
+                            return order.employeeNumbers && order.employeeNumbers.length > 0;
+                        });
                 } else {
                     exportData[storeName] = await this.getAll(storeName);
                 }
@@ -634,26 +630,17 @@ class IndexedDBManager {
                             updatedAt: new Date(item.updatedAt || new Date())
                         };
                         
-                        // 如果有employeeNumbers字段，同时更新employeeIds字段
-                        if (item.employeeNumbers && Array.isArray(item.employeeNumbers) && item.employeeNumbers.length > 0) {
+                        // 直接使用employeeNumbers字段
+                        if (item.employeeNumbers && Array.isArray(item.employeeNumbers)) {
                             // 保留employeeNumbers字段
                             processedItem.employeeNumbers = item.employeeNumbers;
-                            
-                            // 同时更新employeeIds字段，以保持兼容性
-                            processedItem.employeeIds = item.employeeNumbers.map(number => {
-                                // 尝试将员工号转换为员工ID
-                                const employeeId = employeeNumberToIdMap[number];
-                                return employeeId || number; // 如果找不到对应的员工ID，保留原始值
-                            });
-                        } else if (!item.employeeIds) {
-                            // 如果没有员工ID数组，设置为空数组
-                            processedItem.employeeIds = [];
-                            // 同时设置employeeNumbers为空数组
-                            processedItem.employeeNumbers = [];
-                        } else if (!processedItem.employeeNumbers) {
-                            // 如果没有employeeNumbers字段但有employeeIds，为了保持一致性，设置employeeNumbers为空数组
+                        } else {
+                            // 如果没有员工号数组，设置为空数组
                             processedItem.employeeNumbers = [];
                         }
+                        
+                        // 移除employeeIds字段，不再使用
+                        processedItem.employeeIds = undefined;
                         
                         return processedItem;
                     });
