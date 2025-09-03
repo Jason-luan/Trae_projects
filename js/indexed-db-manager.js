@@ -27,6 +27,8 @@ class IndexedDBManager {
                     organizationStore.createIndex('code', 'code', { unique: false });
                     organizationStore.createIndex('name', 'name', { unique: false });
                     organizationStore.createIndex('status', 'status', { unique: false });
+                    // 添加deptStatus索引以支持部门状态查询
+                    organizationStore.createIndex('deptStatus', 'deptStatus', { unique: false });
                     organizationStore.createIndex('description', 'description', { unique: false });
                     organizationStore.createIndex('remark', 'remark', { unique: false });
                     organizationStore.createIndex('createdAt', 'createdAt', { unique: false });
@@ -62,7 +64,7 @@ class IndexedDBManager {
                     employeeStore.createIndex('number', 'number', { unique: true });
                     employeeStore.createIndex('name', 'name', { unique: false });
                     employeeStore.createIndex('status', 'status', { unique: false });
-                    employeeStore.createIndex('orgId', 'orgId', { unique: false });
+                    employeeStore.createIndex('orgName', 'orgName', { unique: false });
                     employeeStore.createIndex('deptName', 'deptName', { unique: false });
                     employeeStore.createIndex('position', 'position', { unique: false });
                     employeeStore.createIndex('createdAt', 'createdAt', { unique: false });
@@ -70,16 +72,16 @@ class IndexedDBManager {
                     
                     console.log('员工存储空间和索引已创建');
                 } else {
-                    // 如果存储空间已存在，确保orgId索引存在
+                    // 存储空间已存在
                     const transaction = event.target.transaction;
                     employeeStore = transaction.objectStore('employees');
                     
-                    if (!employeeStore.indexNames.contains('orgId')) {
-                        console.log('创建orgId索引...');
-                        employeeStore.createIndex('orgId', 'orgId', { unique: false });
-                        console.log('orgId索引创建成功');
+                    if (!employeeStore.indexNames.contains('orgName')) {
+                        console.log('创建orgName索引...');
+                        employeeStore.createIndex('orgName', 'orgName', { unique: false });
+                        console.log('orgName索引创建成功');
                     } else {
-                        console.log('orgId索引已存在');
+                        console.log('orgName索引已存在');
                     }
                 }
                 
@@ -329,8 +331,8 @@ class IndexedDBManager {
                     console.error(`索引不存在: ${indexName} 在存储空间 ${storeName}`);
                     // 无法在只读事务中创建索引
                     // 提示需要升级数据库版本
-                    if (storeName === 'employees' && indexName === 'orgId') {
-                        console.log('请升级数据库版本以创建缺失的orgId索引');
+                    if (storeName === 'employees' && indexName === 'orgName') {
+                        console.log('请升级数据库版本以创建缺失的orgName索引');
                         // 可以在这里触发数据库升级
                         // this.upgradeDatabase();
                     }
@@ -419,11 +421,15 @@ class IndexedDBManager {
         for (const storeName of storesToExport) {
             if (db.objectStoreNames.contains(storeName)) {
                 if (storeName === 'organizations') {
-                    // 导出organizations数据时过滤掉institutionNumber字段
+                    // 导出organizations数据时过滤掉institutionNumber字段，但确保包含deptStatus字段并设置默认值
                     const organizations = await this.getAll(storeName);
                     exportData[storeName] = organizations.map(org => {
                         const { institutionNumber, ...rest } = org;
-                        return rest;
+                        // 确保deptStatus字段存在，如果不存在则设置为默认值0（启用状态）
+                        return {
+                            ...rest,
+                            deptStatus: rest.deptStatus !== undefined ? rest.deptStatus : 0
+                        };
                     });
                 } else if (storeName === 'identifiers') {
                     // 导出标识数据时，使用员工号和班次code而不是ID
@@ -496,6 +502,18 @@ class IndexedDBManager {
                             // 只导出有排序的数据（即employeeNumbers数组不为空）
                             return order.employeeNumbers && order.employeeNumbers.length > 0;
                         });
+                } else if (storeName === 'employees') {
+                    // 导出员工数据
+                    const employees = await this.getAll(storeName);
+                    exportData[storeName] = employees.map(emp => {
+                        // 创建新对象，保留所有属性
+                        const newEmp = {...emp};
+                        // 确保不包含orgId字段
+                        if (newEmp.orgId !== undefined) {
+                            delete newEmp.orgId;
+                        }
+                        return newEmp;
+                    });
                 } else {
                     exportData[storeName] = await this.getAll(storeName);
                 }
@@ -541,15 +559,27 @@ class IndexedDBManager {
                                 // 确保CODE字段映射到code
                                 code: item.code || '-',
                                 // 确保description字段存在，如果没有则设置为空字符串
-                                description: item.description || ''
+                                description: item.description || '',
+                                // 确保deptStatus字段存在，如果不存在则设置为默认值0（启用状态）
+                                deptStatus: item.deptStatus !== undefined ? item.deptStatus : 0
                             };
                         });
                 } else if (storeName === 'employees') {
-                    processedData = processedData.map(item => ({
-                        ...item,
-                        createdAt: new Date(item.createdAt),
-                        updatedAt: new Date(item.updatedAt)
-                    }));
+                    // 处理员工数据
+                    processedData = processedData.map(item => {
+                        const newItem = {
+                            ...item,
+                            createdAt: new Date(item.createdAt),
+                            updatedAt: new Date(item.updatedAt)
+                        };
+                        
+                        // 确保不包含orgId字段
+                        if (newItem.orgId !== undefined) {
+                            delete newItem.orgId;
+                        }
+                        
+                        return newItem;
+                    });
                 } else if (storeName === 'shifts') {
                     // 处理班次数据，转换日期字段
                     processedData = processedData.map(item => ({

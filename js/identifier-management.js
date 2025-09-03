@@ -118,14 +118,8 @@ class IdentifierManager {
                     console.log('标识被选中，将员工岗位传递给岗位下拉框，员工ID:', identifierData.employeeId);
                     // 使用防抖机制避免短时间内多次触发岗位筛选
                     await this.propagateEmployeePositionToDropdown(identifierData.employeeId, true);
-                } else {
-                    // 如果标识未被选中，从所有员工中加载岗位下拉框以确保显示所有可用岗位
-                    // 但仅在不是批量操作时执行，避免频繁切换
-                    if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function' && !window.isBulkIdentifierOperation) {
-                        console.log('标识未被选中，从所有员工中加载岗位下拉框');
-                        await window.loadPositionsForDepartment('', 'identifier'); // 传入空字符串表示从所有部门加载
-                    }
                 }
+                // 当标识未被选中时，不再重新加载所有岗位，以避免重复加载
             } catch (refreshError) {
                 console.error('刷新岗位下拉框失败:', refreshError);
             }
@@ -299,16 +293,6 @@ class IdentifierManager {
                 
                 console.log(`获取到员工 ${employee.name} 的岗位信息: ${employee.position}`);
                 
-                // 获取当前选中的部门
-                const deptFilter = document.getElementById('identifierDepartmentFilter');
-                const selectedDept = deptFilter && deptFilter.value ? deptFilter.value : '';
-                
-                // 首先刷新岗位下拉框
-                if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
-                    console.log('刷新岗位下拉框，部门:', selectedDept);
-                    await window.loadPositionsForDepartment(selectedDept, 'identifier');
-                }
-                
                 // 将员工岗位设置到岗位下拉框（仅当当前不是全部岗位时）
                 const positionFilter = document.getElementById('identifierPositionFilter');
                 if (positionFilter) {
@@ -323,7 +307,7 @@ class IdentifierManager {
                         const oldValue = positionFilter.value;
                         positionFilter.value = employee.position;
                         console.log(`已将岗位下拉框设置为: ${employee.position}`);
-                         
+                        
                         // 只有当值真正改变时且不在恢复滚动位置时才触发change事件
                         if (typeof Event !== 'undefined' && oldValue !== employee.position) {
                             if (window.isRestoringScrollPosition) {
@@ -376,16 +360,6 @@ class IdentifierManager {
                             
                             console.log(`获取到员工 ${employee.name} 的岗位信息: ${employee.position}`);
                             
-                            // 获取当前选中的部门
-                            const deptFilter = document.getElementById('identifierDepartmentFilter');
-                            const selectedDept = deptFilter && deptFilter.value ? deptFilter.value : '';
-                            
-                            // 首先刷新岗位下拉框
-                            if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
-                                console.log('刷新岗位下拉框，部门:', selectedDept);
-                                await window.loadPositionsForDepartment(selectedDept, 'identifier');
-                            }
-                            
                             // 将员工岗位设置到岗位下拉框（仅当当前不是全部岗位时）
                             const positionFilter = document.getElementById('identifierPositionFilter');
                             if (positionFilter) {
@@ -415,11 +389,7 @@ class IdentifierManager {
                                     console.log(`当前是全部岗位，保持不变，不自动设置为: ${employee.position}`);
                                 } else {
                                     console.warn(`岗位下拉框中未找到岗位: ${employee.position}`);
-                                    // 如果未找到对应的岗位选项，尝试重新从所有员工中加载岗位列表
-                                    if (window.loadPositionsForDepartment && typeof window.loadPositionsForDepartment === 'function') {
-                                        console.log('重新从所有员工中加载岗位列表');
-                                        await window.loadPositionsForDepartment('', 'identifier'); // 传入空字符串表示从所有部门加载
-                                    }
+                                    // 不再重新加载岗位列表，因为会导致重复加载
                                     // 再次尝试设置岗位 - 优化为只在非批量操作时执行
                                     if (!window.isBulkIdentifierOperation) {
                                         setTimeout(() => {
@@ -805,9 +775,17 @@ async function loadIdentifierData() {
             const matchesNumberFilter = empNumberFilter ? 
                 empNumberStr.toLowerCase().includes(empNumberFilter) : true;
             
-            // 检查部门是否匹配筛选条件
+            // 检查部门是否匹配筛选条件 - 仅使用部门名称进行匹配，不使用机构ID
             const matchesDeptFilter = deptFilter ? 
-                (emp.deptName && emp.deptName === deptFilter) : true;
+                (() => {
+                    if (!emp.deptName) return false;
+                    
+                    // 仅使用部门名称进行匹配（不区分大小写）
+                    const empDeptName = emp.deptName.toString().trim().toLowerCase();
+                    const targetDeptName = deptFilter.toString().trim().toLowerCase();
+                    
+                    return empDeptName === targetDeptName;
+                })() : true;
             
             // 检查岗位是否匹配筛选条件
             const matchesPositionFilter = positionFilter ? 
@@ -873,20 +851,9 @@ async function renderIdentifierTable() {
         
         tableHtml += `</tr></thead><tbody>`;
         
-        // 首先获取所有机构名称，避免在循环中多次调用异步函数
-        const orgNames = new Map();
-        try {
-            const organizations = await window.dbManager.getAll('organizations');
-            organizations.forEach(org => {
-                orgNames.set(org.id, org.name);
-            });
-        } catch (error) {
-            console.error('预加载机构名称失败:', error);
-        }
-        
         // 添加员工行
             allEmployees.forEach((employee, empIndex) => {
-                const orgName = orgNames.get(employee.orgId) || `机构${employee.orgId}`;
+                const orgName = employee.orgName || '未知机构';
                 
                 // 使用div背景色
                 const rowBgColor = 'background-color: var(--card-bg);';
@@ -1470,41 +1437,7 @@ function addIdentifierEvents() {
     });
 }
 
-// 根据机构ID获取机构名称（已在renderIdentifierTable中优化处理）
-async function getOrganizationNameById(orgId) {
-    try {
-        // 如果是字符串类型的orgId，转换为数字
-        const id = typeof orgId === 'string' ? parseInt(orgId) : orgId;
-        
-        // 检查全局机构数据是否存在
-        if (window.allOrganizations && window.allOrganizations.length > 0) {
-            const organization = window.allOrganizations.find(org => org.id === id);
-            if (organization) {
-                return organization.name;
-            }
-        }
-        
-        // 如果没有全局数据，直接从数据库获取
-        const organization = await window.dbManager.getById('organizations', id);
-        if (organization) {
-            return organization.name;
-        }
-        
-        // 获取所有机构数据并缓存
-        const organizations = await window.dbManager.getAll('organizations');
-        window.allOrganizations = organizations;
-        
-        const cachedOrg = organizations.find(org => org.id === id);
-        if (cachedOrg) {
-            return cachedOrg.name;
-        }
-        
-        return `机构${id}`;
-    } catch (error) {
-        console.error('获取机构名称失败:', error);
-        return `机构${orgId}`;
-    }
-}
+// 不再需要通过orgId获取机构名称的函数，员工数据中直接存储orgName
 
 // 关闭导入标识模态框
 window.closeImportIdentifierModal = function() {
@@ -1594,7 +1527,7 @@ window.downloadIdentifierTemplate = async function() {
         
         // 生成模板数据
         activeEmployees.forEach((employee, index) => {
-            const orgName = orgNames.get(employee.orgId) || `机构${employee.orgId}`;
+            const orgName = employee.orgName || '未知机构';
             
             // 创建员工行数据
             const rowData = {
