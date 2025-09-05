@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能排班系统</title>
     <!-- 使用Font Awesome CDN -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/all.min.css">
     <link rel="stylesheet" href="css/institution-styles.css">
     <script src="js/xlsx.full.min.js"></script>
     <script src="js/indexed-db-manager.js"></script>
@@ -595,7 +595,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary">取消</button>
-                    <button type="button" class="btn btn-danger" onclick="window.deleteOrganization()">确认删除</button>
+                    <button type="button" class="btn btn-danger">确认删除</button>
                 </div>
             </div>
         </div>
@@ -811,7 +811,7 @@
                                         padding: 6px 12px;
                                         border: 1px solid rgba(255, 255, 255, 0.2);
                                         border-radius: 4px;
-                                        background: var(--card-bg);
+                                        background: rgba(15, 23, 42, 0.6);
                                         color: var(--text-primary);
                                         outline: none;
                                         transition: border-color 0.3s;
@@ -820,6 +820,8 @@
                                         font-size: 14px;
                                         font-family: inherit;
                                         box-sizing: border-box;
+                                        -webkit-appearance: none;
+                                        -moz-appearance: none;
                                         appearance: none;
                                         cursor: pointer;
                                     ">
@@ -829,7 +831,7 @@
                                         padding: 6px 12px;
                                         border: 1px solid rgba(255, 255, 255, 0.2);
                                         border-radius: 4px;
-                                        background: var(--card-bg);
+                                        background: rgba(15, 23, 42, 0.6);
                                         color: var(--text-primary);
                                         outline: none;
                                         transition: border-color 0.3s;
@@ -838,6 +840,8 @@
                                         font-size: 14px;
                                         font-family: inherit;
                                         box-sizing: border-box;
+                                        -webkit-appearance: none;
+                                        -moz-appearance: none;
                                         appearance: none;
                                         cursor: pointer;
                                     ">
@@ -867,39 +871,43 @@
                                 <p style="font-size: 14px; margin-top: 5px;">设置各岗位人员的排班顺序，新加入人员将自动排在各岗位最后</p>
                                 <div class="form-group" style="margin-bottom: 0; margin-top: 10px; display: flex; gap: 10px; align-items: center;">
                                     <select id="shiftOrderDeptFilter" placeholder="请选择部门" style="
-                                        padding: 6px 12px;
-                                        border: 1px solid rgba(255, 255, 255, 0.2);
-                                        border-radius: 4px;
-                                        background: var(--card-bg);
-                                        color: var(--text-primary);
-                                        outline: none;
-                                        transition: border-color 0.3s;
-                                        width: 200px;
-                                        height: 44px;
-                                        font-size: 14px;
-                                        font-family: inherit;
-                                        box-sizing: border-box;
-                                        appearance: none;
-                                        cursor: pointer;
-                                    ">
+                                            padding: 6px 12px;
+                                            border: 1px solid rgba(255, 255, 255, 0.2);
+                                            border-radius: 4px;
+                                            background: rgba(15, 23, 42, 0.6);
+                                            color: var(--text-primary);
+                                            outline: none;
+                                            transition: border-color 0.3s;
+                                            width: 200px;
+                                            height: 44px;
+                                            font-size: 14px;
+                                            font-family: inherit;
+                                            box-sizing: border-box;
+                                            -webkit-appearance: none;
+                                            -moz-appearance: none;
+                                            appearance: none;
+                                            cursor: pointer;
+                                        ">
                                         <option value="">全部部门</option>
                                     </select>
                                     <select id="shiftOrderPositionFilter" placeholder="请选择岗位" style="
-                                        padding: 6px 12px;
-                                        border: 1px solid rgba(255, 255, 255, 0.2);
-                                        border-radius: 4px;
-                                        background: var(--card-bg);
-                                        color: var(--text-primary);
-                                        outline: none;
-                                        transition: border-color 0.3s;
-                                        width: 200px;
-                                        height: 44px;
-                                        font-size: 14px;
-                                        font-family: inherit;
-                                        box-sizing: border-box;
-                                        appearance: none;
-                                        cursor: pointer;
-                                    ">
+                                            padding: 6px 12px;
+                                            border: 1px solid rgba(255, 255, 255, 0.2);
+                                            border-radius: 4px;
+                                            background: rgba(15, 23, 42, 0.6);
+                                            color: var(--text-primary);
+                                            outline: none;
+                                            transition: border-color 0.3s;
+                                            width: 200px;
+                                            height: 44px;
+                                            font-size: 14px;
+                                            font-family: inherit;
+                                            box-sizing: border-box;
+                                            -webkit-appearance: none;
+                                            -moz-appearance: none;
+                                            appearance: none;
+                                            cursor: pointer;
+                                        ">
                                         <option value="">全部岗位</option>
                                     </select>
                                 </div>
@@ -1132,5 +1140,7 @@
 
 <!-- 员工相关初始化代码已迁移到js/base-settings.js -->
 <script></script>
+<!-- 调试工具 -->
+<script src="js/debug-tools.js"></script>
 </body>
 </html>

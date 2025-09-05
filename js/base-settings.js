@@ -1250,30 +1250,49 @@ function initImportEmployeeEvents() {
         document.getElementById('employeeImportModal').style.display = 'none';
     };
 
-    // 下载模板 - 使用更可靠的JavaScript实现
+    // 下载模板 - 动态生成Excel文件
     document.getElementById('downloadTemplateBtn').addEventListener('click', function(e) {
         e.preventDefault();
         
-        // 调试信息
-        console.log('尝试下载模板文件');
+        console.log('开始动态生成员工导入模板');
         
-        // 创建一个临时链接指向模板文件
-        const link = document.createElement('a');
-        link.href = 'employee_import_template.xlsx'; // 使用相对路径
-        link.download = 'employee_import_template.xlsx';
-        
-        // 添加链接到文档并触发点击
-        document.body.appendChild(link);
-        
-        // 使用setTimeout确保链接被正确添加到DOM
-        setTimeout(function() {
-            link.click();
-            // 等待下载开始后再移除链接
-            setTimeout(function() {
-                document.body.removeChild(link);
-                console.log('下载操作完成');
-            }, 100);
-        }, 0);
+        try {
+            // 定义Excel文件的表头字段（根据导入函数的要求）
+            const headers = ['员工号', '姓名', '所属机构', '所属部门', '岗位'];
+            
+            // 创建工作簿
+            const wb = XLSX.utils.book_new();
+            
+            // 创建工作表数据（包含表头和一行示例数据）
+            const wsData = [
+                headers, // 表头行
+                ['EMP001', '张三', '示例机构', '示例部门', '示例岗位'] // 示例数据行
+            ];
+            
+            // 创建工作表
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            
+            // 设置列宽
+            const colWidths = [
+                {wch: 12}, // 员工号
+                {wch: 10}, // 姓名
+                {wch: 15}, // 所属机构
+                {wch: 15}, // 所属部门
+                {wch: 15} // 岗位
+            ];
+            ws['!cols'] = colWidths;
+            
+            // 将工作表添加到工作簿
+            XLSX.utils.book_append_sheet(wb, ws, '员工信息');
+            
+            // 生成Excel文件并下载
+            XLSX.writeFile(wb, '员工导入模板.xlsx');
+            
+            console.log('员工导入模板生成并下载成功');
+        } catch (error) {
+            console.error('生成模板时出错:', error);
+            showNotification('生成模板失败，请重试', 'error');
+        }
     });
 
     // 导入状态显示函数
@@ -1366,12 +1385,35 @@ function initImportEmployeeEvents() {
                             throw new Error(`第${rowNum}行：员工号"${row['员工号']}"重复，该员工已存在`);
                         }
 
-                        // 查找对应的机构ID
+                        // 获取机构名称和部门名称
                         const orgName = row['所属机构'];
-                        const matchingOrg = organizations.find(org => org.name === orgName);
+                        const deptName = row['所属部门'];
                         
+                        // 检查机构是否存在
+                        const matchingOrg = organizations.find(org => org.name === orgName);
                         if (!matchingOrg) {
                             throw new Error(`第${rowNum}行：机构"${orgName}"不存在`);
+                        }
+                        
+                        // 检查部门是否存在
+                        const matchingDept = organizations.find(org => 
+                            org.name === orgName && 
+                            org.description === deptName &&
+                            (org.deptStatus === undefined || org.deptStatus === 0)
+                        );
+                        
+                        if (!matchingDept) {
+                            // 尝试查找是否存在该部门，即使它被停用了
+                            const deactivatedDept = organizations.find(org => 
+                                org.name === orgName && 
+                                org.description === deptName
+                            );
+                            
+                            if (deactivatedDept && deactivatedDept.deptStatus === 1) {
+                                throw new Error(`第${rowNum}行：部门"${deptName}"已被停用`);
+                            } else {
+                                throw new Error(`第${rowNum}行：机构"${orgName}"下不存在部门"${deptName}"`);
+                            }
                         }
 
                         // 构建员工对象

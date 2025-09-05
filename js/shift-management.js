@@ -66,12 +66,15 @@ class ShiftManager {
                     { code: 'Y8普', name: '早班07:50-16:30', startTime: '07:50', endTime: '16:30', description: '普通早班', status: 0, createdAt: new Date(), updatedAt: new Date() },
                     { code: 'Y8综', name: '早班07:50-16:30(综合)', startTime: '07:50', endTime: '16:30', description: '综合早班', status: 0, createdAt: new Date(), updatedAt: new Date() },
                     { code: 'Y9值', name: '值班08:50-17:30', startTime: '08:50', endTime: '17:30', description: '值班', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'Y9公', name: '公休班08:50-17:30', startTime: '08:50', endTime: '17:30', description: '公休班', status: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'Y9公', name: '对公值班08:50-17:30', startTime: '08:50', endTime: '17:30', description: '对公白班', status: 0, createdAt: new Date(), updatedAt: new Date() },
                     { code: 'Y9普', name: '普通班08:50-17:30', startTime: '08:50', endTime: '17:30', description: '普通班', status: 0, createdAt: new Date(), updatedAt: new Date() },
                     { code: 'Y9综', name: '综合班08:50-17:30', startTime: '08:50', endTime: '17:30', description: '综合班', status: 0, createdAt: new Date(), updatedAt: new Date() },
                     { code: 'G值', name: '周末值班08:50-18:00', startTime: '08:50', endTime: '18:00', description: '周末值班', status: 0, createdAt: new Date(), updatedAt: new Date() },
                     { code: '休', name: '休息日', startTime: '', endTime: '', description: '当天休息', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'C', name: '产假', startTime: '', endTime: '', description: '产假', status: 0, createdAt: new Date(), updatedAt: new Date() }
+                    { code: 'C', name: '产假', startTime: '', endTime: '', description: '产假', status: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'G值-A', name: '周末对公值班A岗08:50-18:00', startTime: '08:50', endTime: '18:00', description: '对公周末G班A岗', status: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'G值-B', name: '周末风险值班B岗08:50-18:00', startTime: '08:50', endTime: '18:00', description: '风险核查岗周末G班B岗', status: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'G值-C', name: '周末对公值班C岗08:50-18:00', startTime: '08:50', endTime: '18:00', description: '对公周末G班C岗', status: 0, createdAt: new Date(), updatedAt: new Date() }
                 ];
 
                 // 批量保存默认班次
