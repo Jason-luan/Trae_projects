@@ -2,7 +2,7 @@
 class IndexedDBManager {
     constructor() {
         this.dbName = 'scheduleSystemDB';
-        this.dbVersion = 7; // 增加版本号以强制升级并创建shiftOrders存储空间
+        this.dbVersion = 9; // 增加版本号以添加排班顺序复合索引
         this.db = null;
         this.initialized = false;
         this.initPromise = this.initDB();
@@ -167,11 +167,23 @@ class IndexedDBManager {
                     shiftOrderStore.createIndex('position', 'position', { unique: false });
                     shiftOrderStore.createIndex('shiftCode', 'shiftCode', { unique: false });
                     shiftOrderStore.createIndex('employeeNumbers', 'employeeNumbers', { unique: false, multiEntry: true });
-                    shiftOrderStore.createIndex('departmentName', 'departmentName', { unique: false });
+                    shiftOrderStore.createIndex('department', 'department', { unique: false });
                     shiftOrderStore.createIndex('date', 'date', { unique: false });
                     shiftOrderStore.createIndex('createdAt', 'createdAt', { unique: false });
                     shiftOrderStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                    // 添加复合唯一索引，确保岗位+班次+部门的组合唯一
+                    shiftOrderStore.createIndex('position_shiftCode_department', ['position', 'shiftCode', 'department'], { unique: true });
                     console.log('排班顺序数据存储空间和索引已创建');
+                } else {
+                    // 如果存储空间已存在，确保复合索引存在
+                    const transaction = event.target.transaction;
+                    const shiftOrderStore = transaction.objectStore('shiftOrders');
+                    
+                    if (!shiftOrderStore.indexNames.contains('position_shiftCode_department')) {
+                        console.log('创建position_shiftCode_department复合唯一索引...');
+                        shiftOrderStore.createIndex('position_shiftCode_department', ['position', 'shiftCode', 'department'], { unique: true });
+                        console.log('position_shiftCode_department复合唯一索引创建成功');
+                    }
                 }
             };
 
@@ -459,7 +471,7 @@ class IndexedDBManager {
                         shiftId: undefined
                     }));
                 } else if (storeName === 'shiftOrders') {
-                    // 导出排班顺序数据，直接使用employeeNumbers和departmentName
+                    // 导出排班顺序数据，直接使用employeeNumbers和department
                     const shiftOrders = await this.getAll(storeName);
                     
                     // 转换排班顺序数据，只导出有排序的数据（employeeNumbers数组不为空）
@@ -483,8 +495,8 @@ class IndexedDBManager {
                                     .map(num => num.trim());
                             }
                             
-                            // 获取部门名称，直接使用order.departmentName
-                            let departmentName = order.departmentName || '';
+                            // 获取部门名称，直接使用order.department
+                            let departmentName = order.department || '';
                             
                             return {
                                 ...order,
@@ -493,7 +505,7 @@ class IndexedDBManager {
                                 // 确保employeeNumbers是有效的数组
                                 employeeNumbers: employeeNumbers,
                                 // 直接使用存储的部门名称
-                                departmentName: departmentName,
+                                department: departmentName,
                                 // 删除不需要的字段
                                 employeeIds: undefined,
                                 id: undefined

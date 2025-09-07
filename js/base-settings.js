@@ -1048,10 +1048,11 @@ window.initTabs = function() {
                 if (shiftOrderPositionFilter) {
                     shiftOrderPositionFilter.innerHTML = '<option value="">全部岗位</option>';
                 }
-                // 不再加载具体岗位数据，只有当用户明确选择部门时才加载
-                // 添加：在筛选框初始化后调用loadShiftOrderData加载数据
+                
+                // 主动调用loadShiftOrderData加载表格数据，确保选项卡切换后数据正确显示
                 if (window.loadShiftOrderData) {
-                    window.loadShiftOrderData();
+                    console.log('主动调用loadShiftOrderData加载排班顺序数据');
+                    await window.loadShiftOrderData();
                 }
             }
         });

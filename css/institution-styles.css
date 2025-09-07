@@ -33,7 +33,7 @@
 
 /* 设置卡片样式 - 科技蓝主题配色（与人员管理一致） */
 .settings-card {
-    background: var(--bg-card);
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 32px;
@@ -340,7 +340,7 @@
     width: 100%;
     border-collapse: collapse;
     margin-top: 20px;
-    background: var(--bg-card);
+    background: var(--card-bg);
     border-radius: 12px;
     overflow: hidden;
     box-shadow: var(--shadow-md);
@@ -487,6 +487,121 @@
     outline: none;
     border-color: var(--primary-500);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* 全局强制覆盖 - 确保所有元素使用深色模式的基础颜色 */
+* {
+    --force-bg: rgba(26, 58, 95, 0.9) !important;
+    --force-text: var(--text-primary) !important;
+}
+
+/* 精简的下拉选项样式 - 确保所有下拉选项使用深色背景 */
+select option, option {
+    background-image: none !important;
+    background-color: var(--force-bg) !important;
+    color: var(--force-text) !important;
+    background-clip: padding-box !important;
+    -webkit-background-clip: padding-box !important;
+    -moz-background-clip: padding-box !important;
+    padding: 8px !important;
+    font-size: 14px !important;
+    border-radius: 6px !important;
+}
+
+/* 模态框内特殊样式 */
+#employeeModal select.filter-select option {
+    background-color: var(--card-bg) !important;
+    padding: 10px;
+}
+
+#employeeModal select.filter-select option:disabled {
+    background-color: rgba(15, 23, 42, 0.4) !important;
+    color: var(--text-muted) !important;
+}
+
+#employeeModal select.filter-select {
+    background-color: rgba(15, 23, 42, 0.6) !important;
+}
+
+/* 精简的下拉框容器样式 */
+select, .filter-select {
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    background-color: var(--force-bg) !important;
+    color: var(--force-text) !important;
+    /* 添加自定义下拉箭头 */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+    background-size: 16px 16px !important;
+}
+
+/* 浏览器兼容性样式 */
+select::-webkit-dropdown-menu,
+.filter-select::-webkit-dropdown-menu,
+select::-webkit-listbox,
+.filter-select::-webkit-listbox,
+select::-ms-expand,
+.filter-select::-ms-expand {
+    background-color: var(--force-bg) !important;
+    color: var(--force-text) !important;
+}
+
+/* Firefox特定样式 */
+select:-moz-focusring,
+.filter-select:-moz-focusring {
+    color: transparent !important;
+    text-shadow: 0 0 0 var(--force-text) !important;
+}
+
+/* 内联样式覆盖 */
+select[style*="background"],
+.filter-select[style*="background"],
+*[style*="background-color"] option,
+*[style*="background:"] option {
+    background: var(--force-bg) !important;
+    color: var(--force-text) !important;
+}
+#employeeModal option,
+#employeeModal select option,
+#employeeModal .filter-select option,
+#employeeModal .form-group select.filter-select option,
+#identifierDeptFilter option,
+#identifierPositionFilter option,
+#shiftOrderDeptFilter option,
+#shiftOrderPositionFilter option,
+.department-filters option,
+.department-filters select option,
+.filters option,
+.filters select option,
+.search-filters option,
+.search-filters select option,
+*[style*="background-color"] option,
+*[style*="background:"] option {
+    background-color: rgba(26, 58, 95, 0.9) !important; /* 直接使用颜色值，不依赖变量 */
+    color: #ffffff !important;
+    background-image: none !important;
+    background-clip: padding-box !important;
+    -webkit-background-clip: padding-box !important;
+    -moz-background-clip: padding-box !important;
+}
+
+/* 为所有下拉选项添加悬停效果 */
+option:hover,
+select option:hover,
+.filter-select option:hover {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+    color: var(--text-primary) !important;
+}
+
+/* 筛选区域禁用选项样式 */
+#identifierDeptFilter option:disabled,
+#identifierPositionFilter option:disabled,
+#shiftOrderDeptFilter option:disabled,
+#shiftOrderPositionFilter option:disabled {
+    background-color: rgba(15, 23, 42, 0.4) !important;
+    color: var(--text-muted) !important;
 }
 
 /* 输入框样式 */
@@ -662,7 +777,7 @@
     gap: 16px;
     margin-bottom: 24px;
     flex-wrap: wrap;
-    background: var(--bg-card);
+    background: var(--card-bg);
     backdrop-filter: blur(20px);
     border: 1px solid var(--border-color);
     border-radius: 12px;
@@ -709,6 +824,14 @@
     transition: all var(--transition-normal);
     backdrop-filter: blur(10px);
     min-height: 44px;
+}
+
+/* 筛选框下拉选项样式 - 加强优先级 */
+.search-filters select.filter-select option {
+    background-color: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+    padding: 8px;
+    font-size: 14px;
 }
 
 .search-filters .filter-select:focus {
@@ -943,7 +1066,7 @@
 
 /* 部门管理样式 - 科技蓝主题 */
 .department-management {
-    background: var(--bg-card);
+    background: var(--card-bg);
     backdrop-filter: blur(20px);
     border: 1px solid var(--border-color);
     border-radius: 16px;
@@ -963,7 +1086,7 @@
     gap: 16px;
     margin-bottom: 24px;
     flex-wrap: wrap;
-    background: var(--bg-card);
+    background: var(--card-bg);
     backdrop-filter: blur(20px);
     border: 1px solid var(--border-color);
     border-radius: 12px;

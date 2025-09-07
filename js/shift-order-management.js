@@ -138,11 +138,14 @@ class ShiftOrderManager {
     }
     
     // 获取指定岗位和班次的排班顺序
-    async getShiftOrderByPositionAndShift(position, shiftCode) {
+    async getShiftOrderByPositionAndShift(position, shiftCode, department = '') {
         try {
-            console.log(`尝试获取排班顺序: position=${position}, shiftCode=${shiftCode}`);
+            console.log(`尝试获取排班顺序: position=${position}, shiftCode=${shiftCode}, department=${department}`);
             
-            let foundOrder = null;
+            // 特殊处理：当选择"全部岗位"时
+            const isAllPositions = position === '' || position === '全部岗位';
+            // 判断是否为"全部部门"
+            const isAllDepartments = !department || department === '' || department === '全部部门' || department === 'all';
             
             // 首先尝试从IndexedDB获取
             try {
@@ -152,12 +155,70 @@ class ShiftOrderManager {
                     const allOrders = await window.dbManager.getAll('shiftOrders');
                     console.log(`获取到所有排班顺序数量: ${allOrders ? allOrders.length : 0}`);
                     
-                    foundOrder = allOrders.find(order => 
-                        order.position === position && order.shiftCode === shiftCode
-                    );
+                    // 优先查找完全匹配的记录（特定部门）
+                    let foundOrder = null;
+                    if (isAllPositions) {
+                        // 当选择"全部岗位"时，查找通用排班顺序（不指定岗位）
+                        foundOrder = allOrders.find(order => {
+                            if (!order) return false;
+                            
+                            // 对部门的匹配逻辑：精确匹配指定部门
+                            const isDepartmentMatch = !isAllDepartments && order.department && order.department === department;
+                            
+                            // 对岗位的匹配逻辑 - 寻找通用岗位记录
+                            const isGeneralPosition = order.position === '' || order.position === '全部岗位';
+                            
+                            // 对班次的匹配逻辑
+                            const isShiftCodeMatch = order.shiftCode === shiftCode;
+                            
+                            return isGeneralPosition && isDepartmentMatch && isShiftCodeMatch;
+                        });
+                    } else {
+                        // 常规查询逻辑
+                        foundOrder = allOrders.find(order => {
+                            // 确保order对象存在
+                            if (!order) return false;
+                                
+                            // 对部门的匹配逻辑：精确匹配指定部门
+                            const isDepartmentMatch = !isAllDepartments && order.department && order.department === department;
+                                
+                            // 对岗位的匹配逻辑
+                            const isPositionMatch = order.position === position;
+                                
+                            // 对班次的匹配逻辑
+                            const isShiftCodeMatch = order.shiftCode === shiftCode;
+                                
+                            return isDepartmentMatch && isPositionMatch && isShiftCodeMatch;
+                        });
+                    }
                     
+                    // 如果找到匹配记录，返回它
                     if (foundOrder) {
                         console.log('从IndexedDB获取排班顺序成功, 原始顺序:', foundOrder.employeeNumbers);
+                        
+                        // 确保返回的是一个新对象，避免修改原始数据
+                        const result = { ...foundOrder };
+                        
+                        // 清理并规范化员工号数组
+                        const cleanedNumbers = [];
+                        if (result.employeeNumbers && Array.isArray(result.employeeNumbers)) {
+                            for (const num of result.employeeNumbers) {
+                                // 处理null、undefined、空字符串
+                                if (!num) continue;
+                                
+                                // 使用normalizeId函数进行规范化处理，确保与查询时的规范化逻辑一致
+                                const normalizedNum = this.normalizeId(String(num).trim());
+                                
+                                // 只添加非空的员工号
+                                if (normalizedNum) {
+                                    cleanedNumbers.push(normalizedNum);
+                                }
+                            }
+                        }
+                        result.employeeNumbers = cleanedNumbers;
+                        
+                        console.log('规范化后员工号列表:', result.employeeNumbers);
+                        return result;
                     }
                 }
             } catch (dbError) {
@@ -165,44 +226,112 @@ class ShiftOrderManager {
             }
             
             // 如果IndexedDB没有找到，从内存存储中获取
-            if (!foundOrder && this.memoryStore) {
-                foundOrder = this.memoryStore.find(order => 
-                    order.position === position && order.shiftCode === shiftCode
-                );
+            if (this.memoryStore) {
+                let foundOrder = null;
+                
+                if (isAllPositions) {
+                    // 当选择"全部岗位"时，查找通用排班顺序（不指定岗位）
+                    foundOrder = this.memoryStore.find(order => {
+                        // 对部门的匹配逻辑：精确匹配指定部门
+                        const isDepartmentMatch = !isAllDepartments && order.department && order.department === department;
+                        
+                        // 对岗位的匹配逻辑 - 寻找通用岗位记录
+                        const isGeneralPosition = order.position === '' || order.position === '全部岗位';
+                        
+                        // 对班次的匹配逻辑
+                        const isShiftCodeMatch = order.shiftCode === shiftCode;
+                        
+                        return isGeneralPosition && isDepartmentMatch && isShiftCodeMatch;
+                    });
+                } else {
+                    // 常规内存查找逻辑
+                    foundOrder = this.memoryStore.find(order => {
+                        // 对部门的匹配逻辑：精确匹配指定部门
+                        const isDepartmentMatch = !isAllDepartments && order.department && order.department === department;
+                        
+                        // 匹配岗位和班次
+                        return order.position === position && order.shiftCode === shiftCode && isDepartmentMatch;
+                    });
+                }
                 
                 if (foundOrder) {
                     console.log('从内存获取排班顺序成功, 原始顺序:', foundOrder.employeeNumbers);
+                    
+                    // 确保返回的是一个新对象，避免修改原始数据
+                    const result = { ...foundOrder };
+                    
+                    // 清理并规范化员工号数组
+                    const cleanedNumbers = [];
+                    if (result.employeeNumbers && Array.isArray(result.employeeNumbers)) {
+                        for (const num of result.employeeNumbers) {
+                            // 处理null、undefined、空字符串
+                            if (!num) continue;
+                            
+                            // 使用normalizeId函数进行规范化处理，确保与查询时的规范化逻辑一致
+                            const normalizedNum = this.normalizeId(String(num).trim());
+                            
+                            // 只添加非空的员工号
+                            if (normalizedNum) {
+                                cleanedNumbers.push(normalizedNum);
+                            }
+                        }
+                    }
+                    result.employeeNumbers = cleanedNumbers;
+                    
+                    console.log('规范化后员工号列表:', result.employeeNumbers);
+                    return result;
                 }
             }
             
-            if (foundOrder) {
-                // 确保返回的是一个新对象，避免修改原始数据
-                const result = { ...foundOrder };
-                
-                // 清理并规范化员工号数组
-                const cleanedNumbers = [];
-                if (result.employeeNumbers && Array.isArray(result.employeeNumbers)) {
-                    for (const num of result.employeeNumbers) {
-                        // 处理null、undefined、空字符串
-                        if (!num) continue;
+            // 当选择"全部部门"时，如果没有找到特定部门的排班顺序，
+            // 尝试查找数据库中该岗位下的所有排班顺序记录
+            if (isAllDepartments) {
+                try {
+                    const exists = await window.dbManager.checkObjectStoreExists('shiftOrders');
+                    if (exists) {
+                        const allOrders = await window.dbManager.getAll('shiftOrders');
                         
-                        // 统一转换为字符串类型，确保类型一致性
-                        const normalizedNum = String(num).trim();
+                        // 查找所有匹配该岗位和班次的记录
+                        const matchingOrders = allOrders.filter(order => {
+                            if (!order) return false;
+                            
+                            // 对岗位的匹配逻辑
+                            const isPositionMatch = order.position === position;
+                            
+                            // 对班次的匹配逻辑
+                            const isShiftCodeMatch = order.shiftCode === shiftCode;
+                            
+                            return isPositionMatch && isShiftCodeMatch;
+                        });
                         
-                        // 只添加非空的员工号
-                        if (normalizedNum) {
-                            cleanedNumbers.push(normalizedNum);
+                        if (matchingOrders.length > 0) {
+                            console.log(`找到${matchingOrders.length}条匹配的排班顺序记录，属于不同部门`);
+                            
+                            // 创建一个包含所有部门信息的特殊对象
+                            // 注意：这里不合并员工号，而是保留各部门的独立性
+                            // 具体渲染时应该分别处理各部门的排班顺序
+                            const allDepartmentsOrder = {
+                                position: position,
+                                shiftCode: shiftCode,
+                                department: '全部部门',
+                                employeeNumbers: [], // 空数组，让渲染逻辑自行处理各部门
+                                excludeAllEmployees: false,
+                                updatedAt: new Date(),
+                                isShiftBased: true,
+                                hasMultipleDepartments: true,
+                                departmentOrders: matchingOrders // 保存各个部门的原始排班顺序记录
+                            };
+                            
+                            return allDepartmentsOrder;
                         }
                     }
+                } catch (error) {
+                    console.warn('获取全部部门排班顺序失败:', error);
                 }
-                result.employeeNumbers = cleanedNumbers;
-                
-                console.log('规范化后员工号列表:', result.employeeNumbers);
-                return result;
-            } else {
-                console.log(`未找到排班顺序: position=${position}, shiftCode=${shiftCode}`);
-                return null;
             }
+            
+            console.log(`未找到排班顺序: position=${position}, shiftCode=${shiftCode}`);
+            return null;
         } catch (error) {
             console.error('获取排班顺序失败: ' + error);
             return null;
@@ -214,10 +343,10 @@ class ShiftOrderManager {
 
 
     // 保存指定岗位和班次的排班顺序
-    async saveShiftOrderByShift(position, shiftCode, employeeNumbers, excludeAllEmployees = false) {
+    async saveShiftOrderByShift(position, shiftCode, employeeNumbers, excludeAllEmployees = false, department = '') {
         try {
             console.log('3. 调用 ShiftOrderManager.saveShiftOrderByShift() 方法保存数据');
-            console.log('   - 原始保存数据:', {position, shiftCode, employeeNumbers, excludeAllEmployees});
+            console.log('   - 原始保存数据:', {position, shiftCode, employeeNumbers, excludeAllEmployees, department});
             
             // 确保position和shiftCode都有值
             if (!position || !shiftCode) {
@@ -235,42 +364,99 @@ class ShiftOrderManager {
                 isShiftBased: true
             };
             
-            console.log('4. 准备保存到数据库的数据对象:');
-            console.log('   - 完整数据:', JSON.stringify(data, null, 2));
+            // 处理部门参数，正确识别"全部部门"情况
+            if (!department || department === '' || department === '全部部门' || department === 'all') {
+                data.department = '全部部门';
+                console.log('部门选择为"全部部门"，设置为全部部门');
+            } else {
+                data.department = department;
+                console.log(`使用传入的部门信息: ${department}`);
+            }
             
-            // 获取部门信息：通过岗位名称查找对应的部门
-            if (window.dbManager && typeof window.dbManager.getAll === 'function') {
-                try {
-                    const employees = await window.dbManager.getAll('employees');
-                    // 查找第一个拥有该岗位的员工，获取其部门名称
-                    const employeeWithPosition = employees.find(emp => emp.position === position);
-                    if (employeeWithPosition && employeeWithPosition.deptName) {
-                        data.departmentName = employeeWithPosition.deptName;
-                        console.log(`已获取到岗位[${position}]的部门信息: ${data.departmentName}`);
-                    } else {
-                        console.log(`未找到岗位[${position}]对应的部门信息`);
+            // 处理特殊情况：当选择"全部岗位"时，尝试从其他来源获取部门信息
+            if (position === '' || position === '全部岗位') {
+                // 尝试从localStorage获取当前选中的部门
+                const storedDepartment = localStorage.getItem('selectedDept') || '';
+                if (storedDepartment && storedDepartment !== '') {
+                    data.department = storedDepartment;
+                    console.log(`已从localStorage获取部门信息: ${data.department}`);
+                } else {
+                    // 如果未找到部门信息，明确设置为'全部部门'表示不限制部门
+                    data.department = '全部部门';
+                    console.log('未找到特定部门信息，设置为全部部门');
+                }
+            } else {
+                // 常规情况：优先使用传入的部门信息，只有在没有传入时才通过岗位名称查找部门
+                if (!department || department === '' || department === '全部部门' || department === 'all') {
+                    // 如果没有传入有效的部门信息，才尝试通过岗位名称查找对应的部门
+                    if (window.dbManager && typeof window.dbManager.getAll === 'function') {
+                        try {
+                            const employees = await window.dbManager.getAll('employees');
+                            // 查找第一个拥有该岗位的员工，获取其部门名称
+                            const employeeWithPosition = employees.find(emp => emp.position === position);
+                            if (employeeWithPosition && employeeWithPosition.deptName) {
+                                data.department = employeeWithPosition.deptName;
+                                console.log(`已获取到岗位[${position}]的部门信息: ${data.department}`);
+                            } else {
+                                console.log(`未找到岗位[${position}]对应的部门信息`);
+                            }
+                        } catch (error) {
+                            console.error('获取部门信息失败:', error);
+                        }
                     }
-                } catch (error) {
-                    console.error('获取部门信息失败:', error);
+                } else {
+                    // 使用传入的部门信息
+                    data.department = department;
+                    console.log(`使用传入的部门信息: ${department}`);
                 }
             }
             
+            console.log('4. 准备保存到数据库的数据对象:');
+            console.log('   - 完整数据:', JSON.stringify(data, null, 2));
+            
 
+            
+            // 确保数据完整性，特别是department字段
+            if (!data.department || data.department === '') {
+                data.department = '全部部门';
+                console.log('确保department字段不为空，设置为全部部门');
+            }
             
             // 首选：尝试使用全局dbManager保存
             try {
                 if (window.dbManager && typeof window.dbManager.save === 'function') {
-                    // 先查找是否已存在相同岗位和班次的记录
-                    console.log('5. 检查是否存在相同岗位和班次的记录');
-                    const allOrders = await window.dbManager.getAll('shiftOrders');
-                    const existingOrder = allOrders.find(order => 
-                        order.position === position && order.shiftCode === shiftCode
-                    );
+                    // 检查是否存在相同岗位、班次和部门的记录
+                    console.log('5. 检查是否存在相同岗位、班次和部门的记录');
                     
-                    if (existingOrder) {
-                        console.log('   - 找到现有记录，使用ID:', existingOrder.id);
-                        data.id = existingOrder.id;
-                    } else {
+                    // 使用复合索引查找现有记录
+                    let existingOrder = null;
+                    try {
+                        // 尝试使用position_shiftCode_department复合索引查找
+                        const matchingOrders = await window.dbManager.getByIndex('shiftOrders', 'position_shiftCode_department', [position, shiftCode, data.department]);
+                        if (matchingOrders && matchingOrders.length > 0) {
+                            existingOrder = matchingOrders[0];
+                            console.log('   - 通过复合索引找到现有记录，使用ID:', existingOrder.id);
+                            data.id = existingOrder.id;
+                        } else {
+                            console.log('   - 通过复合索引未找到现有记录');
+                        }
+                    } catch (indexError) {
+                        console.warn('使用复合索引查找失败，尝试备选方案:', indexError);
+                        // 如果复合索引不存在或查询失败，回退到原来的方式
+                        const allOrders = await window.dbManager.getAll('shiftOrders');
+                        const foundOrder = allOrders.find(order => {
+                            return order.position === position && 
+                                   order.shiftCode === shiftCode && 
+                                   order.department === data.department;
+                        });
+                        if (foundOrder) {
+                            existingOrder = foundOrder;
+                            console.log('   - 通过备用方式找到现有记录，使用ID:', existingOrder.id);
+                            data.id = existingOrder.id;
+                        }
+                    }
+                    
+                    if (!existingOrder) {
                         console.log('   - 未找到现有记录，将创建新记录');
                     }
                     
@@ -335,8 +521,8 @@ class ShiftOrderManager {
                 // 处理null、undefined、空字符串
                 if (!number) continue;
                 
-                // 统一转换为字符串类型，确保类型一致性
-                const normalizedNumber = String(number).trim();
+                // 使用normalizeId函数进行规范化处理，确保与查询时的规范化逻辑一致
+                const normalizedNumber = this.normalizeId(String(number).trim());
                 
                 // 只添加非空的员工号
                 if (normalizedNumber) {
@@ -353,12 +539,24 @@ class ShiftOrderManager {
         
 
         
-        // 查找是否已存在相同岗位和班次的记录
+        // 查找是否已存在相同岗位、班次和部门的记录
         var existingIndex = -1;
         for (var i = 0; i < this.memoryStore.length; i++) {
-            if (this.memoryStore[i].position === dataToSave.position && this.memoryStore[i].shiftCode === dataToSave.shiftCode) {
-                existingIndex = i;
-                break;
+            const record = this.memoryStore[i];
+            // 如果提供了部门参数，需要同时匹配部门、岗位和班次
+            if (dataToSave.department && dataToSave.department !== '') {
+                if (record.position === dataToSave.position && 
+                    record.shiftCode === dataToSave.shiftCode && 
+                    record.department === dataToSave.department) {
+                    existingIndex = i;
+                    break;
+                }
+            } else {
+                // 否则只匹配岗位和班次（保持向后兼容）
+                if (record.position === dataToSave.position && record.shiftCode === dataToSave.shiftCode) {
+                    existingIndex = i;
+                    break;
+                }
             }
         }
         
@@ -446,13 +644,15 @@ class ShiftOrderManager {
             // 如果有内存存储，将其与IndexedDB结果合并
             let allResults = [];
             if (this.memoryStore) {
-                // 创建一个合并结果的Map，使用position和shiftCode作为唯一键
+                // 创建一个合并结果的Map，使用position、shiftCode和department作为唯一键
                 const mergedResultsMap = new Map();
                 
                 // 先添加IndexedDB的结果
                 for (const order of dbResults) {
                     if (order.position && order.shiftCode) {
-                        const key = `${order.position}_${order.shiftCode}`;
+                        // 使用岗位+班次+部门作为唯一键，确保不同部门的数据不互相覆盖
+                        const department = order.department || '全部部门';
+                        const key = `${order.position}_${order.shiftCode}_${department}`;
                         mergedResultsMap.set(key, order);
                     }
                 }
@@ -460,7 +660,9 @@ class ShiftOrderManager {
                 // 再添加内存存储的结果，覆盖相同键的记录（优先使用更新的数据）
                 for (const order of this.memoryStore) {
                     if (order.position && order.shiftCode) {
-                        const key = `${order.position}_${order.shiftCode}`;
+                        // 使用岗位+班次+部门作为唯一键，确保不同部门的数据不互相覆盖
+                        const department = order.department || '全部部门';
+                        const key = `${order.position}_${order.shiftCode}_${department}`;
                         mergedResultsMap.set(key, order);
                     }
                 }
@@ -885,8 +1087,8 @@ class ShiftOrderManager {
     
     // 支持两种调用方式：
     // 1. removeEmployeeFromShiftOrder(employeeNumber) - 从所有班次中移除员工
-    // 2. removeEmployeeFromShiftOrder(position, shiftCode, employeeNumber, employeeId) - 从特定岗位和班次中移除员工
-    async removeEmployeeFromShiftOrder(position, shiftCode, employeeNumber, employeeId) {
+    // 2. removeEmployeeFromShiftOrder(position, shiftCode, employeeNumber, employeeId, department) - 从特定岗位、班次和部门中移除员工
+    async removeEmployeeFromShiftOrder(position, shiftCode, employeeNumber, employeeId, department) {
         try {
             // 检查是否是单参数调用（从所有班次中移除员工）
             if (arguments.length === 1 && typeof position === 'string') {
@@ -972,32 +1174,44 @@ class ShiftOrderManager {
                 return;
             }
             
-            // 以下是原始的从特定岗位和班次中移除员工的逻辑
-            console.log(`开始从${position}岗位${shiftCode}班次的排班顺序中移除员工，员工号:${employeeNumber}`);
+            // 优化后的从特定岗位、班次和部门中移除员工的逻辑
+            console.log(`开始从${department ? department + '部门' : ''}${position}岗位${shiftCode}班次的排班顺序中移除员工，员工号:${employeeNumber}`);
             
             // 第一步：根据岗位和班次代码查找排班顺序
             const shiftOrders = await window.dbManager.getAll('shiftOrders');
             
-            // 查找匹配的排班顺序：岗位匹配，班次代码匹配（如果提供了班次代码）
+            // 查找匹配的排班顺序：部门匹配（如果提供了部门），岗位匹配，班次代码匹配（如果提供了班次代码）
             let matchingShiftOrders = [];
             
             if (shiftCode) {
-                matchingShiftOrders = shiftOrders.filter(order => 
-                    order.position === position && order.shiftCode === shiftCode
-                );
+                if (department) {
+                    matchingShiftOrders = shiftOrders.filter(order => 
+                        order.department === department && order.position === position && order.shiftCode === shiftCode
+                    );
+                } else {
+                    matchingShiftOrders = shiftOrders.filter(order => 
+                        order.position === position && order.shiftCode === shiftCode
+                    );
+                }
             } else {
                 // 兼容没有班次代码的情况
-                matchingShiftOrders = shiftOrders.filter(order => 
-                    order.position === position && !order.shiftCode
-                );
+                if (department) {
+                    matchingShiftOrders = shiftOrders.filter(order => 
+                        order.department === department && order.position === position && !order.shiftCode
+                    );
+                } else {
+                    matchingShiftOrders = shiftOrders.filter(order => 
+                        order.position === position && !order.shiftCode
+                    );
+                }
             }
             
             if (matchingShiftOrders.length === 0) {
-                console.log(`未找到${position}岗位${shiftCode}班次的排班顺序`);
+                console.log(`未找到${department ? department + '部门' : ''}${position}岗位${shiftCode}班次的排班顺序`);
                 return;
             }
             
-            console.log(`找到${matchingShiftOrders.length}个匹配的排班顺序`);
+            console.log(`找到${matchingShiftOrders.length}个匹配的排班顺序${department ? `(${department}部门)` : ''}`);
             
             // 第二步：从排班顺序中移除员工
             const updatePromises = [];
@@ -1072,7 +1286,7 @@ class ShiftOrderManager {
                 console.error('刷新排班表显示时出错:', refreshError);
             }
             
-            console.log(`从${position}岗位${shiftCode}班次的排班顺序中移除员工完成`);
+            console.log(`从${department ? department + '部门' : ''}${position}岗位${shiftCode}班次的排班顺序中移除员工完成`);
         } catch (error) {
             console.error('从排班顺序中移除员工失败:', error);
             throw error;
@@ -1210,6 +1424,58 @@ class ShiftOrderManager {
         } catch (error) {
             console.error('删除部门时更新排班顺序出错:', error);
         }
+    }
+    
+    // 清空所有排班顺序数据
+    async clearAllShiftOrders() {
+        try {
+            console.log('开始清空所有排班顺序数据');
+            
+            // 检查存储空间是否存在
+            const exists = await window.dbManager.checkObjectStoreExists('shiftOrders');
+            if (!exists) {
+                console.log('排班顺序存储空间不存在，无需清空');
+                return;
+            }
+            
+            // 删除所有排班顺序记录
+            const allShiftOrders = await window.dbManager.getAll('shiftOrders');
+            
+            if (allShiftOrders && allShiftOrders.length > 0) {
+                console.log(`找到${allShiftOrders.length}条排班顺序记录，准备清空`);
+                
+                // 批量删除
+                const deletePromises = allShiftOrders.map(order => 
+                    window.dbManager.delete('shiftOrders', order.id)
+                );
+                
+                await Promise.all(deletePromises);
+                console.log('所有排班顺序记录已成功清空');
+            } else {
+                console.log('没有找到排班顺序记录，无需清空');
+            }
+            
+            // 清理缓存
+            this.clearCache();
+            
+            // 清空内存存储（如果使用）
+            if (this.memoryStore) {
+                this.memoryStore = [];
+            }
+            
+            console.log('排班顺序数据清空完成');
+        } catch (error) {
+            console.error('清空排班顺序数据失败:', error);
+            throw error;
+        }
+    }
+    
+    // 清理缓存
+    clearCache() {
+        this.cache = {};
+        this.shiftOrdersCache = {};
+        this.employeeCache = {};
+        console.log('排班顺序管理器缓存已清理');
     }
     
     // 当岗位被删除时更新排班顺序
@@ -1843,6 +2109,15 @@ async function loadAllShiftOrders() {
 
 // 根据筛选条件加载排班顺序数据
 window.loadShiftOrderData = async function() {
+    // 检查是否需要跳过此次加载（仅用于初始化阶段防止重复加载）
+    if (window.skipNextShiftOrderLoad) {
+        console.log('[跳过] 开始加载排班顺序数据（初始化阶段，已标记跳过）');
+        // 仍执行数据加载但不重复输出日志
+        // window.skipNextShiftOrderLoad = false; // 不移除标志，让300ms后自动清除
+    } else {
+        console.log('[Log] 开始加载排班顺序数据');
+    }
+    
     // 创建规范化ID的函数
     const normalizeId = (id) => {
         if (id === null || id === undefined) return '';
@@ -1856,8 +2131,9 @@ window.loadShiftOrderData = async function() {
         const deptFilter = document.getElementById('shiftOrderDeptFilter');
         const positionFilter = document.getElementById('shiftOrderPositionFilter');
         
-        const selectedDept = deptFilter ? deptFilter.value : '';
-        const selectedPosition = positionFilter ? positionFilter.value : '';
+        // 确保获取正确的部门值，默认使用空字符串表示"全部部门"
+        const selectedDept = deptFilter && deptFilter.value ? deptFilter.value : '';
+        const selectedPosition = positionFilter && positionFilter.value ? positionFilter.value : '';
         
         // 保存当前选择的部门和岗位到localStorage
         if (selectedDept) {
@@ -1866,6 +2142,8 @@ window.loadShiftOrderData = async function() {
         if (selectedPosition) {
             localStorage.setItem('lastSelectedPosition', selectedPosition);
         }
+        
+        console.log(`当前选中的部门: ${selectedDept || '全部部门'}, 岗位: ${selectedPosition || '全部岗位'}`);
         
         // 获取所有员工
         const employees = await window.dbManager.getAll('employees');
@@ -1944,8 +2222,8 @@ window.loadShiftOrderData = async function() {
             positions = new Set(filteredEmployees.map(emp => emp.position).filter(pos => pos));
         }
         
-        // 渲染排班顺序表格
-        await renderShiftOrderTable(positions, null, filteredEmployees);
+        // 渲染排班顺序表格，传递部门参数
+        await renderShiftOrderTable(positions, null, filteredEmployees, selectedDept);
     } catch (error) {
         console.error('加载排班顺序数据失败:', error);
         showNotification('加载排班顺序数据失败: ' + error.message, 'error');
@@ -1985,8 +2263,12 @@ function updateShiftOrderTableHeader(tableHeader, activeShifts) {
                 return;
             }
             
-            // 调用按岗位和班次编辑排班顺序的方法
-            await window.editShiftOrderByPositionAndShift(selectedPosition, shift.code);
+            // 获取当前选中的部门
+            const deptFilter = document.getElementById('shiftOrderDeptFilter');
+            const selectedDept = deptFilter && deptFilter.value ? deptFilter.value : '';
+            
+            // 调用按岗位和班次编辑排班顺序的方法，添加部门参数
+            await window.editShiftOrderByPositionAndShift(selectedPosition, shift.code, selectedDept);
         });
         
         // 添加悬停效果提示
@@ -2031,8 +2313,8 @@ function sortEmployeesByOrder(employees, orderedEmployeeNumbers) {
     });
 }
 
-// 内部辅助函数：加载并准备编辑排班顺序
-async function _prepareEditShiftOrder(position, shiftCode = null) {
+// 内部辅助函数：加载并准备编辑排班顺序（增加部门过滤功能）
+async function _prepareEditShiftOrder(position, shiftCode = null, department = '') {
     try {
         // 定义normalizeId函数，用于规范化ID和员工号
         const normalizeId = (id) => {
@@ -2049,7 +2331,27 @@ async function _prepareEditShiftOrder(position, shiftCode = null) {
         if (allEmployees.length > 0) {
             console.log(`员工对象结构示例：${JSON.stringify(allEmployees[0])}`);
         }
+        
+        // 先筛选符合岗位和在职状态的员工
         let positionEmployees = allEmployees.filter(emp => emp.position === position && emp.status === 0);
+        
+        // 当department不为空字符串、"全部部门"或"all"时，添加部门过滤
+        // 当department为空字符串(代表"全部部门")时，不进行部门过滤，显示所有部门员工
+        const isAllDepartments = !department || department === '' || department === '全部部门' || department === 'all';
+        
+        if (!isAllDepartments) {
+            console.log(`应用部门过滤：${department}`);
+            positionEmployees = positionEmployees.filter(emp => {
+                if (!emp.deptName) return false;
+                
+                const empDeptName = emp.deptName.toString().trim().toLowerCase();
+                const targetDeptName = department.toString().trim().toLowerCase();
+                
+                return empDeptName === targetDeptName;
+            });
+        } else {
+            console.log('部门选择为"全部部门"，不进行部门过滤，显示所有部门员工');
+        }
         
         // 将positionEmployees中的员工ID改成员工号
         positionEmployees = positionEmployees.map(emp => ({
@@ -2274,7 +2576,7 @@ async function _prepareEditShiftOrder(position, shiftCode = null) {
         let orderedEmployeeNumbers = [];
         
         if (shiftCode) {
-            shiftOrder = await window.shiftOrderManager.getShiftOrderByPositionAndShift(position, shiftCode);
+            shiftOrder = await window.shiftOrderManager.getShiftOrderByPositionAndShift(position, shiftCode, department);
         } else {
             shiftOrder = await window.shiftOrderManager.getShiftOrderByPosition(position);
         }
@@ -2408,22 +2710,22 @@ async function _prepareEditShiftOrder(position, shiftCode = null) {
         console.log(`最终准备的员工列表数量: ${orderedEmployees.length}`);
         
         // 显示编辑模态框，传递有序员工列表
-        // 同时传递未设置该班次的员工列表
-        showShiftOrderEditModal(position, orderedEmployees, shiftCode, notSetShiftEmployees);
+        // 同时传递未设置该班次的员工列表和部门信息
+        showShiftOrderEditModal(position, orderedEmployees, shiftCode, notSetShiftEmployees, department);
     } catch (error) {
         console.error('编辑排班顺序失败:', error);
         showNotification('编辑排班顺序失败: ' + error.message, 'error');
     }
 }
 
-// 按岗位和班次编辑排班顺序
-window.editShiftOrderByPositionAndShift = function(position, shiftCode) {
-    return _prepareEditShiftOrder(position, shiftCode);
+// 按岗位和班次编辑排班顺序（增加部门参数）
+window.editShiftOrderByPositionAndShift = function(position, shiftCode, department) {
+    return _prepareEditShiftOrder(position, shiftCode, department);
 };
 
 // 显示排班顺序编辑模态框
-function showShiftOrderEditModal(position, employees, shiftCode = null, notSetShiftEmployees = []) {
-    console.log(`进入showShiftOrderEditModal函数：传入员工数=${employees ? employees.length : 0}，未设置班次员工数=${notSetShiftEmployees ? notSetShiftEmployees.length : 0}`);
+function showShiftOrderEditModal(position, employees, shiftCode = null, notSetShiftEmployees = [], department = '') {
+    console.log(`进入showShiftOrderEditModal函数：传入员工数=${employees ? employees.length : 0}，未设置班次员工数=${notSetShiftEmployees ? notSetShiftEmployees.length : 0}，部门=${department}`);
     // 检查传入的员工对象结构
     if (employees && employees.length > 0) {
         console.log(`传入员工对象结构示例：${JSON.stringify(employees[0])}`);
@@ -2438,14 +2740,14 @@ function showShiftOrderEditModal(position, employees, shiftCode = null, notSetSh
     
     // 设置标题和岗位
     if (shiftCode) {
-        title.textContent = `编辑${position}岗位${shiftCode}班次排班顺序`;
+        title.textContent = `编辑${position}岗位${shiftCode}班次排班顺序${department ? '(' + department + ')' : ''}`;
         // 如果存在班次代码输入框，设置其值
         if (shiftCodeInput) {
             shiftCodeInput.value = shiftCode;
             shiftCodeInput.style.display = 'block';
         }
     } else {
-        title.textContent = `编辑${position}岗位排班顺序`;
+        title.textContent = `编辑${position}岗位排班顺序${department ? '(' + department + ')' : ''}`;
         // 如果存在班次代码输入框，隐藏它
         if (shiftCodeInput) {
             shiftCodeInput.style.display = 'none';
@@ -2453,6 +2755,16 @@ function showShiftOrderEditModal(position, employees, shiftCode = null, notSetSh
     }
     
     positionInput.value = position;
+    
+    // 添加或更新隐藏的部门输入字段
+    let departmentInput = document.getElementById('shiftOrderDepartmentInput');
+    if (!departmentInput) {
+        departmentInput = document.createElement('input');
+        departmentInput.type = 'hidden';
+        departmentInput.id = 'shiftOrderDepartmentInput';
+        positionInput.parentNode.appendChild(departmentInput);
+    }
+    departmentInput.value = department;
     
     // 清空并填充员工列表
     employeeList.innerHTML = '';
@@ -2767,6 +3079,12 @@ function showShiftOrderEditModal(position, employees, shiftCode = null, notSetSh
         console.error('未找到模态框底部！选择器: #shiftOrderEditModal .modal-footer');
     }
     
+    // 显示模态框前，确保'不再进行排序'复选框处于未勾选状态
+    var excludeAllCheckbox = document.getElementById('excludeAllEmployees');
+    if (excludeAllCheckbox) {
+        excludeAllCheckbox.checked = false;
+    }
+    
     // 显示模态框
     modal.style.display = 'block';
 }
@@ -2936,9 +3254,9 @@ function _refreshShiftOrderTable() {
 }
 
 // 内部辅助函数：保存排班顺序的通用逻辑
-function _saveShiftOrderInternal(position, employeeNumbers, shiftCode = null, excludeAllEmployees = false) {
+function _saveShiftOrderInternal(position, employeeNumbers, shiftCode = null, excludeAllEmployees = false, department = '') {
     console.log('8. 进入内部保存函数 _saveShiftOrderInternal()');
-    console.log('   - 参数:', {position, employeeNumbers, shiftCode, excludeAllEmployees});
+    console.log('   - 参数:', {position, employeeNumbers, shiftCode, excludeAllEmployees, department});
     // 关闭模态框
     document.getElementById('shiftOrderEditModal').style.display = 'none';
     
@@ -2950,7 +3268,7 @@ function _saveShiftOrderInternal(position, employeeNumbers, shiftCode = null, ex
         const saveData = excludeAllEmployees ? { position, shiftCode, excludeAllEmployees: true, employeeNumbers } : { position, shiftCode, employeeNumbers };
         console.log('9. 准备调用 ShiftOrderManager.saveShiftOrderByShift 方法');
         console.log('   - 保存数据准备:', saveData);
-        savePromise = window.shiftOrderManager.saveShiftOrderByShift(position, shiftCode, employeeNumbers, excludeAllEmployees);
+        savePromise = window.shiftOrderManager.saveShiftOrderByShift(position, shiftCode, employeeNumbers, excludeAllEmployees, department);
     } else {
         // 不再支持岗位级排班顺序保存，只支持班次级保存
         console.error('不支持岗位级排班顺序保存，必须提供shiftCode');
@@ -3000,21 +3318,25 @@ window.saveShiftOrderByShift = function() {
     var employeeNumbers = [];
     
     // 如果勾选了'剔除列表所有人员'，将剔除列表中的所有人员添加到员工列表中
-    if (excludeAllEmployees) {
-        var excludedEmployeeItems = document.querySelectorAll('#excludedEmployeesList .shift-order-employee-item');
-        for (var i = 0; i < excludedEmployeeItems.length; i++) {
-            var employeeNumber = excludedEmployeeItems[i].dataset.employeeNumber || excludedEmployeeItems[i].dataset.employeeId;
-            if (employeeNumber) {
-                employeeNumbers.push(employeeNumber);
+        if (excludeAllEmployees) {
+            var excludedEmployeeItems = document.querySelectorAll('#excludedEmployeesList .shift-order-employee-item');
+            for (var i = 0; i < excludedEmployeeItems.length; i++) {
+                var employeeNumber = excludedEmployeeItems[i].dataset.employeeNumber || excludedEmployeeItems[i].dataset.employeeId;
+                if (employeeNumber) {
+                    // 规范化员工号，确保与查询时的规范化逻辑一致
+                    var normalizedNumber = window.shiftOrderManager.normalizeId(employeeNumber);
+                    employeeNumbers.push(normalizedNumber);
+                }
             }
-        }
-    } else {
+        } else {
         // 否则，获取普通员工列表
         var employeeItems = document.querySelectorAll('#shiftOrderEmployeeList .shift-order-employee-item');
         for (var i = 0; i < employeeItems.length; i++) {
             var employeeNumber = employeeItems[i].dataset.employeeNumber || employeeItems[i].dataset.employeeId;
             if (employeeNumber) {
-                employeeNumbers.push(employeeNumber);
+                // 规范化员工号，确保与查询时的规范化逻辑一致
+                var normalizedNumber = window.shiftOrderManager.normalizeId(employeeNumber);
+                employeeNumbers.push(normalizedNumber);
             }
         }
         
@@ -3029,8 +3351,23 @@ window.saveShiftOrderByShift = function() {
         return;
     }
     
+    // 获取部门信息 - 修复：确保能正确获取部门信息
+    var departmentInput = document.getElementById('shiftOrderDepartmentInput');
+    var department = departmentInput ? departmentInput.value : '';
+    
+    // 额外检查：如果部门信息为空，尝试从部门过滤器中获取
+    if (!department) {
+        var deptFilter = document.getElementById('shiftOrderDeptFilter');
+        if (deptFilter && deptFilter.value) {
+            department = deptFilter.value;
+            console.log('从部门过滤器获取的部门信息:', department);
+        }
+    }
+    
+    console.log('最终使用的部门信息:', department);
+    
     // 保存排班顺序
-    return _saveShiftOrderInternal(position, employeeNumbers, shiftCode, excludeAllEmployees);
+    return _saveShiftOrderInternal(position, employeeNumbers, shiftCode, excludeAllEmployees, department);
 };
 
 // 清空排班顺序
@@ -3038,10 +3375,15 @@ window.clearShiftOrder = function(position, shiftCode) {
     // 关闭模态框
     document.getElementById('shiftOrderEditModal').style.display = 'none';
     
+    // 获取部门信息
+    var departmentInput = document.getElementById('shiftOrderDepartmentInput');
+    var department = departmentInput ? departmentInput.value : '';
+    console.log('清空排班顺序时获取的部门信息:', department);
+    
     // 清空排班顺序（保存空数组）
     let savePromise;
     if (shiftCode) {
-        savePromise = window.shiftOrderManager.saveShiftOrderByShift(position, shiftCode, []);
+        savePromise = window.shiftOrderManager.saveShiftOrderByShift(position, shiftCode, [], false, department);
     } else {
         // 不再支持岗位级排班顺序清空，必须提供shiftCode
         console.error('不支持岗位级排班顺序清空，必须提供shiftCode');
@@ -3129,9 +3471,16 @@ window.addEventListener('employeeDeleted', function(e) {
 // 现在所有排班排序都将通过手动编辑完成
 
 // 新增：监听所有标识重置事件
-window.addEventListener('allIdentifiersReset', function() {
+window.addEventListener('allIdentifiersReset', async function() {
     try {
         console.log('接收到所有标识重置事件');
+        
+        // 关键修复：当所有标识被重置时，清空所有排班顺序数据
+        if (window.shiftOrderManager && window.shiftOrderManager.clearAllShiftOrders) {
+            console.log('执行清空所有排班顺序数据操作');
+            await window.shiftOrderManager.clearAllShiftOrders();
+        }
+        
         // 刷新当前显示的排班顺序
         if (window.shiftOrderManager) {
             window.loadShiftOrderData();
@@ -3175,7 +3524,7 @@ window.addEventListener('shiftDataChanged', function(e) {
 });
 
 // 渲染排班顺序表格函数（来自shift-order-management-fixed.js）
-async function renderShiftOrderTable(positions = new Set(), unusedShiftOrderMap = null, filteredEmployees = null) {
+async function renderShiftOrderTable(positions = new Set(), unusedShiftOrderMap = null, filteredEmployees = null, department = '') {
     // 先获取表格元素，确保在try-catch的任何地方都能访问到
     const tableBody = document.getElementById('shift-order-table-body');
     const table = document.getElementById('shift-order-table');
@@ -3328,22 +3677,22 @@ async function renderShiftOrderTable(positions = new Set(), unusedShiftOrderMap 
             const position = positionArray[i];
             for (let j = 0; j < activeShifts.length; j++) {
                 const shift = activeShifts[j];
-                positionShiftPairs.push({ position, shiftCode: shift.code });
+                positionShiftPairs.push({ position, shiftCode: shift.code, department });
             }
         }
         
         // 并行获取所有排班顺序数据
         const shiftOrderPromises = positionShiftPairs.map(pair => 
-            window.shiftOrderManager.getShiftOrderByPositionAndShift(pair.position, pair.shiftCode)
+            window.shiftOrderManager.getShiftOrderByPositionAndShift(pair.position, pair.shiftCode, pair.department)
                 .then(shiftOrder => ({ pair, shiftOrder }))
         );
         
         // 等待所有获取操作完成
         const shiftOrderResults = await Promise.all(shiftOrderPromises);
         
-        // 将结果存入缓存
+        // 将结果存入缓存，键包含部门信息以区分不同部门的相同岗位和班次
         shiftOrderResults.forEach(result => {
-            const key = `${result.pair.position}_${result.pair.shiftCode}`;
+            const key = `${result.pair.department || 'all'}_${result.pair.position}_${result.pair.shiftCode}`;
             shiftOrderCache.set(key, result.shiftOrder);
         });
         
@@ -3370,7 +3719,7 @@ async function renderShiftOrderTable(positions = new Set(), unusedShiftOrderMap 
             // 选择第一个有效班次作为主要排序依据
             mainShiftCode = activeShifts.length > 0 ? activeShifts[0].code : null;
             if (mainShiftCode) {
-                const mainShiftKey = `${position}_${mainShiftCode}`;
+                const mainShiftKey = `${department || 'all'}_${position}_${mainShiftCode}`;
                 mainShiftOrder = shiftOrderCache.get(mainShiftKey);
             }
             
@@ -3384,73 +3733,192 @@ async function renderShiftOrderTable(positions = new Set(), unusedShiftOrderMap 
                 try {
                     console.log(`使用班次 ${mainShiftCode} 的排班顺序对员工进行排序`);
                     
-                    // 只使用employeeNumbers数组
-                    const hasEmployeeNumbers = mainShiftOrder.employeeNumbers && Array.isArray(mainShiftOrder.employeeNumbers) && mainShiftOrder.employeeNumbers.length > 0;
-                    
-                    if (hasEmployeeNumbers) {
-                        console.log(`排班顺序员工号: ${JSON.stringify(mainShiftOrder.employeeNumbers)}`);
+                    // 检查是否是多部门模式
+                    if (mainShiftOrder.hasMultipleDepartments) {
+                        console.log('检测到多部门模式，按部门分别处理排序');
+                        
+                        // 创建一个按部门分组的员工映射
+                        const deptToEmployees = new Map();
+                        const allDeptEmployees = new Set(positionEmployees); // 用于跟踪所有员工
+                        
+                        // 创建全局已处理员工集合，确保每个员工只处理一次
+                        const processedEmployees = new Set();
+                        
+                        // 按部门分组员工
+                        positionEmployees.forEach(emp => {
+                            const deptName = emp.deptName || '未分配部门';
+                            if (!deptToEmployees.has(deptName)) {
+                                deptToEmployees.set(deptName, []);
+                            }
+                            deptToEmployees.get(deptName).push(emp);
+                        });
+                        
+                        // 为每个部门分别应用其排班顺序
+                        const deptSortedEmployees = [];
+                        
+                        // 按照部门在departmentOrders中的顺序处理
+                        mainShiftOrder.departmentOrders.forEach(deptOrder => {
+                            const deptName = deptOrder.department || '未分配部门';
+                            const deptEmployees = deptToEmployees.get(deptName) || [];
+                            
+                            // 如果该部门有员工
+                            if (deptEmployees.length > 0) {
+                                console.log(`处理部门 ${deptName} 的员工排序`);
+                                
+                                // 创建员工映射
+                                const empMap = new Map();
+                                const empIdMap = new Map();
+                                const empNumberMap = new Map();
+                                
+                                deptEmployees.forEach(emp => {
+                                    const empId = String(emp.id);
+                                    const empNumber = String(emp.number || '');
+                                    
+                                    empMap.set(empId, emp);
+                                    empMap.set(normalizeId(empId), emp);
+                                    if (empNumber) {
+                                        empMap.set(empNumber, emp);
+                                        empMap.set(normalizeId(empNumber), emp);
+                                    }
+                                    
+                                    empIdMap.set(normalizeId(empId), emp);
+                                    if (empNumber) {
+                                        empNumberMap.set(normalizeId(empNumber), emp);
+                                    }
+                                });
+                                
+                                // 使用该部门的排班顺序进行排序
+                                const orderedEmps = [];
+                                const remainingEmps = new Set();
+                                
+                                // 只添加未处理过的员工到remainingEmps
+                                deptEmployees.forEach(emp => {
+                                    if (!processedEmployees.has(emp)) {
+                                        remainingEmps.add(emp);
+                                    }
+                                });
+                                
+                                const hasEmployeeNumbers = deptOrder.employeeNumbers && Array.isArray(deptOrder.employeeNumbers) && deptOrder.employeeNumbers.length > 0;
+                                const orderArray = hasEmployeeNumbers ? deptOrder.employeeNumbers : [];
+                                
+                                orderArray.forEach(empIdentifier => {
+                                    const empIdentifierStr = String(empIdentifier);
+                                    const normalizedIdentifier = normalizeId(empIdentifierStr);
+                                    
+                                    let foundEmployee = empMap.get(empIdentifierStr) || 
+                                                       empMap.get(normalizedIdentifier) ||
+                                                       empIdMap.get(normalizedIdentifier) ||
+                                                       empNumberMap.get(normalizedIdentifier);
+                                    
+                                    if (foundEmployee && remainingEmps.has(foundEmployee)) {
+                                        orderedEmps.push(foundEmployee);
+                                        remainingEmps.delete(foundEmployee);
+                                        processedEmployees.add(foundEmployee); // 标记为已处理，避免重复
+                                        console.log(`匹配到员工: ${foundEmployee.name} (${foundEmployee.number || foundEmployee.id}) 在部门 ${deptName} 的排班顺序中`);
+                                    }
+                                });
+                                
+                                // 添加不在排序列表中且未处理过的部门员工，按姓名排序
+                                const sortedRemaining = Array.from(remainingEmps).sort((a, b) => 
+                                    a.name.localeCompare(b.name)
+                                );
+                                
+                                sortedRemaining.forEach(emp => {
+                                    processedEmployees.add(emp); // 标记为已处理
+                                });
+                                
+                                // 将该部门的排序结果添加到总结果中
+                                deptSortedEmployees.push(...orderedEmps, ...sortedRemaining);
+                            }
+                        });
+                        
+                        // 处理未分配到任何部门且未处理过的员工
+                        const unassignedEmployees = [];
+                        positionEmployees.forEach(emp => {
+                            if (!processedEmployees.has(emp)) {
+                                unassignedEmployees.push(emp);
+                                processedEmployees.add(emp); // 标记为已处理
+                            }
+                        });
+                        
+                        if (unassignedEmployees.length > 0) {
+                            unassignedEmployees.sort((a, b) => a.name.localeCompare(b.name));
+                            deptSortedEmployees.push(...unassignedEmployees);
+                        }
+                        
+                        sortedEmployees = deptSortedEmployees;
+                        console.log(`多部门模式排序后员工数量: ${sortedEmployees.length}`);
+                        console.log(`多部门模式排序后员工号顺序: ${sortedEmployees.map(e => e.number).join(', ')}`);
+                    } else {
+                        // 单部门模式，保持原有逻辑
+                        // 只使用employeeNumbers数组
+                        const hasEmployeeNumbers = mainShiftOrder.employeeNumbers && Array.isArray(mainShiftOrder.employeeNumbers) && mainShiftOrder.employeeNumbers.length > 0;
+                        
+                        if (hasEmployeeNumbers) {
+                            console.log(`排班顺序员工号: ${JSON.stringify(mainShiftOrder.employeeNumbers)}`);
+                        }
+                        
+                        // 创建一个包含所有员工的映射，使用多种键格式
+                        const empMap = new Map();
+                        const empIdMap = new Map(); // 用于ID到员工对象的映射
+                        const empNumberMap = new Map(); // 用于员工号到员工对象的映射
+                        
+                        positionEmployees.forEach(emp => {
+                            const empId = String(emp.id);
+                            const empNumber = String(emp.number || '');
+                            
+                            // 存储多种格式的键，确保能匹配到
+                            empMap.set(empId, emp);
+                            empMap.set(normalizeId(empId), emp);
+                            if (empNumber) {
+                                empMap.set(empNumber, emp);
+                                empMap.set(normalizeId(empNumber), emp);
+                            }
+                            
+                            // 同时维护单独的映射，方便后续查找
+                            empIdMap.set(normalizeId(empId), emp);
+                            if (empNumber) {
+                                empNumberMap.set(normalizeId(empNumber), emp);
+                            }
+                        });
+                        
+                        // 首先添加在排序列表中的员工，严格保持数据库中的顺序
+                        const orderedEmps = [];
+                        const remainingEmps = new Set(positionEmployees); // 使用Set存储剩余员工
+                        
+                        // 只遍历employeeNumbers数组
+                        const orderArray = hasEmployeeNumbers ? mainShiftOrder.employeeNumbers : [];
+                        
+                        // 遍历排班顺序中的所有标识
+                        orderArray.forEach(empIdentifier => {
+                            const empIdentifierStr = String(empIdentifier);
+                            const normalizedIdentifier = normalizeId(empIdentifierStr);
+                            
+                            // 尝试多种方式查找员工
+                            let foundEmployee = empMap.get(empIdentifierStr) || 
+                                               empMap.get(normalizedIdentifier) ||
+                                               empIdMap.get(normalizedIdentifier) ||
+                                               empNumberMap.get(normalizedIdentifier);
+                            
+                            // 如果找到了员工且还在剩余列表中
+                            if (foundEmployee && remainingEmps.has(foundEmployee)) {
+                                orderedEmps.push(foundEmployee);
+                                remainingEmps.delete(foundEmployee);
+                                console.log(`匹配到员工: ${foundEmployee.name} (${foundEmployee.number || foundEmployee.id}) 在排班顺序中的位置`);
+                            } else {
+                                console.log(`未能匹配排班顺序中的标识: ${empIdentifierStr}`);
+                            }
+                        });
+                        
+                        // 然后添加不在排序列表中的员工，按姓名排序
+                        const sortedRemaining = Array.from(remainingEmps).sort((a, b) => 
+                            a.name.localeCompare(b.name)
+                        );
+                        
+                        sortedEmployees = [...orderedEmps, ...sortedRemaining];
+                        console.log(`排序后员工数量: ${sortedEmployees.length}`);
+                        console.log(`排序后员工号顺序: ${sortedEmployees.map(e => e.number).join(', ')}`);
                     }
-                    
-                    // 创建一个包含所有员工的映射，使用多种键格式
-                    const empMap = new Map();
-                    const empIdMap = new Map(); // 用于ID到员工对象的映射
-                    const empNumberMap = new Map(); // 用于员工号到员工对象的映射
-                    
-                    positionEmployees.forEach(emp => {
-                        const empId = String(emp.id);
-                        const empNumber = String(emp.number || '');
-                        
-                        // 存储多种格式的键，确保能匹配到
-                        empMap.set(empId, emp);
-                        empMap.set(normalizeId(empId), emp);
-                        if (empNumber) {
-                            empMap.set(empNumber, emp);
-                            empMap.set(normalizeId(empNumber), emp);
-                        }
-                        
-                        // 同时维护单独的映射，方便后续查找
-                        empIdMap.set(normalizeId(empId), emp);
-                        if (empNumber) {
-                            empNumberMap.set(normalizeId(empNumber), emp);
-                        }
-                    });
-                    
-                    // 首先添加在排序列表中的员工，严格保持数据库中的顺序
-                    const orderedEmps = [];
-                    const remainingEmps = new Set(positionEmployees); // 使用Set存储剩余员工
-                    
-                    // 只遍历employeeNumbers数组
-                    const orderArray = hasEmployeeNumbers ? mainShiftOrder.employeeNumbers : [];
-                    
-                    // 遍历排班顺序中的所有标识
-                    orderArray.forEach(empIdentifier => {
-                        const empIdentifierStr = String(empIdentifier);
-                        const normalizedIdentifier = normalizeId(empIdentifierStr);
-                        
-                        // 尝试多种方式查找员工
-                        let foundEmployee = empMap.get(empIdentifierStr) || 
-                                           empMap.get(normalizedIdentifier) ||
-                                           empIdMap.get(normalizedIdentifier) ||
-                                           empNumberMap.get(normalizedIdentifier);
-                        
-                        // 如果找到了员工且还在剩余列表中
-                        if (foundEmployee && remainingEmps.has(foundEmployee)) {
-                            orderedEmps.push(foundEmployee);
-                            remainingEmps.delete(foundEmployee);
-                            console.log(`匹配到员工: ${foundEmployee.name} (${foundEmployee.number || foundEmployee.id}) 在排班顺序中的位置`);
-                        } else {
-                            console.log(`未能匹配排班顺序中的标识: ${empIdentifierStr}`);
-                        }
-                    });
-                    
-                    // 然后添加不在排序列表中的员工，按姓名排序
-                    const sortedRemaining = Array.from(remainingEmps).sort((a, b) => 
-                        a.name.localeCompare(b.name)
-                    );
-                    
-                    sortedEmployees = [...orderedEmps, ...sortedRemaining];
-                    console.log(`排序后员工数量: ${sortedEmployees.length}`);
-                    console.log(`排序后员工号顺序: ${sortedEmployees.map(e => e.number).join(', ')}`);
                 } catch (e) {
                     console.error('员工排序过程中发生错误:', e);
                     // 排序失败时使用原始顺序
@@ -3459,7 +3927,7 @@ async function renderShiftOrderTable(positions = new Set(), unusedShiftOrderMap 
             } else if (activeShifts.length > 0) {
                 // 如果没有主班次的排班顺序，尝试使用第一个有效班次的排班顺序
                 const firstShiftCode = activeShifts[0].code;
-                const firstShiftKey = `${position}_${firstShiftCode}`;
+                const firstShiftKey = `${department || 'all'}_${position}_${firstShiftCode}`;
                 const firstShiftOrder = shiftOrderCache.get(firstShiftKey);
                 
                 if (firstShiftOrder) {
@@ -3516,9 +3984,24 @@ async function renderShiftOrderTable(positions = new Set(), unusedShiftOrderMap 
                     
                     console.log(`处理班次: ${shift.code}, 岗位: ${position}, 员工: ${employee.name}`);
                     
-                    // 从缓存中获取该岗位和班次的排班顺序
-                    const cacheKey = `${position}_${shift.code}`;
-                    const shiftOrder = shiftOrderCache.get(cacheKey);
+                    // 从缓存中获取该岗位和班次的排班顺序，包含部门信息
+                    let shiftOrder = null;
+                    
+                    // 先尝试获取包含所有部门信息的排班顺序
+                    const cacheKey = `${department || 'all'}_${position}_${shift.code}`;
+                    shiftOrder = shiftOrderCache.get(cacheKey);
+                    
+                    // 如果是多部门模式，尝试为当前员工获取其所属部门的排班顺序
+                    if (shiftOrder && shiftOrder.hasMultipleDepartments && employee.deptName) {
+                        // 查找当前员工所属部门的排班顺序
+                        const deptShiftOrder = shiftOrder.departmentOrders.find(order => 
+                            order.department === employee.deptName
+                        );
+                        // 如果找到部门特定的排班顺序，使用它
+                        if (deptShiftOrder) {
+                            shiftOrder = deptShiftOrder;
+                        }
+                    }
                     
                     let orderNumber = '未设置';
                     
@@ -3702,8 +4185,12 @@ function updateShiftOrderTableHeader(tableHeader, activeShifts) {
                 return;
             }
             
-            // 调用按岗位和班次编辑排班顺序的方法
-            await window.editShiftOrderByPositionAndShift(selectedPosition, shift.code);
+            // 获取当前选中的部门
+            const deptFilter = document.getElementById('shiftOrderDeptFilter');
+            const selectedDept = deptFilter && deptFilter.value ? deptFilter.value : '';
+            
+            // 调用按岗位和班次编辑排班顺序的方法，添加部门参数
+            await window.editShiftOrderByPositionAndShift(selectedPosition, shift.code, selectedDept);
         });
         
         // 添加悬停效果提示
@@ -3835,7 +4322,11 @@ if (typeof window !== 'undefined') {
                             // 重新加载编辑模态框中的员工列表
                             const editModalContent = document.getElementById('shiftOrderEditModalContent');
                             if (editModalContent) {
-                                await window.editShiftOrderByPositionAndShift(selectedPosition, shiftCodeFromTitle);
+                                // 获取当前选中的部门
+                                const deptFilter = document.getElementById('shiftOrderDeptFilter');
+                                const selectedDept = deptFilter && deptFilter.value ? deptFilter.value : '';
+                                
+                                await window.editShiftOrderByPositionAndShift(selectedPosition, shiftCodeFromTitle, selectedDept);
                             }
                         }
                     }

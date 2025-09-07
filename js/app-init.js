@@ -209,8 +209,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // 延迟初始化排班顺序管理功能，确保标识管理功能已加载完成
                 setTimeout(async function() {
                     try {
+                        // 添加全局标志，防止重复加载
+                        window.skipNextShiftOrderLoad = true;
                         window.initShiftOrderManagement();
                         console.log('排班顺序管理功能初始化完成');
+                        
+                        // 短暂延迟后清除标志，允许正常加载
+                        setTimeout(() => {
+                            window.skipNextShiftOrderLoad = false;
+                        }, 300);
                     } catch (error) {
                         console.error('排班顺序管理功能初始化失败:', error);
                     }
@@ -812,6 +819,7 @@ async function loadPositionsForDepartment(deptName, targetFilter, isInitializati
                         try {
                             shiftOrderPositionFilter.dispatchEvent(changeEvent);
                             console.log('初始化过程中触发排班顺序管理岗位筛选框change事件');
+                            // 事件触发成功，不再直接调用loadShiftOrderData
                         } catch (eventError) {
                             console.warn('触发排班顺序管理岗位筛选框change事件失败:', eventError);
                             // 备选方案：直接调用相关的数据加载函数
