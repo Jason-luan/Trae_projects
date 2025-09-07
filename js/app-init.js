@@ -398,6 +398,83 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }, 100); // 延迟100毫秒后再尝试初始化
             }
             
+            // 初始化employeeManager
+            if (!window.employeeManager) {
+                // 使用setTimeout延迟初始化，确保相关依赖已加载
+                setTimeout(() => {
+                    try {
+                        // 导入EmployeeManager类
+                        if (window.EmployeeManager) {
+                            // 使用已定义的EmployeeManager类创建实例
+                            window.employeeManager = new window.EmployeeManager();
+                            console.log('employeeManager类初始化成功');
+                        } else {
+                            // 如果没有定义EmployeeManager类，创建一个基本实现
+                            console.warn('EmployeeManager类未定义，使用基本实现');
+                            window.employeeManager = {
+                                // 基本的getEmployeesByDepartmentId实现
+                                getEmployeesByDepartmentId: async function(departmentName) {
+                                    try {
+                                        // 获取所有员工
+                                        const allEmployees = await window.dbManager.getAll('employees');
+                                        // 根据部门名称筛选员工
+                                        const departmentEmployees = allEmployees.filter(emp => {
+                                            return emp.deptName && 
+                                                   typeof emp.deptName === 'string' && 
+                                                   emp.deptName.toLowerCase().trim() === String(departmentName).toLowerCase().trim();
+                                        });
+                                        return departmentEmployees;
+                                    } catch (error) {
+                                        console.error('获取部门员工失败:', error);
+                                        return [];
+                                    }
+                                },
+                                
+                                // 基本的getEmployeesByOrgAndDept实现
+                                getEmployeesByOrgAndDept: async function(orgName, deptName) {
+                                    try {
+                                        // 获取所有员工
+                                        const allEmployees = await window.dbManager.getAll('employees');
+                                        // 根据机构名称和部门名称筛选员工
+                                        const filteredEmployees = allEmployees.filter(emp => {
+                                            return emp.orgName && typeof emp.orgName === 'string' && 
+                                                   emp.deptName && typeof emp.deptName === 'string' && 
+                                                   emp.orgName.toLowerCase().trim() === String(orgName).toLowerCase().trim() && 
+                                                   emp.deptName.toLowerCase().trim() === String(deptName).toLowerCase().trim();
+                                        });
+                                        return filteredEmployees;
+                                    } catch (error) {
+                                        console.error('获取机构部门员工失败:', error);
+                                        return [];
+                                    }
+                                }
+                            };
+                            console.log('employeeManager基本实现初始化成功');
+                        }
+                        
+                        // 调用初始化方法（如果存在）
+                        if (window.employeeManager.initialize) {
+                            window.employeeManager.initialize().then(() => {
+                                console.log('employeeManager初始化完成');
+                            }).catch(error => {
+                                console.error('employeeManager初始化失败:', error);
+                            });
+                        }
+                    } catch (error) {
+                        console.error('初始化employeeManager失败:', error);
+                        // 备用实现
+                        window.employeeManager = {
+                            getEmployeesByDepartmentId: async function() {
+                                return [];
+                            },
+                            getEmployeesByOrgAndDept: async function() {
+                                return [];
+                            }
+                        };
+                    }
+                }, 300); // 比shiftOrderManager更早初始化
+            }
+            
             // 加载所有部门到部门筛选下拉框，使用Promise链式调用而不是await
         loadDepartmentsForFilter().then(() => {
             // 部门列表加载完成后，执行自动选择第一个部门并加载数据的逻辑

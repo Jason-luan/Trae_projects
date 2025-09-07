@@ -357,6 +357,37 @@ class IndexedDBManager {
                 return new Promise((resolve, reject) => {
                     request.onsuccess = () => {
                         console.log(`索引查询成功: 找到 ${request.result.length} 条记录`);
+                        console.log(`  索引名称: ${indexName}`);
+                        console.log(`  查询值: ${JSON.stringify(value)}`);
+                        // 显示部分记录信息，避免日志过于冗长
+                        if (request.result.length > 0) {
+                            const displayRecords = request.result.slice(0, 5); // 只显示前5条记录
+                            console.log(`  前${displayRecords.length}条记录简要信息:`);
+                            displayRecords.forEach((record, index) => {
+                                // 显示记录的主要字段
+                                const recordInfo = {};
+                                if (record.id) recordInfo.id = record.id;
+                                if (record.name) recordInfo.name = record.name;
+                                if (record.number) recordInfo.number = record.number;
+                                if (record.date) recordInfo.date = record.date;
+                                if (record.description) recordInfo.description = record.description;
+                                
+                                // 如果没有上述字段，显示部分内容
+                                if (Object.keys(recordInfo).length === 0) {
+                                    const keys = Object.keys(record);
+                                    if (keys.length > 0) {
+                                        // 最多显示3个字段
+                                        for (let i = 0; i < Math.min(3, keys.length); i++) {
+                                            recordInfo[keys[i]] = typeof record[keys[i]] === 'object' ? '[object]' : record[keys[i]];
+                                        }
+                                    }
+                                }
+                                console.log(`    ${index + 1}.`, recordInfo);
+                            });
+                            if (request.result.length > 5) {
+                                console.log(`    ... 还有${request.result.length - 5}条记录未显示`);
+                            }
+                        }
                         resolve(request.result);
                     };
                     request.onerror = (event) => {
@@ -473,7 +504,8 @@ class IndexedDBManager {
                 } else if (storeName === 'shiftOrders') {
                     // 导出排班顺序数据，直接使用employeeNumbers和department
                     const shiftOrders = await this.getAll(storeName);
-                    
+                    // 获取所有有效的机构/部门数据
+                    const organizations = await this.getAll('organizations');
                     // 转换排班顺序数据，只导出有排序的数据（employeeNumbers数组不为空）
                     exportData[storeName] = shiftOrders
                         .filter(order => {

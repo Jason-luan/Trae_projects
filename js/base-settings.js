@@ -1792,101 +1792,130 @@ window.initBaseSettings = function() {
             const matchingDepartmentCount = matchedOrganizations.filter(org => org.description === deptName).length;
             console.log(`执行部门删除操作: 机构名称=${orgName}, 部门名称=${deptName}, 匹配到${matchedOrganizations.length}个机构记录，其中符合条件的部门记录有${matchingDepartmentCount}个`);
             
-            // 第一步：获取所有员工信息
-            const employees = await window.dbManager.getAll('employees');
+            // 第一步：使用employeeManager获取该机构部门下的所有员工
+            let deptEmployees = [];
             
-            // 严格的员工筛选逻辑，确保精确匹配该机构名称+部门名称的员工
-            const deptEmployees = employees.filter(emp => {
-                // 检查员工对象是否有效
-                if (!emp) {
-                    return false;
-                }
-                
-                // 员工部门名称处理，保持与其他地方一致的比较逻辑
-                const empDeptName = emp.deptName ? emp.deptName.toString().trim() : '';
-                const targetDeptName = deptName.toString().trim();
-                
-                // 从预加载的机构映射表中获取机构名称
-                // 直接使用员工数据中存储的机构名称
-                const empOrgName = emp.orgName || '';
-                
-                // 检查员工是否属于该机构（通过机构名称匹配）
-                const isCorrectOrg = empOrgName === orgName;
-                
-                // 检查员工是否属于该部门（严格精确匹配）
-                const isCorrectDept = empDeptName === targetDeptName;
-                
-                // 详细的调试日志，记录所有员工的筛选过程
-                console.log(`[员工筛选调试] 员工: ${emp.name || '未知'}, 机构: ${empOrgName}, 部门: ${empDeptName}, 目标机构: ${orgName}, 目标部门: ${targetDeptName}, 机构匹配: ${isCorrectOrg}, 部门匹配: ${isCorrectDept}`);
-                
-                return isCorrectOrg && isCorrectDept;
-            });
-            
-            // 额外的调试信息
-            console.log(`[部门匹配调试] 目标部门名称: "${deptName}", 转义后: "${JSON.stringify(deptName)}", 长度: ${deptName.length}`);
-            
-            // 计算机构匹配的员工数量（使用预加载的机构映射表）
-            const orgMatchingEmployees = [];
-            
-            for (const emp of employees) {
-                if (!emp) continue;
+            // 优先使用employeeManager获取部门员工
+            if (window.employeeManager && typeof window.employeeManager.getEmployeesByOrgAndDept === 'function') {
                 try {
-                    // 直接使用员工数据中存储的机构名称
+                    console.log(`[部门删除] 使用employeeManager获取机构(${orgName})部门(${deptName})的员工...`);
+                    deptEmployees = await window.employeeManager.getEmployeesByOrgAndDept(orgName, deptName);
+                    console.log(`[部门删除] employeeManager获取到部门(${deptName})员工数量: ${deptEmployees.length}`);
+                } catch (employeeManagerError) {
+                    console.error('[部门删除] 使用employeeManager获取员工失败:', employeeManagerError);
+                    
+                    // 备用方案：手动筛选员工
+                    console.log('[部门删除] 尝试备用方案：手动筛选员工...');
+                    const employees = await window.dbManager.getAll('employees');
+                    deptEmployees = employees.filter(emp => {
+                        if (!emp) return false;
+                        const empDeptName = emp.deptName ? emp.deptName.toString().trim() : '';
+                        const targetDeptName = deptName.toString().trim();
+                        const empOrgName = emp.orgName || '';
+                        return empOrgName === orgName && empDeptName === targetDeptName;
+                    });
+                    console.log(`[部门删除] 备用方案获取到部门(${deptName})员工数量: ${deptEmployees.length}`);
+                }
+            } else {
+                // 如果employeeManager未初始化或方法不可用，使用备用方案
+                console.log('[部门删除] employeeManager不可用，使用备用方案：手动筛选员工...');
+                const employees = await window.dbManager.getAll('employees');
+                deptEmployees = employees.filter(emp => {
+                    if (!emp) return false;
+                    const empDeptName = emp.deptName ? emp.deptName.toString().trim() : '';
+                    const targetDeptName = deptName.toString().trim();
                     const empOrgName = emp.orgName || '';
-                    if (empOrgName === orgName) {
-                        orgMatchingEmployees.push(emp);
+                    return empOrgName === orgName && empDeptName === targetDeptName;
+                });
+                console.log(`[部门删除] 备用方案获取到部门(${deptName})员工数量: ${deptEmployees.length}`);
+            }
+        
+        // 第一步：先清空该部门在排班顺序中的员工数据
+        let shiftDataCleared = false;
+        if (window.shiftOrderManager) {
+            try {
+                console.log(`[部门删除-步骤1] 开始清空排班顺序中的部门(${deptName})员工数据...`);
+                // 只使用专门的部门删除函数，避免影响同一机构下的其他部门
+                if (window.shiftOrderManager.updateShiftOrderWhenDepartmentDeleted) {
+                    // 只对部门名称也匹配的机构清空排班数据
+                    const matchingDepartments = matchedOrganizations.filter(org => org.description === deptName);
+                    for (const org of matchingDepartments) {
+                        try {
+                            await window.shiftOrderManager.updateShiftOrderWhenDepartmentDeleted(org.id);
+                            console.log(`已清空机构ID=${org.id}（部门=${deptName}）的排班顺序数据`);
+                        } catch (singleShiftOrderError) {
+                            console.error(`清空单个机构排班顺序数据时出错:`, org.id, singleShiftOrderError);
+                            // 继续处理其他机构
+                        }
                     }
-                } catch (error) {
-                    console.error('获取员工所属机构信息失败:', error);
+                    console.log(`已对${matchingDepartments.length}个符合条件的部门(${deptName})清空排班顺序数据`);
+                    console.log(`部门(${deptName})删除前已清空所有匹配机构的排班顺序数据`);
+                    shiftDataCleared = true;
+                } else {
+                    console.warn('排班顺序管理器中未找到专门的部门删除函数');
+                }
+            } catch (shiftOrderError) {
+                console.error('清空排班顺序数据时出错:', shiftOrderError);
+            }
+        } else {
+            console.warn('window.shiftOrderManager 未初始化，无法清空排班数据');
+        }
+        
+        // 第二步：删除该部门下员工的所有标识数据
+        let allIdentifiersDeleted = true;
+        if (deptEmployees.length > 0) {
+            console.log(`[部门删除-步骤2] 开始删除部门(${deptName})下员工的标识数据...`);
+            
+            for (const emp of deptEmployees) {
+                try {
+                    // 验证员工信息完整性
+                    if (!emp || !emp.number) {
+                        continue;
+                    }
+                    
+                    // 通过员工号获取所有相关标识数据
+                    const identifiers = await window.identifierManager.getIdentifiersByEmployeeNumber(emp.number);
+                    
+                    // 逐个删除找到的标识数据
+                    if (identifiers.length > 0) {
+                        for (const identifier of identifiers) {
+                            try {
+                                await window.dbManager.delete('identifiers', identifier.id);
+                                console.log(`成功删除员工 ${emp.name || '未知'} 的标识数据: ${identifier.id}`);
+                            } catch (idErr) {
+                                console.error(`删除标识数据失败:`, identifier.id, idErr);
+                                allIdentifiersDeleted = false;
+                            }
+                        }
+                    }
+                } catch (idMgrErr) {
+                    console.error(`获取员工标识数据时出错:`, idMgrErr);
+                    allIdentifiersDeleted = false;
                 }
             }
             
-            console.log(`[部门匹配调试] 员工总数: ${employees.length}, 其中机构匹配的员工数量: ${orgMatchingEmployees.length}`);
+            console.log(`部门员工标识数据删除操作完成，所有标识已${allIdentifiersDeleted ? '成功' : '部分'}删除`);
+        }
         
-        console.log(`获取到部门 ${deptName} 的员工数量: ${deptEmployees.length}`);
-        
-        // 第二步：强制删除该部门下的所有员工，确保联动删除
+        // 第三步：删除该部门下的所有员工数据
         let allEmployeesDeleted = true;
         
         if (deptEmployees.length > 0) {
-            console.log(`开始强制删除部门(${deptName})下的所有员工...`);
+            console.log(`[部门删除-步骤3] 开始删除部门(${deptName})下的所有员工数据...`);
             
             // 使用for循环按顺序删除，确保每个员工都被正确处理
             for (const emp of deptEmployees) {
                 try {
                     console.log(`正在删除部门员工: ${emp.name || '未知'} (${emp.number || '无编号'}), 员工ID: ${emp.id}, 部门: ${emp.deptName}, 机构: ${emp.orgName || '未知'}`);
                     
-                    // 1. 验证员工信息完整性（增加容错性）
+                    // 验证员工信息完整性（增加容错性）
                     if (!emp) {
                         console.warn(`跳过删除: 员工信息不完整`);
                         allEmployeesDeleted = false;
                         continue;
                     }
                     
-                    // 2. 通过员工号获取所有相关标识数据
-                    if (emp.number) {
-                        try {
-                            const identifiers = await window.identifierManager.getIdentifiersByEmployeeNumber(emp.number);
-                            
-                            // 3. 逐个删除找到的标识数据
-                            if (identifiers.length > 0) {
-                                for (const identifier of identifiers) {
-                                    try {
-                                        await window.dbManager.delete('identifiers', identifier.id);
-                                        console.log(`成功删除员工 ${emp.name} 的标识数据: ${identifier.id}`);
-                                    } catch (idErr) {
-                                        console.error(`删除标识数据失败:`, identifier.id, idErr);
-                                        // 继续尝试删除其他数据
-                                    }
-                                }
-                            }
-                        } catch (idMgrErr) {
-                            console.error(`获取员工标识数据时出错:`, idMgrErr);
-                            // 继续尝试删除员工数据
-                        }
-                    }
-                    
-                    // 4. 直接删除员工数据（使用更健壮的方式）
+                    // 直接删除员工数据
                     if (emp.id) {
                         try {
                             await window.dbManager.delete('employees', emp.id);
@@ -1903,39 +1932,10 @@ window.initBaseSettings = function() {
                     console.error(`处理员工删除时发生异常:`, err);
                     allEmployeesDeleted = false;
                 }
-                }
-                
-                console.log(`部门员工删除操作完成，所有员工已${allEmployeesDeleted ? '成功' : '部分'}删除`);
             }
             
-            // 第三步：删除部门前，先清空该部门在排班顺序中的员工数据
-            if (window.shiftOrderManager) {
-                try {
-                    console.log(`开始清空排班顺序中的部门(${deptName})员工数据...`);
-                    // 只使用专门的部门删除函数，避免影响同一机构下的其他部门
-                    if (window.shiftOrderManager.updateShiftOrderWhenDepartmentDeleted) {
-                        // 只对部门名称也匹配的机构清空排班数据
-                        const matchingDepartments = matchedOrganizations.filter(org => org.description === deptName);
-                        for (const org of matchingDepartments) {
-                            try {
-                                await window.shiftOrderManager.updateShiftOrderWhenDepartmentDeleted(org.id);
-                                console.log(`已清空机构ID=${org.id}（部门=${deptName}）的排班顺序数据`);
-                            } catch (singleShiftOrderError) {
-                                console.error(`清空单个机构排班顺序数据时出错:`, org.id, singleShiftOrderError);
-                                // 继续处理其他机构
-                            }
-                        }
-                        console.log(`已对${matchingDepartments.length}个符合条件的部门(${deptName})清空排班顺序数据`);
-                        console.log(`部门(${deptName})删除前已清空所有匹配机构的排班顺序数据`);
-                    } else {
-                        console.warn('排班顺序管理器中未找到专门的部门删除函数，但不会使用机构删除函数作为替代');
-                        console.warn('这可能导致排班数据未被正确清理，但不会影响其他部门的员工');
-                    }
-                } catch (shiftOrderError) {
-                    console.error('清空排班顺序数据时出错:', shiftOrderError);
-                    // 即使清空排班顺序失败，也要继续删除流程，但不会使用机构删除函数
-                }
-            }
+            console.log(`部门员工删除操作完成，所有员工已${allEmployeesDeleted ? '成功' : '部分'}删除`);
+        }
             
             // 第四步：处理机构部门记录
             let allRecordsProcessed = true;
@@ -2033,3 +2033,170 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 100);
 });
+
+// 员工管理器 - 用于统一管理员工相关的数据操作
+// 在app-init.js中初始化后，可在全局访问window.employeeManager
+class EmployeeManager {
+    constructor() {
+        this.dbManager = window.dbManager;
+    }
+    
+    // 初始化函数
+    async initialize() {
+        // 确保dbManager已初始化
+        if (!this.dbManager) {
+            this.dbManager = window.dbManager;
+        }
+        
+        if (this.dbManager && typeof this.dbManager.ensureInitialized === 'function') {
+            try {
+                await this.dbManager.ensureInitialized();
+                console.log('EmployeeManager: 数据库已初始化');
+            } catch (error) {
+                console.error('EmployeeManager: 数据库初始化失败:', error);
+            }
+        }
+        
+        return this;
+    }
+    
+    // 根据部门ID查询员工
+    // 注意：在当前实现中，我们实际上是根据部门名称查询员工
+    // 这是因为员工数据中存储的是部门名称(deptName)而不是部门ID
+    async getEmployeesByDepartmentId(departmentName) {
+        try {
+            console.log('EmployeeManager: 开始根据部门名称查询员工:', departmentName);
+            
+            // 确保dbManager已初始化
+            if (!this.dbManager || !this.dbManager.getAll) {
+                throw new Error('数据库管理器未初始化');
+            }
+            
+            // 获取所有员工
+            const allEmployees = await this.dbManager.getAll('employees');
+            
+            // 根据部门名称筛选员工
+            // 不区分大小写，确保精确匹配
+            const departmentEmployees = allEmployees.filter(emp => {
+                // 确保emp.deptName存在且是字符串类型
+                if (!emp.deptName || typeof emp.deptName !== 'string') {
+                    return false;
+                }
+                
+                // 转换为小写进行比较
+                const empDeptName = emp.deptName.toLowerCase().trim();
+                const targetDeptName = String(departmentName).toLowerCase().trim();
+                
+                // 精确匹配部门名称
+                return empDeptName === targetDeptName;
+            });
+            
+            console.log('EmployeeManager: 找到部门员工数量:', departmentEmployees.length);
+            return departmentEmployees;
+        } catch (error) {
+            console.error('EmployeeManager: 获取部门员工失败:', error);
+            throw error;
+        }
+    }
+    
+    // 根据机构名称和部门名称查询员工
+    async getEmployeesByOrgAndDept(orgName, deptName) {
+        try {
+            console.log(`EmployeeManager: 开始根据机构名称[${orgName}]和部门名称[${deptName}]查询员工`);
+            
+            // 确保dbManager已初始化
+            if (!this.dbManager || !this.dbManager.getAll) {
+                throw new Error('数据库管理器未初始化');
+            }
+            
+            // 获取所有员工
+            const allEmployees = await this.dbManager.getAll('employees');
+            
+            // 根据机构名称和部门名称筛选员工
+            // 不区分大小写，确保精确匹配
+            const filteredEmployees = allEmployees.filter(emp => {
+                // 确保必要的字段存在
+                if (!emp.orgName || typeof emp.orgName !== 'string' || 
+                    !emp.deptName || typeof emp.deptName !== 'string') {
+                    return false;
+                }
+                
+                // 转换为小写进行比较
+                const empOrgName = emp.orgName.toLowerCase().trim();
+                const targetOrgName = String(orgName).toLowerCase().trim();
+                const empDeptName = emp.deptName.toLowerCase().trim();
+                const targetDeptName = String(deptName).toLowerCase().trim();
+                
+                // 精确匹配机构名称和部门名称
+                return empOrgName === targetOrgName && empDeptName === targetDeptName;
+            });
+            
+            console.log(`EmployeeManager: 找到机构[${orgName}]部门[${deptName}]的员工数量:`, filteredEmployees.length);
+            return filteredEmployees;
+        } catch (error) {
+            console.error('EmployeeManager: 获取机构部门员工失败:', error);
+            throw error;
+        }
+    }
+    
+    // 根据员工ID查询员工
+    async getEmployeeById(employeeId) {
+        try {
+            console.log('EmployeeManager: 开始根据员工ID查询员工:', employeeId);
+            
+            // 确保dbManager已初始化
+            if (!this.dbManager || !this.dbManager.getAll) {
+                throw new Error('数据库管理器未初始化');
+            }
+            
+            // 获取所有员工
+            const allEmployees = await this.dbManager.getAll('employees');
+            
+            // 根据员工ID查找员工
+            const employee = allEmployees.find(emp => emp.id === employeeId);
+            
+            if (employee) {
+                console.log('EmployeeManager: 找到员工:', employee.name);
+            } else {
+                console.log('EmployeeManager: 未找到员工ID为', employeeId, '的员工');
+            }
+            
+            return employee;
+        } catch (error) {
+            console.error('EmployeeManager: 获取员工失败:', error);
+            throw error;
+        }
+    }
+    
+    // 获取所有员工
+    async getAllEmployees() {
+        try {
+            // 确保dbManager已初始化
+            if (!this.dbManager || !this.dbManager.getAll) {
+                throw new Error('数据库管理器未初始化');
+            }
+            
+            // 获取所有员工
+            const allEmployees = await this.dbManager.getAll('employees');
+            console.log('EmployeeManager: 获取所有员工数量:', allEmployees.length);
+            
+            return allEmployees;
+        } catch (error) {
+            console.error('EmployeeManager: 获取所有员工失败:', error);
+            throw error;
+        }
+    }
+}
+
+// 在app-init.js中初始化employeeManager后，这里添加增强逻辑
+// 确保在window上暴露employeeManager对象
+if (!window.employeeManager) {
+    window.employeeManager = new EmployeeManager();
+    
+    // 自动初始化
+    window.employeeManager.initialize().then(() => {
+        console.log('EmployeeManager: 已在全局作用域初始化完成');
+    }).catch(error => {
+        console.error('EmployeeManager: 全局初始化失败:', error);
+    });
+}
