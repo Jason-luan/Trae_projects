@@ -7,14 +7,17 @@
     <!-- 使用Font Awesome CDN -->
     <link rel="stylesheet" href="css/all.min.css">
     <link rel="stylesheet" href="css/institution-styles.css">
+    <link rel="stylesheet" href="css/schedule-styles.css">
     <script src="js/xlsx.full.min.js"></script>
     <script src="js/indexed-db-manager.js"></script>
-    <script src="js/shift-order-management.js"></script>
+    <script src="js/app-init.js"></script>
     <script src="js/base-settings.js"></script>
     <script src="js/search-functions.js"></script>
     <script src="js/shift-management.js"></script>
     <script src="js/identifier-management.js"></script>
-    <script src="js/app-init.js"></script>
+    <script src="js/shift-order-management.js"></script>
+    <script src="js/schedule-management.js"></script>
+    <script src="js/schedule-planning.js"></script>
     <style>
         :root {
             --primary-dark: #0a1929;
@@ -43,7 +46,6 @@
             color: var(--text-primary);
             min-height: 100vh;
             display: flex;
-            overflow-x: hidden;
         }
 
         /* 侧边导航 */
@@ -105,6 +107,9 @@
             flex: 1;
             display: flex;
             flex-direction: column;
+            width: 100%;
+            max-width: 100%;
+            position: relative;
         }
 
         .top-bar {
@@ -449,6 +454,289 @@
                 grid-template-columns: repeat(3, 1fr);
             }
         }
+        /* 排班计划相关样式 */
+        #schedule-planning-content {
+            padding: 20px;
+            display: none;
+        }
+        
+        #schedule-planning-content .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        #schedule-planning-content .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        #schedule-planning-content .filter-section {
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        #schedule-planning-content .filter-row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        #schedule-planning-content .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        #schedule-planning-content .form-group label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        #schedule-planning-content .form-group input,
+        #schedule-planning-content .form-group select {
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            font-size: 14px;
+            width: 160px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+        
+        #schedule-planning-content .form-group input:focus,
+        #schedule-planning-content .form-group select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(30, 144, 255, 0.25);
+        }
+        
+        #schedule-planning-content .action-buttons {
+            display: flex;
+            gap: 10px;
+            padding-top: 10px;
+        }
+        
+        #schedule-planning-content .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+        }
+        
+        #schedule-planning-content .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+        
+        #schedule-planning-content .btn-primary:hover {
+            background: var(--accent-light);
+        }
+        
+        #schedule-planning-content .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            color: white;
+        }
+        
+        #schedule-planning-content .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        #schedule-planning-content .schedule-table-container {
+            margin-bottom: 30px;
+        }
+        
+        #schedule-planning-content .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        #schedule-planning-content .table-header h3 {
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 18px;
+        }
+        
+        #schedule-planning-content .table-info {
+            font-size: 14px;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 20px;
+        }
+        
+        #schedule-planning-content .table-wrapper {
+            display: block;
+            width: 100%;
+            overflow-x: auto;  /* 这是实现水平滚动的关键属性 */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            background: var(--card-bg);
+            position: relative;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+        }
+        
+        #schedule-planning-content .schedule-table {
+            width: 100%; /* 表格宽度适应容器 */
+            min-width: max-content; /* 确保内容不会被压缩 */
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        #schedule-planning-content .schedule-table th {
+            background: rgba(30, 144, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--accent-light);
+            min-width: 100px;  /* 设置最小列宽，确保内容不会被过度压缩 */
+            white-space: nowrap; /* 不允许文本换行，确保内容完整性 */
+        }
+        
+        #schedule-planning-content .schedule-table td {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px;
+            text-align: center;
+            min-width: 100px;  /* 设置最小列宽，确保内容不会被过度压缩 */
+            height: 40px;
+            vertical-align: middle;
+            color: var(--text-primary);
+            white-space: nowrap; /* 不允许文本换行，确保内容完整性 */
+        }
+        
+        #schedule-planning-content .schedule-table th.fixed-column,
+        #schedule-planning-content .schedule-table td.fixed-column {
+            position: sticky;
+            left: 0;
+            z-index: 10;
+            background: rgba(30, 144, 255, 0.1);
+            font-weight: 600;
+            color: var(--accent-light);
+        }
+        
+        #schedule-planning-content .schedule-table td.fixed-column {
+            background: var(--card-bg);
+            color: var(--text-primary);
+        }
+        
+        #schedule-planning-content .schedule-table th.fixed-column:nth-child(2),
+        #schedule-planning-content .schedule-table td.fixed-column:nth-child(2) {
+            left: 80px;
+        }
+        
+        #schedule-planning-content .schedule-table th.fixed-column:nth-child(3),
+        #schedule-planning-content .schedule-table td.fixed-column:nth-child(3) {
+            left: 160px;
+        }
+        
+        #schedule-planning-content .schedule-table th.fixed-column:nth-child(4),
+        #schedule-planning-content .schedule-table td.fixed-column:nth-child(4) {
+            left: 240px;
+        }
+        
+        #schedule-planning-content .schedule-table tr:nth-child(even) {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        
+        #schedule-planning-content .schedule-table tr:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+        
+        /* 班次样式 - 模拟Excel中的不同班次颜色 */
+        #schedule-planning-content .shift-g {
+            background-color: rgba(0, 204, 153, 0.2);
+            color: var(--success);
+        }
+        
+        #schedule-planning-content .shift-xiu {
+            background-color: rgba(255, 170, 0, 0.2);
+            color: var(--warning);
+        }
+        
+        #schedule-planning-content .shift-y {
+            background-color: rgba(30, 144, 255, 0.2);
+            color: var(--accent);
+        }
+        
+        #schedule-planning-content .history-section {
+            margin-top: 30px;
+        }
+        
+        #schedule-planning-content .section-header {
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 15px;
+        }
+        
+        #schedule-planning-content .section-header h3 {
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        #schedule-planning-content .history-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        #schedule-planning-content .history-item {
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            flex: 1 1 300px;
+            min-width: 250px;
+        }
+        
+        #schedule-planning-content .history-item .date {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+        
+        #schedule-planning-content .history-item .details {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+        
+        #schedule-planning-content .history-item .actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        #schedule-planning-content .no-data {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 40px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -486,6 +774,137 @@
     <!-- 主内容区 -->
     <div class="main-content">
 
+        <!-- 排班计划内容 -->
+        <div id="schedule-planning-content" class="content-section" style="display: none;">
+            <!-- 顶部栏 -->
+            <div class="top-bar">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="搜索排班信息...">
+                </div>
+                <div class="user-info">
+                    <div class="user-avatar">AM</div>
+                    <div class="user-name">管理员</div>
+                </div>
+            </div>
+            
+            <div class="content">
+                <div class="content-header">
+                    <h2><i class="fas fa-calendar-check"></i> 排班计划</h2>
+                </div>
+            
+            <!-- 筛选条件区域 -->
+            <div class="filter-section">
+                <div class="filter-row">
+                    <div class="form-group">
+                        <label for="scheduleYearInput">年份</label>
+                        <input type="number" id="scheduleYearInput" min="2020" max="2030" value="2023">
+                    </div>
+                    <div class="form-group">
+                        <label for="scheduleMonthInput">月份</label>
+                        <select id="scheduleMonthInput">
+                            <option value="1">1月</option>
+                            <option value="2">2月</option>
+                            <option value="3">3月</option>
+                            <option value="4">4月</option>
+                            <option value="5">5月</option>
+                            <option value="6">6月</option>
+                            <option value="7">7月</option>
+                            <option value="8">8月</option>
+                            <option value="9">9月</option>
+                            <option value="10">10月</option>
+                            <option value="11">11月</option>
+                            <option value="12">12月</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="scheduleOrganizationSelect">机构</label>
+                        <select id="scheduleOrganizationSelect" class="filter-select">
+                            <option value="">全部机构</option>
+                            <!-- 动态生成机构选项 -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="scheduleDepartmentSelect">部门</label>
+                        <select id="scheduleDepartmentSelect" class="filter-select">
+                            <option value="">全部部门</option>
+                            <!-- 动态生成部门选项 -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="schedulePositionSelect">岗位</label>
+                        <select id="schedulePositionSelect" class="filter-select">
+                            <option value="">全部岗位</option>
+                            <!-- 动态生成岗位选项 -->
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="action-buttons">
+                    <button id="generateScheduleBtn" class="btn btn-primary">
+                        <i class="fas fa-magic"></i> 生成排班计划
+                    </button>
+                    <button id="exportScheduleBtn" class="btn btn-secondary">
+                        <i class="fas fa-file-export"></i> 导出排班表
+                    </button>
+                    <button id="refreshScheduleBtn" class="btn btn-secondary">
+                        <i class="fas fa-sync-alt"></i> 刷新
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 排班表展示区域 -->
+            <div class="schedule-table-container">
+                <div class="table-header">
+                    <h3 id="scheduleTitle">排班计划</h3>
+                    <div class="table-info">
+                        <span id="scheduleDateRange">2023年8月</span>
+                        <span id="scheduleStatistics">共 <strong>0</strong> 人</span>
+                    </div>
+                </div>
+                
+                <!-- 排班表表格 - 简化结构，移除不必要的嵌套 -->
+                <div class="table-wrapper">
+                    <table id="scheduleTable" class="schedule-table">
+                        <thead>
+                            <tr>
+                                <th rowspan="2" class="fixed-column">序号</th>
+                                <th rowspan="2" class="fixed-column">员工号</th>
+                                <th rowspan="2" class="fixed-column">姓名</th>
+                                <th rowspan="2" class="fixed-column">部门</th>
+                                <th rowspan="2" class="fixed-column">岗位</th>
+                                <!-- 动态生成日期列头 -->
+                            </tr>
+                            <tr id="weekdayHeader">
+                                <!-- 动态生成星期列头 -->
+                            </tr>
+                        </thead>
+                        <tbody id="scheduleTableBody">
+                            <!-- 动态生成员工排班行 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 历史排班记录 -->
+            <div class="history-section">
+                <div class="section-header">
+                    <h3><i class="fas fa-history"></i> 历史排班记录</h3>
+                </div>
+                
+                <div class="history-list">
+                    <div id="historyListContainer">
+                        <!-- 动态生成历史记录列表 -->
+                        <div class="no-data">暂无历史排班记录</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 关闭基础设置内容区域 -->
+        </div>
+        
         <!-- 机构添加/编辑模态框 -->
         <div id="institutionModal" class="modal" style="display: none;">
             <div class="modal-content">
@@ -631,33 +1050,34 @@
                 </div>
             </div>
         </div>
-        <!-- 顶部栏 -->
-        <div class="top-bar">
-            <div class="search-box">
-                <i class="fas fa-search"></i>
-                <input type="text" placeholder="搜索机构、人员或设置...">
-            </div>
-            <div class="user-info">
-                <div class="user-avatar">AM</div>
-                <div class="user-name">管理员</div>
-            </div>
-        </div>
-
-        <!-- 内容区 -->
-        <div class="content">
-            <div class="content-header">
-                <h2>基础设置</h2>
-                <p>管理基础数据参数信息</p>
+        <!-- 基础设置内容 -->
+        <div id="base-settings-content" class="content-section" style="display: block;">
+            <!-- 顶部栏 -->
+            <div class="top-bar">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="搜索机构、人员或设置...">
+                </div>
+                <div class="user-info">
+                    <div class="user-avatar">AM</div>
+                    <div class="user-name">管理员</div>
+                </div>
             </div>
 
-            <!-- 选项卡 -->
-            <div class="tabs">
-                <div class="tab active" data-tab="organizations">机构部门管理</div>
-                <div class="tab" data-tab="employees">人员管理</div>
-                <div class="tab" data-tab="shifts">班次管理</div>
-                <div class="tab" data-tab="identifiers">标识管理</div>
-                <div class="tab" data-tab="shiftOrders">排班顺序管理</div>
-            </div>
+            <div class="content">
+                <div class="content-header">
+                    <h2>基础设置</h2>
+                    <p>管理基础数据参数信息</p>
+                </div>
+
+                <!-- 选项卡 -->
+                <div class="tabs">
+                    <div class="tab active" data-tab="organizations">机构部门管理</div>
+                    <div class="tab" data-tab="employees">人员管理</div>
+                    <div class="tab" data-tab="shifts">班次管理</div>
+                    <div class="tab" data-tab="identifiers">标识管理</div>
+                    <div class="tab" data-tab="shiftOrders">排班顺序管理</div>
+                </div>
 
             <!-- 机构部门管理 -->
             <div class="tab-content active" id="organizations-tab">

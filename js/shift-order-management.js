@@ -740,16 +740,17 @@ class ShiftOrderManager {
     }
 
     // 添加新员工到对应岗位和班次的排班顺序末尾
-    async addEmployeeToShiftOrderByShift(employeeNumber, position, shiftCode) {
+    async addEmployeeToShiftOrderByShift(employeeNumber, position, shiftCode, department) {
         try {
             // 获取当前岗位和班次的排班顺序
-            let shiftOrder = await this.getShiftOrderByPositionAndShift(position, shiftCode);
+            let shiftOrder = await this.getShiftOrderByPositionAndShift(position, shiftCode, department);
             
             if (!shiftOrder) {
                 // 如果该岗位和班次还没有排班顺序，创建一个新的
                 shiftOrder = {
                     position: position,
                     shiftCode: shiftCode,
+                    department: department,
                     employeeNumbers: []
                 };
             }
@@ -4281,6 +4282,13 @@ function updateShiftOrderTableHeader(tableHeader, activeShifts) {
 // 将ShiftOrderManager类暴露到全局作用域，确保其他文件可以访问它
 if (typeof window !== 'undefined') {
     window.ShiftOrderManager = ShiftOrderManager;
+    
+    // 确保shiftOrderManager作为全局变量存在
+    if (!window.shiftOrderManager) {
+        window.shiftOrderManager = new ShiftOrderManager();
+        console.log('已在shift-order-management.js文件中创建全局shiftOrderManager实例');
+    }
+    
     console.log('ShiftOrderManager类已成功暴露到全局作用域');
     // 暴露渲染函数到全局，确保其他文件可以调用
     window.renderShiftOrderTable = renderShiftOrderTable;

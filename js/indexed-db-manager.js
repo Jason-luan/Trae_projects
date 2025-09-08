@@ -2,7 +2,7 @@
 class IndexedDBManager {
     constructor() {
         this.dbName = 'scheduleSystemDB';
-        this.dbVersion = 9; // 增加版本号以添加排班顺序复合索引
+        this.dbVersion = 10; // 增加版本号以添加排班计划存储空间
         this.db = null;
         this.initialized = false;
         this.initPromise = this.initDB();
@@ -180,11 +180,28 @@ class IndexedDBManager {
                     const shiftOrderStore = transaction.objectStore('shiftOrders');
                     
                     if (!shiftOrderStore.indexNames.contains('position_shiftCode_department')) {
-                        console.log('创建position_shiftCode_department复合唯一索引...');
-                        shiftOrderStore.createIndex('position_shiftCode_department', ['position', 'shiftCode', 'department'], { unique: true });
-                        console.log('position_shiftCode_department复合唯一索引创建成功');
-                    }
+                    console.log('创建position_shiftCode_department复合唯一索引...');
+                    shiftOrderStore.createIndex('position_shiftCode_department', ['position', 'shiftCode', 'department'], { unique: true });
+                    console.log('position_shiftCode_department复合唯一索引创建成功');
                 }
+            }
+
+            // 创建排班计划数据对象存储空间
+            if (!db.objectStoreNames.contains('schedulePlans')) {
+                const schedulePlanStore = db.createObjectStore('schedulePlans', {
+                    keyPath: 'id',
+                    autoIncrement: true
+                });
+                // 创建索引
+                schedulePlanStore.createIndex('year', 'year', { unique: false });
+                schedulePlanStore.createIndex('month', 'month', { unique: false });
+                schedulePlanStore.createIndex('organization', 'organization', { unique: false });
+                schedulePlanStore.createIndex('department', 'department', { unique: false });
+                schedulePlanStore.createIndex('position', 'position', { unique: false });
+                schedulePlanStore.createIndex('createdAt', 'createdAt', { unique: false });
+                schedulePlanStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                console.log('排班计划存储空间和索引已创建');
+            }
             };
 
             // 数据库打开成功
@@ -780,6 +797,134 @@ class IndexedDBManager {
     async checkObjectStoreExists(storeName) {
         const db = await this.ensureInitialized();
         return db.objectStoreNames.contains(storeName);
+    }
+
+    // 创建对象存储空间
+    async createObjectStore(storeName, options = {}) {
+        try {
+            // 确保数据库已初始化
+            await this.ensureInitialized();
+            
+            // 检查对象存储空间是否已存在
+            if (this.db.objectStoreNames.contains(storeName)) {
+                console.log(`对象存储空间${storeName}已存在`);
+                return true;
+            }
+            
+            // 增加版本号以触发数据库升级
+            this.dbVersion += 1;
+            
+            // 打开新版本的数据库来创建存储空间（不关闭现有连接）
+            const newDb = await new Promise((resolve, reject) => {
+                const request = indexedDB.open(this.dbName, this.dbVersion);
+                
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    
+                    // 创建新的对象存储空间
+                    if (!db.objectStoreNames.contains(storeName)) {
+                        const objectStore = db.createObjectStore(storeName, options);
+                        console.log(`对象存储空间${storeName}已创建`);
+                    }
+                };
+                
+                request.onsuccess = (event) => {
+                    resolve(event.target.result);
+                };
+                
+                request.onerror = (event) => {
+                    console.error(`创建对象存储空间${storeName}失败:`, event.target.error);
+                    reject(event.target.error);
+                };
+            });
+            
+            // 关闭新打开的连接，使用现有的连接在下次操作时自动升级
+            if (newDb !== this.db) {
+                newDb.close();
+            }
+            
+            // 重新初始化数据库连接以使用新版本
+            this.db = null;
+            this.initialized = false;
+            this.initPromise = this.initDB();
+            await this.initPromise;
+            
+            return true;
+        } catch (error) {
+            console.error(`创建对象存储空间${storeName}异常:`, error);
+            throw error;
+        }
+    }
+
+    // 创建索引
+    async createIndex(storeName, indexName, options = {}) {
+        try {
+            // 确保数据库已初始化
+            await this.ensureInitialized();
+            
+            // 检查对象存储空间是否存在
+            if (!this.db.objectStoreNames.contains(storeName)) {
+                throw new Error(`对象存储空间${storeName}不存在，无法创建索引`);
+            }
+            
+            // 检查索引是否已存在
+            const indexExists = await this.checkIndexExists(storeName, indexName);
+            if (indexExists) {
+                console.log(`索引${indexName}已存在`);
+                return true;
+            }
+            
+            // 增加版本号以触发数据库升级
+            this.dbVersion += 1;
+            
+            // 打开新版本的数据库来创建索引（不关闭现有连接）
+            const newDb = await new Promise((resolve, reject) => {
+                const request = indexedDB.open(this.dbName, this.dbVersion);
+                
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    
+                    // 检查对象存储空间是否存在
+                    if (db.objectStoreNames.contains(storeName)) {
+                        const objectStore = event.target.transaction.objectStore(storeName);
+                        
+                        // 检查索引是否存在
+                        if (!objectStore.indexNames.contains(indexName)) {
+                            // 创建索引
+                            objectStore.createIndex(indexName, indexName, options);
+                            console.log(`在存储空间${storeName}中创建索引${indexName}成功`);
+                        }
+                    } else {
+                        throw new Error(`对象存储空间${storeName}不存在，无法创建索引`);
+                    }
+                };
+                
+                request.onsuccess = (event) => {
+                    resolve(event.target.result);
+                };
+                
+                request.onerror = (event) => {
+                    console.error(`在存储空间${storeName}中创建索引${indexName}失败:`, event.target.error);
+                    reject(event.target.error);
+                };
+            });
+            
+            // 关闭新打开的连接，使用现有的连接在下次操作时自动升级
+            if (newDb !== this.db) {
+                newDb.close();
+            }
+            
+            // 重新初始化数据库连接以使用新版本
+            this.db = null;
+            this.initialized = false;
+            this.initPromise = this.initDB();
+            await this.initPromise;
+            
+            return true;
+        } catch (error) {
+            console.error(`在存储空间${storeName}中创建索引${indexName}异常:`, error);
+            throw error;
+        }
     }
 
     // 检查索引是否存在

@@ -1,0 +1,2762 @@
+{
+  "organizations": [
+    {
+      "name": "郑州中心",
+      "code": "FA04",
+      "status": 0,
+      "deptStatus": 0,
+      "description": "风险",
+      "remark": "",
+      "createdAt": "2025-09-03T00:00:00.000Z",
+      "updatedAt": "2025-09-03T15:19:07.471Z",
+      "id": 18
+    },
+    {
+      "name": "郑州中心",
+      "code": "FA04",
+      "status": 0,
+      "deptStatus": 0,
+      "description": "风险与质量控制室",
+      "remark": "",
+      "createdAt": "2025-09-03T00:00:00.000Z",
+      "updatedAt": "2025-09-03T15:19:19.902Z",
+      "id": 19
+    },
+    {
+      "name": "郑州中心",
+      "code": "FA04",
+      "status": 0,
+      "deptStatus": 0,
+      "description": "反诈",
+      "remark": "",
+      "createdAt": "2025-09-03T00:00:00.000Z",
+      "updatedAt": "2025-09-03T15:19:31.155Z",
+      "id": 20
+    },
+    {
+      "name": "贵阳中心",
+      "code": "FA05",
+      "status": 0,
+      "deptStatus": 0,
+      "description": "风险",
+      "remark": "",
+      "createdAt": "2025-09-03T00:00:00.000Z",
+      "updatedAt": "2025-09-03T15:19:41.518Z",
+      "id": 21
+    },
+    {
+      "name": "贵阳中心",
+      "code": "FA05",
+      "status": 0,
+      "deptStatus": 0,
+      "description": "反诈",
+      "remark": "",
+      "createdAt": "2025-09-03T00:00:00.000Z",
+      "updatedAt": "2025-09-03T15:19:53.489Z",
+      "id": 22
+    }
+  ],
+  "employees": [
+    {
+      "number": 9000390198,
+      "name": "周雅静",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.797Z",
+      "updatedAt": "2025-09-08T09:22:25.797Z",
+      "id": 1007
+    },
+    {
+      "number": 9000390197,
+      "name": "李俊杰",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.798Z",
+      "updatedAt": "2025-09-08T09:22:25.798Z",
+      "id": 1008
+    },
+    {
+      "number": 9000390195,
+      "name": "韩淑昌",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.799Z",
+      "updatedAt": "2025-09-08T09:22:25.799Z",
+      "id": 1009
+    },
+    {
+      "number": 9000390196,
+      "name": "刘晓依",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.800Z",
+      "updatedAt": "2025-09-08T09:22:25.800Z",
+      "id": 1010
+    },
+    {
+      "number": 9000390229,
+      "name": "王璐",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.800Z",
+      "updatedAt": "2025-09-08T09:22:25.800Z",
+      "id": 1011
+    },
+    {
+      "number": 9000390190,
+      "name": "王正国",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.801Z",
+      "updatedAt": "2025-09-08T09:22:25.801Z",
+      "id": 1012
+    },
+    {
+      "number": 9000390193,
+      "name": "蔺东杰",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.803Z",
+      "updatedAt": "2025-09-08T09:22:25.803Z",
+      "id": 1013
+    },
+    {
+      "number": 9000284112,
+      "name": "吴雪",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.804Z",
+      "updatedAt": "2025-09-08T09:22:25.804Z",
+      "id": 1014
+    },
+    {
+      "number": 9000286563,
+      "name": "王雨",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.805Z",
+      "updatedAt": "2025-09-08T09:22:25.805Z",
+      "id": 1015
+    },
+    {
+      "number": 9000277844,
+      "name": "丁亚梅",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.805Z",
+      "updatedAt": "2025-09-08T09:22:25.805Z",
+      "id": 1016
+    },
+    {
+      "number": 9000322711,
+      "name": "任雪萌",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.806Z",
+      "updatedAt": "2025-09-08T09:22:25.806Z",
+      "id": 1017
+    },
+    {
+      "number": 9000282804,
+      "name": "冯越",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.807Z",
+      "updatedAt": "2025-09-08T09:22:25.807Z",
+      "id": 1018
+    },
+    {
+      "number": 9000271024,
+      "name": "董静",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.807Z",
+      "updatedAt": "2025-09-08T09:22:25.807Z",
+      "id": 1019
+    },
+    {
+      "number": 9000385131,
+      "name": "蒋佳佳",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.808Z",
+      "updatedAt": "2025-09-08T09:22:25.808Z",
+      "id": 1020
+    },
+    {
+      "number": 7811100155,
+      "name": "马庆慧",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.808Z",
+      "updatedAt": "2025-09-08T09:22:25.808Z",
+      "id": 1021
+    },
+    {
+      "number": 9000384107,
+      "name": "刘子爽",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.809Z",
+      "updatedAt": "2025-09-08T09:22:25.809Z",
+      "id": 1022
+    },
+    {
+      "number": 9000384117,
+      "name": "卢云萌",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.810Z",
+      "updatedAt": "2025-09-08T09:22:25.810Z",
+      "id": 1023
+    },
+    {
+      "number": 7811100017,
+      "name": "马炎",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "风险核查",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.810Z",
+      "updatedAt": "2025-09-08T09:22:25.810Z",
+      "id": 1024
+    },
+    {
+      "number": 7811100015,
+      "name": "于剑",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.811Z",
+      "updatedAt": "2025-09-08T09:22:25.811Z",
+      "id": 1025
+    },
+    {
+      "number": 9000351997,
+      "name": "王永辞",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.812Z",
+      "updatedAt": "2025-09-08T09:22:25.812Z",
+      "id": 1026
+    },
+    {
+      "number": 9000336272,
+      "name": "郭涵",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.813Z",
+      "updatedAt": "2025-09-08T09:22:25.813Z",
+      "id": 1027
+    },
+    {
+      "number": 9000358368,
+      "name": "杨文萍",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.813Z",
+      "updatedAt": "2025-09-08T09:22:25.813Z",
+      "id": 1028
+    },
+    {
+      "number": 9000339711,
+      "name": "李芳",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.814Z",
+      "updatedAt": "2025-09-08T09:22:25.814Z",
+      "id": 1029
+    },
+    {
+      "number": 9000299145,
+      "name": "王栋梁",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.815Z",
+      "updatedAt": "2025-09-08T09:22:25.815Z",
+      "id": 1030
+    },
+    {
+      "number": 9000293007,
+      "name": "张梦远",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.815Z",
+      "updatedAt": "2025-09-08T09:22:25.815Z",
+      "id": 1031
+    },
+    {
+      "number": 9000296479,
+      "name": "夏在莹",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.816Z",
+      "updatedAt": "2025-09-08T09:22:25.816Z",
+      "id": 1032
+    },
+    {
+      "number": 9000314712,
+      "name": "蔡淑姣",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.816Z",
+      "updatedAt": "2025-09-08T09:22:25.816Z",
+      "id": 1033
+    },
+    {
+      "number": 9000339705,
+      "name": "刘晴",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.817Z",
+      "updatedAt": "2025-09-08T09:22:25.817Z",
+      "id": 1034
+    },
+    {
+      "number": 9000361241,
+      "name": "张玲",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.818Z",
+      "updatedAt": "2025-09-08T09:22:25.818Z",
+      "id": 1035
+    },
+    {
+      "number": 9000327945,
+      "name": "刘青青",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.819Z",
+      "updatedAt": "2025-09-08T09:22:25.819Z",
+      "id": 1036
+    },
+    {
+      "number": 9000276443,
+      "name": "邱文月",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.820Z",
+      "updatedAt": "2025-09-08T09:22:25.820Z",
+      "id": 1037
+    },
+    {
+      "number": 9000040066,
+      "name": "蒋文静",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.821Z",
+      "updatedAt": "2025-09-08T09:22:25.821Z",
+      "id": 1038
+    },
+    {
+      "number": 9000283567,
+      "name": "李瑶1",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.822Z",
+      "updatedAt": "2025-09-08T09:22:25.822Z",
+      "id": 1039
+    },
+    {
+      "number": 9000277847,
+      "name": "李璇",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.823Z",
+      "updatedAt": "2025-09-08T09:22:25.823Z",
+      "id": 1040
+    },
+    {
+      "number": 9000282805,
+      "name": "韩艺青",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.823Z",
+      "updatedAt": "2025-09-08T09:22:25.823Z",
+      "id": 1041
+    },
+    {
+      "number": 9000295092,
+      "name": "丰爽",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.824Z",
+      "updatedAt": "2025-09-08T09:22:25.824Z",
+      "id": 1042
+    },
+    {
+      "number": 9000314458,
+      "name": "陈慧敏",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.824Z",
+      "updatedAt": "2025-09-08T09:22:25.824Z",
+      "id": 1043
+    },
+    {
+      "number": 9000322636,
+      "name": "李思雨",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.825Z",
+      "updatedAt": "2025-09-08T09:22:25.825Z",
+      "id": 1044
+    },
+    {
+      "number": 9000288312,
+      "name": "景洋",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.825Z",
+      "updatedAt": "2025-09-08T09:22:25.825Z",
+      "id": 1045
+    },
+    {
+      "number": 9000288396,
+      "name": "陈婷婷",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.826Z",
+      "updatedAt": "2025-09-08T09:22:25.826Z",
+      "id": 1046
+    },
+    {
+      "number": 9000385138,
+      "name": "刘阳",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.827Z",
+      "updatedAt": "2025-09-08T09:22:25.827Z",
+      "id": 1047
+    },
+    {
+      "number": 9000385135,
+      "name": "程丽云",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.827Z",
+      "updatedAt": "2025-09-08T09:22:25.827Z",
+      "id": 1048
+    },
+    {
+      "number": 9000385137,
+      "name": "吴勃迅",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "个人",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.828Z",
+      "updatedAt": "2025-09-08T09:22:25.828Z",
+      "id": 1049
+    },
+    {
+      "number": 9000284680,
+      "name": "杨玉爽",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "对公",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.828Z",
+      "updatedAt": "2025-09-08T09:22:25.828Z",
+      "id": 1050
+    },
+    {
+      "number": 9000277851,
+      "name": "张薇",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "对公",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.829Z",
+      "updatedAt": "2025-09-08T09:22:25.829Z",
+      "id": 1051
+    },
+    {
+      "number": 7811100019,
+      "name": "李雪凯",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "对公",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.830Z",
+      "updatedAt": "2025-09-08T09:22:25.830Z",
+      "id": 1052
+    },
+    {
+      "number": 9000273605,
+      "name": "彭静雅",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "对公",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.830Z",
+      "updatedAt": "2025-09-08T09:22:25.830Z",
+      "id": 1053
+    },
+    {
+      "number": 7811200049,
+      "name": "张羽",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "对公",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.831Z",
+      "updatedAt": "2025-09-08T09:22:25.831Z",
+      "id": 1054
+    },
+    {
+      "number": 7811500006,
+      "name": "杨敬贤",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "对公",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.832Z",
+      "updatedAt": "2025-09-08T09:22:25.832Z",
+      "id": 1055
+    },
+    {
+      "number": 9000279563,
+      "name": "王丽坤",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "对公",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.832Z",
+      "updatedAt": "2025-09-08T09:22:25.832Z",
+      "id": 1056
+    },
+    {
+      "number": 9000275301,
+      "name": "李忆雯",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "对公",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.833Z",
+      "updatedAt": "2025-09-08T09:22:25.833Z",
+      "id": 1057
+    },
+    {
+      "number": 9000330993,
+      "name": "侯宗渝",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "对公",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.833Z",
+      "updatedAt": "2025-09-08T09:22:25.833Z",
+      "id": 1058
+    },
+    {
+      "number": 7811100044,
+      "name": "周碧聪",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "对公",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.834Z",
+      "updatedAt": "2025-09-08T09:22:25.834Z",
+      "id": 1059
+    },
+    {
+      "number": 9000288422,
+      "name": "马欣欣",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "对公",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.835Z",
+      "updatedAt": "2025-09-08T09:22:25.835Z",
+      "id": 1060
+    },
+    {
+      "number": 9000384099,
+      "name": "孙耀",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "对公",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.836Z",
+      "updatedAt": "2025-09-08T09:22:25.836Z",
+      "id": 1061
+    },
+    {
+      "number": 9000381702,
+      "name": "常雨晴",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "对公",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.837Z",
+      "updatedAt": "2025-09-08T09:22:25.837Z",
+      "id": 1062
+    },
+    {
+      "number": 9000282808,
+      "name": "王艳平",
+      "orgName": "郑州中心",
+      "deptName": "风险",
+      "position": "对公",
+      "status": 0,
+      "createdAt": "2025-09-08T09:22:25.838Z",
+      "updatedAt": "2025-09-08T09:22:25.838Z",
+      "id": 1063
+    }
+  ],
+  "shifts": [
+    {
+      "code": "G",
+      "name": "白班",
+      "startTime": "08:50",
+      "endTime": "18:00",
+      "description": "正常白班",
+      "status": 0,
+      "createdAt": "2025-08-25T17:32:34.155Z",
+      "updatedAt": "2025-08-25T17:32:34.155Z",
+      "id": 1
+    },
+    {
+      "code": "Y0",
+      "name": "夜班00:00-08:00",
+      "startTime": "00:00",
+      "endTime": "08:00",
+      "description": "夜班",
+      "status": 1,
+      "createdAt": "2025-08-25T17:32:34.155Z",
+      "updatedAt": "2025-08-29T04:51:15.888Z",
+      "id": 2
+    },
+    {
+      "code": "Y1030普",
+      "name": "中班10:20-19:30",
+      "startTime": "10:20",
+      "endTime": "19:30",
+      "description": "普通中班",
+      "status": 0,
+      "createdAt": "2025-08-25T17:32:34.155Z",
+      "updatedAt": "2025-09-08T09:22:58.141Z",
+      "id": 3
+    },
+    {
+      "code": "Y1330普",
+      "name": "中班13:20-22:00",
+      "startTime": "13:20",
+      "endTime": "22:00",
+      "description": "普通中班",
+      "status": 1,
+      "createdAt": "2025-08-25T17:32:34.155Z",
+      "updatedAt": "2025-08-29T04:51:20.788Z",
+      "id": 4
+    },
+    {
+      "code": "Y1330综",
+      "name": "中班13:20-22:00(综合)",
+      "startTime": "13:20",
+      "endTime": "22:00",
+      "description": "综合中班",
+      "status": 1,
+      "createdAt": "2025-08-25T17:32:34.155Z",
+      "updatedAt": "2025-08-29T04:51:21.708Z",
+      "id": 5
+    },
+    {
+      "code": "Y1330贵",
+      "name": "中班13:20-22:00(贵宾)",
+      "startTime": "13:20",
+      "endTime": "22:00",
+      "description": "贵宾中班",
+      "status": 1,
+      "createdAt": "2025-08-25T17:32:34.155Z",
+      "updatedAt": "2025-08-29T04:51:17.391Z",
+      "id": 6
+    },
+    {
+      "code": "Y16综",
+      "name": "晚班15:50-次日00:00",
+      "startTime": "15:50",
+      "endTime": "24:00",
+      "description": "综合晚班",
+      "status": 0,
+      "createdAt": "2025-08-25T17:32:34.155Z",
+      "updatedAt": "2025-08-29T01:15:58.416Z",
+      "id": 7
+    },
+    {
+      "code": "Y18普",
+      "name": "晚班18:00-次日02:00",
+      "startTime": "18:00",
+      "endTime": "02:00",
+      "description": "普通晚班",
+      "status": 1,
+      "createdAt": "2025-08-25T17:32:34.155Z",
+      "updatedAt": "2025-08-29T04:51:23.406Z",
+      "id": 8
+    },
+    {
+      "code": "Y8普",
+      "name": "早班07:50-16:30",
+      "startTime": "07:50",
+      "endTime": "16:30",
+      "description": "普通早班",
+      "status": 1,
+      "createdAt": "2025-08-25T17:32:34.155Z",
+      "updatedAt": "2025-08-29T04:51:23.780Z",
+      "id": 9
+    },
+    {
+      "code": "Y8综",
+      "name": "早班07:50-16:30(综合)",
+      "startTime": "07:50",
+      "endTime": "16:30",
+      "description": "综合早班",
+      "status": 1,
+      "createdAt": "2025-08-25T17:32:34.155Z",
+      "updatedAt": "2025-08-29T04:51:24.190Z",
+      "id": 10
+    },
+    {
+      "code": "Y9值",
+      "name": "值班08:50-17:30",
+      "startTime": "08:50",
+      "endTime": "17:30",
+      "description": "值班",
+      "status": 1,
+      "createdAt": "2025-08-25T17:32:34.155Z",
+      "updatedAt": "2025-08-29T04:51:25.573Z",
+      "id": 11
+    },
+    {
+      "code": "Y9公",
+      "name": "对公值班08:50-17:30",
+      "startTime": "08:50",
+      "endTime": "17:30",
+      "description": "对公白班",
+      "status": 1,
+      "updatedAt": "2025-08-29T04:51:24.832Z",
+      "createdAt": "2025-08-29T00:00:00.000Z",
+      "id": 12
+    },
+    {
+      "code": "Y9普",
+      "name": "普通班08:50-17:30",
+      "startTime": "08:50",
+      "endTime": "17:30",
+      "description": "普通班",
+      "status": 1,
+      "createdAt": "2025-08-25T17:32:34.155Z",
+      "updatedAt": "2025-08-29T04:51:25.205Z",
+      "id": 13
+    },
+    {
+      "code": "Y9综",
+      "name": "综合班08:50-17:30",
+      "startTime": "08:50",
+      "endTime": "17:30",
+      "description": "综合班",
+      "status": 1,
+      "updatedAt": "2025-08-29T04:51:27.332Z",
+      "id": 14,
+      "createdAt": "1970-01-01T00:00:00.000Z"
+    },
+    {
+      "code": "G值",
+      "name": "周末个人值班08:50-18:00",
+      "startTime": "08:50",
+      "endTime": "18:00",
+      "description": "个人岗周末G班",
+      "status": 0,
+      "updatedAt": "2025-08-29T02:22:11.134Z",
+      "createdAt": "2025-08-29T00:00:00.000Z",
+      "id": 15
+    },
+    {
+      "code": "休",
+      "name": "休息日",
+      "startTime": "",
+      "endTime": "",
+      "description": "当天休息",
+      "status": 0,
+      "createdAt": "2025-08-25T17:32:34.155Z",
+      "updatedAt": "2025-08-26T04:38:42.707Z",
+      "id": 16
+    },
+    {
+      "code": "C",
+      "name": "产假",
+      "startTime": "",
+      "endTime": "",
+      "description": "产假",
+      "status": 0,
+      "createdAt": "2025-08-25T17:32:34.155Z",
+      "updatedAt": "2025-08-25T17:32:34.155Z",
+      "id": 17
+    },
+    {
+      "code": "G值-A",
+      "name": "周末对公值班A岗",
+      "startTime": "08:50",
+      "endTime": "18:00",
+      "description": "对公周末G班A岗",
+      "status": 0,
+      "updatedAt": "2025-08-29T01:28:44.345Z",
+      "createdAt": "2025-08-29T00:00:00.000Z",
+      "id": 18
+    },
+    {
+      "code": "G值-C",
+      "name": "周末对公值班C岗",
+      "startTime": "08:50",
+      "endTime": "18:00",
+      "description": "对公周末G班C岗",
+      "status": 0,
+      "updatedAt": "2025-08-29T02:20:34.429Z",
+      "createdAt": "2025-08-29T00:00:00.000Z",
+      "id": 19
+    },
+    {
+      "code": "G值-B",
+      "name": "周末风险值班B岗",
+      "startTime": "08:50",
+      "endTime": "18:00",
+      "description": "风险核查岗周末G班B岗",
+      "status": 0,
+      "updatedAt": "2025-08-29T02:21:30.544Z",
+      "createdAt": "2025-08-29T02:21:30.543Z",
+      "id": 20
+    }
+  ],
+  "identifiers": [
+    {
+      "employeeNumber": 9000390197,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.237Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10449
+    },
+    {
+      "employeeNumber": 9000390197,
+      "shiftCode": "G值-B",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.238Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10450
+    },
+    {
+      "employeeNumber": 9000390195,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.239Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10451
+    },
+    {
+      "employeeNumber": 9000390195,
+      "shiftCode": "G值-B",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.240Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10452
+    },
+    {
+      "employeeNumber": 9000390196,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.241Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10453
+    },
+    {
+      "employeeNumber": 9000390196,
+      "shiftCode": "G值-B",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.241Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10454
+    },
+    {
+      "employeeNumber": 9000390229,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.242Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10455
+    },
+    {
+      "employeeNumber": 9000390229,
+      "shiftCode": "G值-B",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.243Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10456
+    },
+    {
+      "employeeNumber": 9000390190,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.243Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10457
+    },
+    {
+      "employeeNumber": 9000390190,
+      "shiftCode": "G值-B",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.244Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10458
+    },
+    {
+      "employeeNumber": 9000390193,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.245Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10459
+    },
+    {
+      "employeeNumber": 9000390193,
+      "shiftCode": "G值-B",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.245Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10460
+    },
+    {
+      "employeeNumber": 9000284112,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.246Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10461
+    },
+    {
+      "employeeNumber": 9000286563,
+      "shiftCode": "C",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.247Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10462
+    },
+    {
+      "employeeNumber": 9000277844,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.247Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10463
+    },
+    {
+      "employeeNumber": 9000277844,
+      "shiftCode": "G值-B",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.248Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10464
+    },
+    {
+      "employeeNumber": 9000322711,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.249Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10465
+    },
+    {
+      "employeeNumber": 9000322711,
+      "shiftCode": "G值-B",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.249Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10466
+    },
+    {
+      "employeeNumber": 9000282804,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.250Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10467
+    },
+    {
+      "employeeNumber": 9000271024,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.251Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10468
+    },
+    {
+      "employeeNumber": 9000271024,
+      "shiftCode": "G值-B",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.251Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10469
+    },
+    {
+      "employeeNumber": 9000385131,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.254Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10470
+    },
+    {
+      "employeeNumber": 9000385131,
+      "shiftCode": "G值-B",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.254Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10471
+    },
+    {
+      "employeeNumber": 7811100155,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.255Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10472
+    },
+    {
+      "employeeNumber": 7811100155,
+      "shiftCode": "G值-B",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.256Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10473
+    },
+    {
+      "employeeNumber": 9000384107,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.257Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10474
+    },
+    {
+      "employeeNumber": 9000384107,
+      "shiftCode": "G值-B",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.258Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10475
+    },
+    {
+      "employeeNumber": 9000384117,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.258Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10476
+    },
+    {
+      "employeeNumber": 9000384117,
+      "shiftCode": "G值-B",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.259Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10477
+    },
+    {
+      "employeeNumber": 7811100017,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.260Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10478
+    },
+    {
+      "employeeNumber": 7811100015,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.260Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10479
+    },
+    {
+      "employeeNumber": 9000351997,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.261Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10480
+    },
+    {
+      "employeeNumber": 9000336272,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.261Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10481
+    },
+    {
+      "employeeNumber": 9000358368,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.262Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10482
+    },
+    {
+      "employeeNumber": 9000339711,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.263Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10483
+    },
+    {
+      "employeeNumber": 9000299145,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.263Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10484
+    },
+    {
+      "employeeNumber": 9000293007,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.264Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10485
+    },
+    {
+      "employeeNumber": 9000296479,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.265Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10486
+    },
+    {
+      "employeeNumber": 9000314712,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.265Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10487
+    },
+    {
+      "employeeNumber": 9000361241,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.266Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10488
+    },
+    {
+      "employeeNumber": 9000327945,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.266Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10489
+    },
+    {
+      "employeeNumber": 9000276443,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.267Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10490
+    },
+    {
+      "employeeNumber": 9000040066,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.268Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10491
+    },
+    {
+      "employeeNumber": 9000283567,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.270Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10492
+    },
+    {
+      "employeeNumber": 9000283567,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.271Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10493
+    },
+    {
+      "employeeNumber": 9000283567,
+      "shiftCode": "Y16综",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.272Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10494
+    },
+    {
+      "employeeNumber": 9000283567,
+      "shiftCode": "G值",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.273Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10495
+    },
+    {
+      "employeeNumber": 9000277847,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.273Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10496
+    },
+    {
+      "employeeNumber": 9000277847,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.274Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10497
+    },
+    {
+      "employeeNumber": 9000277847,
+      "shiftCode": "Y16综",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.274Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10498
+    },
+    {
+      "employeeNumber": 9000277847,
+      "shiftCode": "G值",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.275Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10499
+    },
+    {
+      "employeeNumber": 9000282805,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.276Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10500
+    },
+    {
+      "employeeNumber": 9000282805,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.276Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10501
+    },
+    {
+      "employeeNumber": 9000282805,
+      "shiftCode": "Y16综",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.277Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10502
+    },
+    {
+      "employeeNumber": 9000282805,
+      "shiftCode": "G值",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.278Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10503
+    },
+    {
+      "employeeNumber": 9000295092,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.278Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10504
+    },
+    {
+      "employeeNumber": 9000295092,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.279Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10505
+    },
+    {
+      "employeeNumber": 9000295092,
+      "shiftCode": "G值",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.280Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10506
+    },
+    {
+      "employeeNumber": 9000314458,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.280Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10507
+    },
+    {
+      "employeeNumber": 9000314458,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.281Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10508
+    },
+    {
+      "employeeNumber": 9000314458,
+      "shiftCode": "Y16综",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.281Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10509
+    },
+    {
+      "employeeNumber": 9000314458,
+      "shiftCode": "G值",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.282Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10510
+    },
+    {
+      "employeeNumber": 9000322636,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.283Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10511
+    },
+    {
+      "employeeNumber": 9000322636,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.283Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10512
+    },
+    {
+      "employeeNumber": 9000322636,
+      "shiftCode": "Y16综",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.284Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10513
+    },
+    {
+      "employeeNumber": 9000322636,
+      "shiftCode": "G值",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.286Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10514
+    },
+    {
+      "employeeNumber": 9000288312,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.287Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10515
+    },
+    {
+      "employeeNumber": 9000288312,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.288Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10516
+    },
+    {
+      "employeeNumber": 9000288396,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.289Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10517
+    },
+    {
+      "employeeNumber": 9000288396,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.290Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10518
+    },
+    {
+      "employeeNumber": 9000288396,
+      "shiftCode": "G值",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.291Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10519
+    },
+    {
+      "employeeNumber": 9000385138,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.291Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10520
+    },
+    {
+      "employeeNumber": 9000385138,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.292Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10521
+    },
+    {
+      "employeeNumber": 9000385138,
+      "shiftCode": "Y16综",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.293Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10522
+    },
+    {
+      "employeeNumber": 9000385138,
+      "shiftCode": "G值",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.293Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10523
+    },
+    {
+      "employeeNumber": 9000385135,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.294Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10524
+    },
+    {
+      "employeeNumber": 9000385135,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.294Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10525
+    },
+    {
+      "employeeNumber": 9000385135,
+      "shiftCode": "G值",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.295Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10526
+    },
+    {
+      "employeeNumber": 9000385137,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.296Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10527
+    },
+    {
+      "employeeNumber": 9000385137,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.296Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10528
+    },
+    {
+      "employeeNumber": 9000385137,
+      "shiftCode": "Y16综",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.297Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10529
+    },
+    {
+      "employeeNumber": 9000385137,
+      "shiftCode": "G值",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.298Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10530
+    },
+    {
+      "employeeNumber": 9000284680,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.298Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10531
+    },
+    {
+      "employeeNumber": 9000277851,
+      "shiftCode": "C",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.299Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10532
+    },
+    {
+      "employeeNumber": 7811100019,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.299Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10533
+    },
+    {
+      "employeeNumber": 9000273605,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.300Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10534
+    },
+    {
+      "employeeNumber": 9000273605,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.301Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10535
+    },
+    {
+      "employeeNumber": 9000273605,
+      "shiftCode": "Y16综",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.301Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10536
+    },
+    {
+      "employeeNumber": 9000273605,
+      "shiftCode": "G值-A",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.303Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10537
+    },
+    {
+      "employeeNumber": 9000273605,
+      "shiftCode": "G值-C",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.304Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10538
+    },
+    {
+      "employeeNumber": 7811200049,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.304Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10539
+    },
+    {
+      "employeeNumber": 7811200049,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.305Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10540
+    },
+    {
+      "employeeNumber": 7811200049,
+      "shiftCode": "Y16综",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.306Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10541
+    },
+    {
+      "employeeNumber": 7811200049,
+      "shiftCode": "G值-A",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.307Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10542
+    },
+    {
+      "employeeNumber": 7811200049,
+      "shiftCode": "G值-C",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.308Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10543
+    },
+    {
+      "employeeNumber": 7811500006,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.308Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10544
+    },
+    {
+      "employeeNumber": 7811500006,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.309Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10545
+    },
+    {
+      "employeeNumber": 7811500006,
+      "shiftCode": "G值-A",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.310Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10546
+    },
+    {
+      "employeeNumber": 7811500006,
+      "shiftCode": "G值-C",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.310Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10547
+    },
+    {
+      "employeeNumber": 9000279563,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.311Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10548
+    },
+    {
+      "employeeNumber": 9000279563,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.312Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10549
+    },
+    {
+      "employeeNumber": 9000279563,
+      "shiftCode": "Y16综",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.313Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10550
+    },
+    {
+      "employeeNumber": 9000279563,
+      "shiftCode": "G值-A",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.313Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10551
+    },
+    {
+      "employeeNumber": 9000279563,
+      "shiftCode": "G值-C",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.315Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10552
+    },
+    {
+      "employeeNumber": 9000275301,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.316Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10553
+    },
+    {
+      "employeeNumber": 9000330993,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.316Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10554
+    },
+    {
+      "employeeNumber": 9000330993,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.317Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10555
+    },
+    {
+      "employeeNumber": 9000330993,
+      "shiftCode": "Y16综",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.321Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10556
+    },
+    {
+      "employeeNumber": 9000330993,
+      "shiftCode": "G值-A",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.322Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10557
+    },
+    {
+      "employeeNumber": 9000330993,
+      "shiftCode": "G值-C",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.322Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10558
+    },
+    {
+      "employeeNumber": 7811100044,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.323Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10559
+    },
+    {
+      "employeeNumber": 7811100044,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.324Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10560
+    },
+    {
+      "employeeNumber": 7811100044,
+      "shiftCode": "Y16综",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.325Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10561
+    },
+    {
+      "employeeNumber": 7811100044,
+      "shiftCode": "G值-A",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.326Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10562
+    },
+    {
+      "employeeNumber": 7811100044,
+      "shiftCode": "G值-C",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.326Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10563
+    },
+    {
+      "employeeNumber": 9000288422,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.327Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10564
+    },
+    {
+      "employeeNumber": 9000288422,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.328Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10565
+    },
+    {
+      "employeeNumber": 9000288422,
+      "shiftCode": "Y16综",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.329Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10566
+    },
+    {
+      "employeeNumber": 9000288422,
+      "shiftCode": "G值-A",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.330Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10567
+    },
+    {
+      "employeeNumber": 9000288422,
+      "shiftCode": "G值-C",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.330Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10568
+    },
+    {
+      "employeeNumber": 9000384099,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.331Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10569
+    },
+    {
+      "employeeNumber": 9000384099,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.332Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10570
+    },
+    {
+      "employeeNumber": 9000384099,
+      "shiftCode": "Y16综",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.333Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10571
+    },
+    {
+      "employeeNumber": 9000384099,
+      "shiftCode": "G值-A",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.334Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10572
+    },
+    {
+      "employeeNumber": 9000384099,
+      "shiftCode": "G值-C",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.334Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10573
+    },
+    {
+      "employeeNumber": 9000381702,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.337Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10574
+    },
+    {
+      "employeeNumber": 9000381702,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.338Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10575
+    },
+    {
+      "employeeNumber": 9000381702,
+      "shiftCode": "Y16综",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.339Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10576
+    },
+    {
+      "employeeNumber": 9000381702,
+      "shiftCode": "G值-A",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.339Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10577
+    },
+    {
+      "employeeNumber": 9000381702,
+      "shiftCode": "G值-C",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.340Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10578
+    },
+    {
+      "employeeNumber": 9000282808,
+      "shiftCode": "G",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.341Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10579
+    },
+    {
+      "employeeNumber": 9000282808,
+      "shiftCode": "Y1030普",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.342Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10580
+    },
+    {
+      "employeeNumber": 9000282808,
+      "shiftCode": "Y16综",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.343Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10581
+    },
+    {
+      "employeeNumber": 9000282808,
+      "shiftCode": "G值-A",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.344Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10582
+    },
+    {
+      "employeeNumber": 9000282808,
+      "shiftCode": "G值-C",
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:09.345Z",
+      "updatedAt": "2025-09-08T09:23:09.350Z",
+      "id": 10583
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.609Z",
+      "employeeNumber": 9000390198,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.631Z",
+      "id": 10584
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.609Z",
+      "employeeNumber": 9000390197,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.631Z",
+      "id": 10585
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.609Z",
+      "employeeNumber": 9000390195,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.631Z",
+      "id": 10586
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.610Z",
+      "employeeNumber": 9000390196,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.631Z",
+      "id": 10587
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.610Z",
+      "employeeNumber": 9000390229,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.631Z",
+      "id": 10588
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.610Z",
+      "employeeNumber": 9000390190,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.632Z",
+      "id": 10589
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.610Z",
+      "employeeNumber": 9000390193,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.632Z",
+      "id": 10590
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.610Z",
+      "employeeNumber": 9000284112,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.632Z",
+      "id": 10591
+    },
+    {
+      "id": 10592,
+      "canWork": false,
+      "employeeNumber": 9000286563,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:30.673Z"
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.611Z",
+      "employeeNumber": 9000277844,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.632Z",
+      "id": 10593
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.611Z",
+      "employeeNumber": 9000322711,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.632Z",
+      "id": 10594
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.611Z",
+      "employeeNumber": 9000282804,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.632Z",
+      "id": 10595
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.612Z",
+      "employeeNumber": 9000271024,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.632Z",
+      "id": 10596
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.612Z",
+      "employeeNumber": 9000385131,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.632Z",
+      "id": 10597
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.612Z",
+      "employeeNumber": 7811100155,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.632Z",
+      "id": 10598
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.612Z",
+      "employeeNumber": 9000384107,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.632Z",
+      "id": 10599
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.613Z",
+      "employeeNumber": 9000384117,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.632Z",
+      "id": 10600
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.613Z",
+      "employeeNumber": 7811100017,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.632Z",
+      "id": 10601
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.613Z",
+      "employeeNumber": 7811100015,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.632Z",
+      "id": 10602
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.613Z",
+      "employeeNumber": 9000351997,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.632Z",
+      "id": 10603
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.613Z",
+      "employeeNumber": 9000336272,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.632Z",
+      "id": 10604
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.614Z",
+      "employeeNumber": 9000358368,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.633Z",
+      "id": 10605
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.614Z",
+      "employeeNumber": 9000339711,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.633Z",
+      "id": 10606
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.614Z",
+      "employeeNumber": 9000299145,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.633Z",
+      "id": 10607
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.614Z",
+      "employeeNumber": 9000293007,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.633Z",
+      "id": 10608
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.614Z",
+      "employeeNumber": 9000296479,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.633Z",
+      "id": 10609
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.614Z",
+      "employeeNumber": 9000314712,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.633Z",
+      "id": 10610
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.614Z",
+      "employeeNumber": 9000339705,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.633Z",
+      "id": 10611
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.614Z",
+      "employeeNumber": 9000361241,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.633Z",
+      "id": 10612
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.615Z",
+      "employeeNumber": 9000327945,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.633Z",
+      "id": 10613
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.615Z",
+      "employeeNumber": 9000276443,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.633Z",
+      "id": 10614
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.615Z",
+      "employeeNumber": 9000040066,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.633Z",
+      "id": 10615
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.615Z",
+      "employeeNumber": 9000283567,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.633Z",
+      "id": 10616
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.615Z",
+      "employeeNumber": 9000277847,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.633Z",
+      "id": 10617
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.616Z",
+      "employeeNumber": 9000282805,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.633Z",
+      "id": 10618
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.616Z",
+      "employeeNumber": 9000295092,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.633Z",
+      "id": 10619
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.616Z",
+      "employeeNumber": 9000314458,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.633Z",
+      "id": 10620
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.616Z",
+      "employeeNumber": 9000322636,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.634Z",
+      "id": 10621
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.616Z",
+      "employeeNumber": 9000288312,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.634Z",
+      "id": 10622
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.617Z",
+      "employeeNumber": 9000288396,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.634Z",
+      "id": 10623
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.617Z",
+      "employeeNumber": 9000385138,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.634Z",
+      "id": 10624
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.617Z",
+      "employeeNumber": 9000385135,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.634Z",
+      "id": 10625
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.617Z",
+      "employeeNumber": 9000385137,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.634Z",
+      "id": 10626
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.617Z",
+      "employeeNumber": 9000284680,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.634Z",
+      "id": 10627
+    },
+    {
+      "id": 10628,
+      "canWork": false,
+      "employeeNumber": 9000277851,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:26.650Z"
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.617Z",
+      "employeeNumber": 7811100019,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.634Z",
+      "id": 10629
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.617Z",
+      "employeeNumber": 9000273605,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.634Z",
+      "id": 10630
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.618Z",
+      "employeeNumber": 7811200049,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.634Z",
+      "id": 10631
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.618Z",
+      "employeeNumber": 7811500006,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.634Z",
+      "id": 10632
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.621Z",
+      "employeeNumber": 9000279563,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.634Z",
+      "id": 10633
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.622Z",
+      "employeeNumber": 9000275301,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.634Z",
+      "id": 10634
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.622Z",
+      "employeeNumber": 9000330993,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.634Z",
+      "id": 10635
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.622Z",
+      "employeeNumber": 7811100044,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.635Z",
+      "id": 10636
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.622Z",
+      "employeeNumber": 9000288422,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.635Z",
+      "id": 10637
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.623Z",
+      "employeeNumber": 9000384099,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.635Z",
+      "id": 10638
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.623Z",
+      "employeeNumber": 9000381702,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.635Z",
+      "id": 10639
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:23:21.623Z",
+      "employeeNumber": 9000282808,
+      "shiftCode": "休",
+      "updatedAt": "2025-09-08T09:23:21.635Z",
+      "id": 10640
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:33:44.140Z",
+      "employeeNumber": 9000390198,
+      "shiftCode": "G",
+      "updatedAt": "2025-09-08T09:33:44.141Z",
+      "id": 10641
+    },
+    {
+      "canWork": true,
+      "createdAt": "2025-09-08T09:34:57.031Z",
+      "employeeNumber": 9000390198,
+      "shiftCode": "G值-B",
+      "updatedAt": "2025-09-08T09:34:57.031Z",
+      "id": 10642
+    }
+  ],
+  "shiftOrders": [
+    {
+      "position": "对公",
+      "shiftCode": "G",
+      "employeeNumbers": [
+        "9000273605",
+        "7811200049",
+        "9000279563",
+        "9000330993",
+        "7811500006",
+        "7811100044",
+        "9000288422",
+        "9000282808",
+        "9000381702",
+        "9000384099"
+      ],
+      "excludeAllEmployees": false,
+      "updatedAt": "2025-09-08T09:25:44.375Z",
+      "isShiftBased": true,
+      "department": "风险"
+    },
+    {
+      "position": "对公",
+      "shiftCode": "Y16综",
+      "employeeNumbers": [
+        "7811100044",
+        "9000279563",
+        "9000330993",
+        "9000273605",
+        "9000288422",
+        "7811200049",
+        "9000282808",
+        "9000381702",
+        "9000384099"
+      ],
+      "excludeAllEmployees": false,
+      "updatedAt": "2025-09-08T09:26:36.281Z",
+      "isShiftBased": true,
+      "department": "风险"
+    },
+    {
+      "position": "对公",
+      "shiftCode": "G值-A",
+      "employeeNumbers": [
+        "9000273605",
+        "7811200049",
+        "9000279563",
+        "7811500006",
+        "9000330993",
+        "7811100044",
+        "9000288422",
+        "9000282808",
+        "9000381702",
+        "9000384099"
+      ],
+      "excludeAllEmployees": false,
+      "updatedAt": "2025-09-08T09:27:03.730Z",
+      "isShiftBased": true,
+      "department": "风险"
+    },
+    {
+      "position": "对公",
+      "shiftCode": "G值-C",
+      "employeeNumbers": [
+        "7811200049",
+        "9000279563",
+        "7811500006",
+        "9000273605",
+        "9000330993",
+        "7811100044",
+        "9000288422",
+        "9000282808",
+        "9000381702",
+        "9000384099"
+      ],
+      "excludeAllEmployees": false,
+      "updatedAt": "2025-09-08T09:27:24.914Z",
+      "isShiftBased": true,
+      "department": "风险"
+    },
+    {
+      "position": "对公",
+      "shiftCode": "休",
+      "employeeNumbers": [
+        "9000284680",
+        "7811100019",
+        "9000273605",
+        "7811200049",
+        "7811500006",
+        "9000279563",
+        "9000275301",
+        "9000330993",
+        "7811100044",
+        "9000288422",
+        "9000384099",
+        "9000381702",
+        "9000282808"
+      ],
+      "excludeAllEmployees": true,
+      "updatedAt": "2025-09-08T09:27:30.116Z",
+      "isShiftBased": true,
+      "department": "风险"
+    },
+    {
+      "position": "对公",
+      "shiftCode": "C",
+      "employeeNumbers": [
+        "9000277851"
+      ],
+      "excludeAllEmployees": true,
+      "updatedAt": "2025-09-08T09:27:51.534Z",
+      "isShiftBased": true,
+      "department": "风险"
+    },
+    {
+      "position": "个人",
+      "shiftCode": "G",
+      "employeeNumbers": [
+        "9000040066",
+        "9000276443",
+        "9000283567",
+        "9000277847",
+        "9000282805",
+        "9000322636",
+        "9000327945",
+        "9000314458",
+        "9000295092",
+        "9000385138",
+        "9000385137",
+        "9000385135",
+        "9000288396",
+        "9000288312"
+      ],
+      "excludeAllEmployees": false,
+      "updatedAt": "2025-09-08T09:28:51.508Z",
+      "isShiftBased": true,
+      "department": "风险"
+    },
+    {
+      "position": "个人",
+      "shiftCode": "Y16综",
+      "employeeNumbers": [
+        "9000277847",
+        "9000314458",
+        "9000282805",
+        "9000322636",
+        "9000283567",
+        "9000385137",
+        "9000385138"
+      ],
+      "excludeAllEmployees": false,
+      "updatedAt": "2025-09-08T09:29:19.938Z",
+      "isShiftBased": true,
+      "department": "风险"
+    },
+    {
+      "position": "个人",
+      "shiftCode": "G值",
+      "employeeNumbers": [
+        "9000322636",
+        "9000385138",
+        "9000385137",
+        "9000295092",
+        "9000288396",
+        "9000314458",
+        "9000282805",
+        "9000385135",
+        "9000277847",
+        "9000283567"
+      ],
+      "excludeAllEmployees": false,
+      "updatedAt": "2025-09-08T09:30:02.877Z",
+      "isShiftBased": true,
+      "department": "风险"
+    },
+    {
+      "position": "个人",
+      "shiftCode": "休",
+      "employeeNumbers": [
+        "7811100015",
+        "9000351997",
+        "9000336272",
+        "9000358368",
+        "9000339711",
+        "9000299145",
+        "9000293007",
+        "9000296479",
+        "9000314712",
+        "9000339705",
+        "9000361241",
+        "9000327945",
+        "9000276443",
+        "9000040066",
+        "9000283567",
+        "9000277847",
+        "9000282805",
+        "9000295092",
+        "9000314458",
+        "9000322636",
+        "9000288312",
+        "9000288396",
+        "9000385138",
+        "9000385135",
+        "9000385137"
+      ],
+      "excludeAllEmployees": true,
+      "updatedAt": "2025-09-08T09:30:05.948Z",
+      "isShiftBased": true,
+      "department": "风险"
+    },
+    {
+      "position": "风险核查",
+      "shiftCode": "G",
+      "employeeNumbers": [
+        "9000277844",
+        "9000322711",
+        "9000282804",
+        "9000284112",
+        "9000271024",
+        "9000385131",
+        "7811100155",
+        "9000384107",
+        "9000384117",
+        "9000390198",
+        "9000390197",
+        "9000390195",
+        "9000390196",
+        "9000390229",
+        "9000390190",
+        "9000390193"
+      ],
+      "excludeAllEmployees": false,
+      "updatedAt": "2025-09-08T09:34:08.468Z",
+      "isShiftBased": true,
+      "department": "风险"
+    },
+    {
+      "position": "风险核查",
+      "shiftCode": "G值-B",
+      "employeeNumbers": [
+        "9000277844",
+        "9000322711",
+        "9000271024",
+        "9000385131",
+        "7811100155",
+        "9000384107",
+        "9000384117",
+        "9000390198",
+        "9000390197",
+        "9000390195",
+        "9000390196",
+        "9000390229",
+        "9000390190",
+        "9000390193"
+      ],
+      "excludeAllEmployees": false,
+      "updatedAt": "2025-09-08T09:35:33.373Z",
+      "isShiftBased": true,
+      "department": "风险"
+    },
+    {
+      "position": "风险核查",
+      "shiftCode": "休",
+      "employeeNumbers": [
+        "9000390198",
+        "9000390197",
+        "9000390195",
+        "9000390196",
+        "9000390229",
+        "9000390190",
+        "9000390193",
+        "9000284112",
+        "9000277844",
+        "9000322711",
+        "9000282804",
+        "9000271024",
+        "9000385131",
+        "7811100155",
+        "9000384107",
+        "9000384117",
+        "7811100017"
+      ],
+      "excludeAllEmployees": true,
+      "updatedAt": "2025-09-08T09:35:54.287Z",
+      "isShiftBased": true,
+      "department": "风险"
+    },
+    {
+      "position": "风险核查",
+      "shiftCode": "C",
+      "employeeNumbers": [
+        "9000286563"
+      ],
+      "excludeAllEmployees": true,
+      "updatedAt": "2025-09-08T09:36:00.768Z",
+      "isShiftBased": true,
+      "department": "风险"
+    }
+  ],
+  "exportTime": "2025-09-08T09:36:18.959Z"
+}

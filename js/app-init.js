@@ -1,5 +1,11 @@
 // 移除模块化导入，现在通过传统脚本加载
 
+// 确保shiftOrderManager作为全局变量存在，在文件顶部立即初始化，而不是等待DOMContentLoaded
+if (!window.shiftOrderManager && window.ShiftOrderManager) {
+    window.shiftOrderManager = new ShiftOrderManager();
+    console.log('已在app-init.js文件顶部创建全局shiftOrderManager实例');
+}
+
 // 自动选择部门并加载排班顺序数据
 async function autoSelectDepartmentAndLoadData() {
     try {
@@ -91,6 +97,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!window.dbManager) {
         window.dbManager = new IndexedDBManager();
         console.log('已创建全局dbManager实例');
+    }
+    
+    // 设置排班计划的年份和月份默认值为当前月份
+    try {
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1; // getMonth()返回0-11
+        
+        // 设置年份输入框
+        const yearInput = document.getElementById('scheduleYearInput');
+        if (yearInput) {
+            yearInput.value = currentYear;
+            console.log('已设置排班计划年份默认值为', currentYear);
+        }
+        
+        // 设置月份选择框
+        const monthInput = document.getElementById('scheduleMonthInput');
+        if (monthInput) {
+            monthInput.value = currentMonth;
+            console.log('已设置排班计划月份默认值为', currentMonth);
+        }
+    } catch (error) {
+        console.error('设置排班计划默认年份和月份失败:', error);
     }
     
     // 将增强版loadPositionsForDepartment函数暴露为全局函数

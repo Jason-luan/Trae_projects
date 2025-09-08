@@ -194,6 +194,52 @@ function addSortEvents() {
     });
 }
 
+// 显示基础设置内容
+function showBaseSettings() {
+    // 隐藏所有内容区域
+    const allContentSections = document.querySelectorAll('.content-section');
+    allContentSections.forEach(section => {
+        section.style.display = 'none';
+    });
+    
+    // 显示基础设置内容
+    const baseSettingsContent = document.getElementById('base-settings-content');
+    if (baseSettingsContent) {
+        baseSettingsContent.style.display = 'block';
+    }
+    
+    // 更新活动的导航项 - 使用更可靠的方式查找基础设置导航项
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    // 查找基础设置导航项的更兼容方式
+    let baseSettingsNavItem = null;
+    navItems.forEach(item => {
+        const span = item.querySelector('span');
+        if (span && span.textContent.trim() === '基础设置') {
+            baseSettingsNavItem = item;
+        }
+    });
+    
+    // 如果上述方式找不到，回退到nth-child选择器
+    if (!baseSettingsNavItem) {
+        baseSettingsNavItem = document.querySelector('.nav-item:nth-child(2)');
+    }
+    
+    if (baseSettingsNavItem) {
+        baseSettingsNavItem.classList.add('active');
+    } else {
+        console.warn('未找到基础设置导航项，无法设置激活状态');
+    }
+    
+    // 确保加载正确的内容
+    if (window.loadOrganizations) {
+        window.loadOrganizations();
+    }
+}
+
 // 加载机构数据
 // showNotificationFlag参数控制是否显示加载成功通知，默认为true
 // 当从其他操作函数（如删除、添加、更新状态等）调用时，应设置为false
@@ -1059,7 +1105,7 @@ window.initTabs = function() {
     });
 }
 
-// 导入导出功能初始化
+// 导入导出功能初始化 - 放置在基础设置栏
 window.initImportExportEvents = function() {
     // 检查是否已经存在导入导出按钮容器
     let buttonContainer = document.querySelector('.import-export-container');
@@ -1161,15 +1207,22 @@ window.initImportExportEvents = function() {
         buttonContainer.appendChild(exportBtn);
         buttonContainer.appendChild(importBtn);
 
-        // 添加到页面的content-header中
-        const contentHeader = document.querySelector('.content-header');
-        if (contentHeader) {
-            contentHeader.appendChild(buttonContainer);
+        // 优先添加到基础设置内容区域的content-header中
+        const baseSettingsContentHeader = document.querySelector('#base-settings-content .content-header');
+        if (baseSettingsContentHeader) {
+            baseSettingsContentHeader.appendChild(buttonContainer);
         } else {
-            // 如果没找到content-header，回退到main-content
-            const mainContent = document.querySelector('.main-content');
-            if (mainContent) {
-                mainContent.insertBefore(buttonContainer, mainContent.firstChild);
+            // 如果没找到基础设置的content-header，尝试找到基础设置内容区域
+            const baseSettingsContent = document.querySelector('#base-settings-content .content');
+            if (baseSettingsContent) {
+                // 插入到内容区域的开头
+                baseSettingsContent.insertBefore(buttonContainer, baseSettingsContent.firstChild);
+            } else {
+                // 最后的回退方案
+                const contentHeader = document.querySelector('.content-header');
+                if (contentHeader) {
+                    contentHeader.appendChild(buttonContainer);
+                }
             }
         }
 
@@ -1503,6 +1556,54 @@ function initImportEmployeeEvents() {
 
 // 初始化函数
 window.initBaseSettings = function() {
+    // 添加基础设置导航逻辑
+    // 侧边栏导航点击事件 - 使用JavaScript遍历的方式查找
+    let baseSettingsNavItem = null;
+    const navItems = document.querySelectorAll('.nav-item');
+    
+    // 遍历所有导航项，找到包含"基础设置"文本的项
+    navItems.forEach(item => {
+        const span = item.querySelector('span');
+        if (span && span.textContent.trim() === '基础设置') {
+            baseSettingsNavItem = item;
+        }
+    });
+    
+    // 如果找不到，回退到nth-child选择器
+    if (!baseSettingsNavItem) {
+        baseSettingsNavItem = document.querySelector('.nav-item:nth-child(2)');
+    }
+    
+    if (baseSettingsNavItem) {
+        baseSettingsNavItem.addEventListener('click', () => {
+            showBaseSettings();
+        });
+    } else {
+        console.warn('未找到基础设置导航项，将尝试在页面加载完成后重新查找');
+        // 延迟查找，确保DOM完全加载
+        setTimeout(() => {
+            let retryBaseSettingsNavItem = null;
+            const retryNavItems = document.querySelectorAll('.nav-item');
+            retryNavItems.forEach(item => {
+                const span = item.querySelector('span');
+                if (span && span.textContent.trim() === '基础设置') {
+                    retryBaseSettingsNavItem = item;
+                }
+            });
+            
+            if (!retryBaseSettingsNavItem) {
+                retryBaseSettingsNavItem = document.querySelector('.nav-item:nth-child(2)');
+            }
+            
+            if (retryBaseSettingsNavItem) {
+                retryBaseSettingsNavItem.addEventListener('click', () => {
+                    showBaseSettings();
+                });
+                console.log('延迟查找基础设置导航项成功');
+            }
+        }, 1000);
+    }
+    
     // 设置默认日期
     setDefaultDates();
 

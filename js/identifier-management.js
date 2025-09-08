@@ -958,7 +958,7 @@ async function renderIdentifierTable() {
             
             .scrollable-table {
                 border-collapse: collapse; /* 合并边框 */
-                table-layout: fixed; /* 固定列宽 */
+                table-layout: auto; /* 自动列宽，根据内容调整 */
                 width: 100%; /* 表格宽度根据内容自动调整 */
                 min-width: 100%; /* 确保表格至少填满容器 */
                 margin: 0; /* 移除可能导致溢出的边距 */
@@ -990,11 +990,12 @@ async function renderIdentifierTable() {
             /* 非固定列单元格 - 自适应内容 */
             .scrollable-table th:not(.fixed-column),
             .scrollable-table td:not(.fixed-column) {
-                min-width: 80px; /* 非固定列最小宽度 */
+                min-width: fit-content; /* 最小宽度适应内容 */
+                width: auto; /* 宽度自动调整 */
                 position: relative; /* 相对定位 */
                 z-index: 1; /* 层级 */
-                white-space: normal; /* 允许文本换行 */
-                word-wrap: break-word; /* 长单词自动换行 */
+                white-space: nowrap; /* 不允许文本换行 */
+                overflow: visible; /* 确保内容完整显示 */
                 line-height: 1.4; /* 调整行高，提高可读性 */
             }
 
@@ -1022,31 +1023,28 @@ async function renderIdentifierTable() {
                 border-bottom: 2px solid rgba(255, 255, 255, 0.2); /* 表头下边框 */
             }
             
-            /* 固定列样式 - 确保不与非固定列重叠 */
+            /* 基础信息列样式 - 移除固定效果，支持整体水平滚动 */
             .fixed-column {
-                position: sticky; /* 粘性定位 */
-                left: 0; /* 定位到容器左侧 */
                 background-color: var(--card-bg); /* 背景色 */
-                z-index: 5; /* 层级，确保在非固定列之上 */
                 border-right: 2px solid rgba(255, 255, 255, 0.1); /* 右侧边框 */
-                box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1); /* 右侧阴影，增强层次感 */
                 overflow: visible; /* 允许内容完整显示 */
                 white-space: nowrap; /* 不允许文本换行 */
                 vertical-align: middle; /* 内容垂直居中 */
+                min-width: 100px; /* 保持基础列宽度 */
             }
             
-            /* 固定列的层级关系和精确宽度 */
-            .fixed-column:nth-child(1) { left: 0; z-index: 10; min-width: 40px; width: 40px; } /* 第一列固定位置和宽度 */
-            .fixed-column:nth-child(2) { left: 40px; z-index: 9; min-width: fit-content; width: auto; } /* 第二列固定位置和宽度 */
-            .fixed-column:nth-child(3) { left: auto; z-index: 8; min-width: fit-content; width: auto; } /* 第三列固定位置和宽度 */
-            .fixed-column:nth-child(4) { left: auto; z-index: 7; min-width: fit-content; width: auto; } /* 第四列固定位置和宽度 */
-            .fixed-column:nth-child(5) { left: auto; z-index: 6; min-width: fit-content; width: auto; } /* 第五列固定位置和宽度 */
-            .fixed-column:nth-child(6) { left: auto; z-index: 5; min-width: fit-content; width: auto; } /* 第六列固定位置和宽度 */
+            /* 基础信息列宽度设置 */
+            .fixed-column:nth-child(1) { min-width: 40px; width: 40px; } /* 第一列宽度 */
+            .fixed-column:nth-child(2) { min-width: fit-content; width: auto; } /* 第二列宽度 */
+            .fixed-column:nth-child(3) { min-width: fit-content; width: auto; } /* 第三列宽度 */
+            .fixed-column:nth-child(4) { min-width: fit-content; width: auto; } /* 第四列宽度 */
+            .fixed-column:nth-child(5) { min-width: fit-content; width: auto; } /* 第五列宽度 */
+            .fixed-column:nth-child(6) { min-width: fit-content; width: auto; } /* 第六列宽度 */
             
-            /* 修复第一个非固定列的左边距 */
+            /* 移除固定列相关的边距设置，支持整体滚动 */
             .scrollable-table th:nth-child(7),
             .scrollable-table td:nth-child(7) {
-                padding-left: 15px; /* 增加左内边距，避免被固定列遮挡 */
+                padding-left: 0; /* 移除额外的左内边距，支持整体滚动 */
             }
             
             /* 固定列与滚动容器的协调 */
@@ -1300,11 +1298,11 @@ function addIdentifierEvents() {
                             if (shift && shift.code) {
                                 if (canWork) {
                                     // 当班次勾选时，将员工添加到排班顺序
-                                    await window.shiftOrderManager.addEmployeeToShiftOrder(
+                                    await window.shiftOrderManager.addEmployeeToShiftOrderByShift(
+                                        employee.number,
                                         employeePosition,
                                         shift.code,
-                                        employee.number,
-                                        employeeId
+                                        employee.department
                                     );
                                     console.log(`已将员工${employee.number}添加到${employeePosition}岗位${shift.code}班次的排班顺序中`);
                                 } else {
