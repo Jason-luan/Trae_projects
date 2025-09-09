@@ -12,8 +12,23 @@ class SchedulePlanning {
         // 初始化事件监听器
         this.initEventListeners();
         
+        // 异步初始化数据
+        this.initData();
+    }
+    
+    // 异步初始化数据
+    async initData() {
         // 加载机构数据
-        this.loadOrganizations();
+        await this.loadOrganizations();
+        // 等待一段时间确保机构数据加载完成
+        setTimeout(async () => {
+            // 加载部门数据
+            await this.loadDepartmentsByOrganization();
+            // 加载岗位数据
+            await this.loadPositionsByDepartment();
+            // 加载排班数据
+            this.loadScheduleData();
+        }, 500);
     }
     
     // 初始化事件监听器
@@ -202,11 +217,12 @@ class SchedulePlanning {
         const departmentNames = new Set();
         
         try {
+            const organizations = await this.dbManager.getAll('organizations');
+            
             if (organizationValue && organizationValue !== '全部机构') {
                 // 如果选择了具体机构，加载该机构下的部门
                 // 根据organizations表结构，每个记录代表一个"机构-部门"组合
                 // name字段是机构名称，description字段是部门名称
-                const organizations = await this.dbManager.getAll('organizations');
                 
                 // 筛选出该机构名称下的所有部门记录
                 // 然后按部门名称去重
@@ -242,6 +258,32 @@ class SchedulePlanning {
                             }
                         }
                     }
+                }
+            } else {
+                // 如果选择了"全部机构"，加载所有部门
+                // 从organizations表中获取所有部门，并按部门名称去重
+                const departments = organizations
+                    .filter(org => org.description) // 确保有部门名称
+                    .map(org => ({ id: org.id, name: org.description }))
+                    .filter((dept, index, self) => 
+                        self.findIndex(d => d.name === dept.name) === index // 按部门名称去重
+                    );
+                
+                departments.forEach(dept => {
+                    if (!departmentNames.has(dept.name)) {
+                        const option = document.createElement('option');
+                        option.value = dept.name.toLowerCase().trim();  // 存储为小写并去除空格
+                        option.textContent = dept.name;
+                        departmentSelect.appendChild(option);
+                        departmentNames.add(dept.name);
+                    }
+                });
+                
+                // 如果有部门数据，选择第一个部门
+                if (departments.length > 0) {
+                    departmentSelect.value = departments[0].name.toLowerCase().trim();  // 使用小写并去除空格的名称
+                    // 加载该部门下的岗位
+                    await this.loadPositionsByDepartment();
                 }
             }
         } catch (error) {
@@ -401,8 +443,8 @@ class SchedulePlanning {
                 if (scheduleStatistics) {
                     scheduleStatistics.innerHTML = '共 <strong>0</strong> 人 <span class="text-info">（请先在基础设置中导入员工数据）</span>';
                 }
-                // 渲染空表格
-                this.renderScheduleTable([], []);
+                // 渲染空表格，传递空对象而不是空数组，因为renderScheduleTable期望scheduleData是对象
+            await this.renderScheduleTable([], {});
                 // 隐藏加载状态
                 this.showLoading(false);
                 return;
@@ -449,7 +491,8 @@ class SchedulePlanning {
             const scheduleData = await this.scheduleManager.getScheduleByMonth(this.currentYear, this.currentMonth);
             console.log('排班数据:', scheduleData);
             // 确保scheduleData始终是一个对象（getScheduleByMonth返回的是以员工号为键的对象）
-            const safeScheduleData = scheduleData && typeof scheduleData === 'object' ? scheduleData : {};
+            // 特别处理null值，因为在JavaScript中typeof null === 'object'
+            const safeScheduleData = scheduleData !== null && typeof scheduleData === 'object' ? scheduleData : {};
             
             // 更新员工数量统计
             const scheduleStatistics = document.getElementById('scheduleStatistics');
@@ -463,16 +506,18 @@ class SchedulePlanning {
             }
             
             // 渲染排班表
-            this.renderScheduleTable(employees, safeScheduleData);
+            await this.renderScheduleTable(employees, safeScheduleData);
         } catch (error) {
             console.error('加载排班数据失败:', error);
             // 即使出错也要尝试渲染员工列表
             try {
                 const employees = await this.dbManager.getAll('employees');
-                this.renderScheduleTable(employees || [], []);
+                // 即使出错，也要传递空对象而不是空数组，因为renderScheduleTable期望scheduleData是对象
+                await this.renderScheduleTable(employees || [], {});
             } catch (innerError) {
                 console.error('再次尝试加载员工数据失败:', innerError);
-                this.renderScheduleTable([], []);
+                // 即使出错，也要传递空对象而不是空数组
+                await this.renderScheduleTable([], {});
             }
             // 显示错误信息
             const scheduleStatistics = document.getElementById('scheduleStatistics');
@@ -486,7 +531,7 @@ class SchedulePlanning {
     }
 
     // 渲染排班表
-    renderScheduleTable(employees, scheduleData) {
+    async renderScheduleTable(employees, scheduleData) {
         const tableBody = document.getElementById('scheduleTableBody');
         tableBody.innerHTML = '';
         
@@ -539,9 +584,14 @@ class SchedulePlanning {
             nameCell.style.minWidth = '100px'; // 设置最小宽度
             row.appendChild(nameCell);
             
+            // 获取该员工的排班记录 - 注意scheduleData是以员工号为键的对象
+            const employeeSchedule = (scheduleData && typeof scheduleData === 'object') ? 
+                scheduleData[employee.number] || {} : {};
+                
             const departmentCell = document.createElement('td');
             departmentCell.className = 'fixed-column';
-            departmentCell.textContent = employee.deptName || '未知部门';
+            // 从排班数据中获取部门信息，如果没有则使用员工对象的deptName作为后备
+            departmentCell.textContent = (employeeSchedule && employeeSchedule.department) || employee.deptName || '未知部门';
             departmentCell.style.whiteSpace = 'nowrap';
             departmentCell.style.overflow = 'visible';
             departmentCell.style.minWidth = '120px'; // 设置最小宽度
@@ -554,10 +604,6 @@ class SchedulePlanning {
             positionCell.style.overflow = 'visible';
             positionCell.style.minWidth = '120px'; // 设置最小宽度
             row.appendChild(positionCell);
-            
-            // 获取该员工的排班记录 - 注意scheduleData是以员工号为键的对象
-            const employeeSchedule = (scheduleData && typeof scheduleData === 'object') ? 
-                scheduleData[employee.number] || {} : {};
             
             // 获取当月天数
             const daysInMonth = new Date(this.currentYear, this.currentMonth, 0).getDate();
@@ -576,16 +622,16 @@ class SchedulePlanning {
                     }
                 }
                 
-                // 设置单元格内容和样式
+                // 直接使用真实的排班数据，不强制替换'休'班次
                 cell.textContent = shift;
                 
                 // 根据班次类型添加样式类
                 if (shift.includes('G') || shift.includes('g')) {
                     cell.className = 'shift-g';
-                } else if (shift.includes('休')) {
-                    cell.className = 'shift-xiu';
                 } else if (shift.includes('Y') || shift.includes('y')) {
                     cell.className = 'shift-y';
+                } else if (shift === '') {
+                    cell.className = 'shift-empty';
                 }
                 
                 // 添加样式使单元格宽度按内容适应
@@ -647,10 +693,10 @@ class SchedulePlanning {
             // 显示加载状态
             this.showLoading(true);
             
-            // 生成排班计划 - 注意参数顺序是(month, year, organization, department, position)
+            // 修复参数顺序：应该是(year, month, organization, department, position)
             await this.scheduleManager.generateSchedule(
-                this.currentMonth, 
                 this.currentYear, 
+                this.currentMonth, 
                 organization, 
                 department, 
                 position

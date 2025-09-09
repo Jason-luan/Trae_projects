@@ -1302,8 +1302,8 @@ function addIdentifierEvents() {
                                         employee.number,
                                         employeePosition,
                                         shift.code,
-                                        employee.department
-                                    );
+                                        employee.deptName || '未知部门'
+                                    ); // 修复：使用deptName替代department
                                     console.log(`已将员工${employee.number}添加到${employeePosition}岗位${shift.code}班次的排班顺序中`);
                                 } else {
                                     // 当取消勾选时，从排班顺序中移除员工

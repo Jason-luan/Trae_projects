@@ -874,7 +874,7 @@ class ShiftOrderManager {
             for (var i = 0; i < activeShifts.length; i++) {
                 var shift = activeShifts[i];
                 promises.push(
-                    self.addEmployeeToShiftOrderByShift(employeeNumber, newEmployee.position, shift.code)
+                    self.addEmployeeToShiftOrderByShift(employeeNumber, newEmployee.position, shift.code, newEmployee.deptName || '未知部门') // 修复：添加部门信息
                         .catch(function(error) {
                             console.error('添加员工到' + newEmployee.position + '岗位' + shift.code + '班次排班顺序失败:', error);
                             // 继续处理其他班次，不中断流程

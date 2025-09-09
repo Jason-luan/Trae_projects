@@ -1,6 +1,12 @@
 // 移除模块化导入，现在通过传统脚本加载
 
-// 确保shiftOrderManager作为全局变量存在，在文件顶部立即初始化，而不是等待DOMContentLoaded
+// 确保全局管理实例存在，在文件顶部立即初始化
+// 分别检查并初始化shiftManager和shiftOrderManager
+if (!window.shiftManager && window.ShiftManager) {
+    window.shiftManager = new ShiftManager();
+    console.log('已在app-init.js文件顶部创建全局shiftManager实例');
+}
+
 if (!window.shiftOrderManager && window.ShiftOrderManager) {
     window.shiftOrderManager = new ShiftOrderManager();
     console.log('已在app-init.js文件顶部创建全局shiftOrderManager实例');
@@ -89,6 +95,116 @@ async function autoSelectDepartmentAndLoadData() {
     }
 }
 
+// 检查并修复班次数据的函数
+async function checkAndFixShiftData() {
+    try {
+        console.log('开始检查并修复班次数据...');
+        
+        // 确保shiftManager存在
+        if (!window.shiftManager) {
+            console.error('shiftManager未定义，尝试创建新实例...');
+            if (window.ShiftManager) {
+                window.shiftManager = new ShiftManager();
+                console.log('已创建全局shiftManager实例');
+            } else {
+                console.error('ShiftManager类未定义，无法检查班次数据');
+                return false;
+            }
+        }
+        
+        // 调用initializeDefaultShifts确保有班次数据
+        console.log('调用initializeDefaultShifts函数...');
+        await window.shiftManager.initializeDefaultShifts();
+        
+        // 获取所有班次数据
+        console.log('获取所有班次数据以检查...');
+        const allShifts = await window.shiftManager.getAllShifts();
+        
+        console.log('当前数据库中的班次数据:', allShifts);
+        
+        // 检查是否有启用的非休班次
+        const activeNonRestShifts = allShifts.filter(shift => shift.status === 0 && shift.code !== '休');
+        console.log(`启用的非休班次数量: ${activeNonRestShifts.length}`);
+        
+        // 如果没有启用的非休班次，显示警告并提供修复选项
+        if (activeNonRestShifts.length === 0) {
+            console.warn('严重问题: 没有启用的非休班次! 排班将只能显示休班!');
+            
+            // 显示通知
+            if (window.showNotification) {
+                window.showNotification('系统检测到没有可用的工作班次，可能导致排班只显示"休"班。请稍后在班次管理中检查并启用班次。', 'danger');
+            }
+            
+            // 尝试自动修复 - 强制启用一些班次
+            console.log('尝试自动修复：强制启用一些非休班次...');
+            
+            // 创建一些临时默认班次
+            const tempDefaultShifts = [
+                { code: 'G', name: 'G班', status: 1 },
+                { code: 'Y', name: 'Y班', status: 1 },
+                { code: 'G值', name: 'G班值班', status: 1 },
+                { code: 'Y1330普', name: '13:30-20:30普通班', status: 1 }
+            ];
+            
+            for (let i = 0; i < tempDefaultShifts.length; i++) {
+                const tempShift = tempDefaultShifts[i];
+                try {
+                    // 检查是否已存在同名班次
+                    const existingShift = allShifts.find(shift => shift.code === tempShift.code);
+                    
+                    if (existingShift) {
+                        // 更新现有班次状态为启用
+                        await window.shiftManager.dbManager.update('shifts', {
+                            id: existingShift.id,
+                            code: existingShift.code,
+                            name: existingShift.name,
+                            startTime: existingShift.startTime || '09:00',
+                            endTime: existingShift.endTime || '17:30',
+                            isOvertime: existingShift.isOvertime || false,
+                            description: existingShift.description || '',
+                            status: 1
+                        });
+                        console.log(`已启用现有班次: ${tempShift.code} - ${tempShift.name}`);
+                    } else {
+                        // 添加新的启用班次
+                        await window.shiftManager.dbManager.save('shifts', {
+                            code: tempShift.code,
+                            name: tempShift.name,
+                            startTime: '09:00',
+                            endTime: '17:30',
+                            isOvertime: false,
+                            description: '自动添加的默认班次',
+                            status: 1
+                        });
+                        console.log(`已添加新班次: ${tempShift.code} - ${tempShift.name}`);
+                    }
+                } catch (error) {
+                    console.error(`自动修复班次失败: ${tempShift.code}`, error);
+                }
+            }
+            
+            // 重新获取班次数据
+            const updatedShifts = await window.shiftManager.getAllShifts();
+            const updatedActiveNonRestShifts = updatedShifts.filter(shift => shift.status === 0 && shift.code !== '休');
+            console.log(`修复后启用的非休班次数量: ${updatedActiveNonRestShifts.length}`);
+            
+            return updatedActiveNonRestShifts.length > 0;
+        } else {
+            console.log('班次数据检查通过：存在启用的非休班次');
+            return true;
+        }
+    } catch (error) {
+        console.error('检查并修复班次数据时发生错误:', error);
+        
+        // 显示错误通知
+        if (window.showNotification) {
+            window.showNotification('检查班次数据时出现问题，请刷新页面重试或使用班次初始化工具', 'danger');
+        }
+        
+        return false;
+    }
+}
+
 // 等待DOM加载完成
 document.addEventListener('DOMContentLoaded', async () => {
     // 初始化数据库
@@ -98,7 +214,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.dbManager = new IndexedDBManager();
         console.log('已创建全局dbManager实例');
     }
-    
+
     // 设置排班计划的年份和月份默认值为当前月份
     try {
         const now = new Date();
@@ -201,14 +317,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // 添加：检查并手动初始化默认班次数据
                 setTimeout(async function() {
                     try {
-                        // 检查班次数据是否存在
-                        if (window.shiftManager && typeof window.shiftManager.initializeDefaultShifts === 'function') {
-                            console.log('尝试手动初始化默认班次数据...');
-                            await window.shiftManager.initializeDefaultShifts();
+                        console.log('开始执行班次数据检查和修复流程...');
+                        const success = await checkAndFixShiftData();
+                        
+                        if (success) {
+                            console.log('班次数据检查和修复成功');
                             // 重新加载班次数据
                             if (window.loadShifts) {
                                 window.loadShifts();
+                                console.log('已重新加载班次数据');
                             }
+                        } else {
+                            console.warn('班次数据检查和修复失败，可能需要手动干预');
                         }
                     } catch (error) {
                         console.error('手动初始化默认班次数据失败:', error);

@@ -357,6 +357,13 @@
     to { transform: rotate(360deg); }
 }
 
+/* 空班次样式 - 用于显示未排班的情况 */
+#scheduleTable td.shift-empty {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     #scheduleFilters {

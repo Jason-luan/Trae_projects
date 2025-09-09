@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>班次数据初始化工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>班次数据初始化工具</h1>
+        <p>这个工具可以帮助您初始化或修复智能排班表系统中的班次数据。点击下方按钮开始执行。</p>
+        <button id="initializeBtn">初始化班次数据</button>
+        <button id="checkBtn">检查班次数据</button>
+        <div class="status" id="statusLog">
+            请点击按钮开始操作...
+        </div>
+    </div>
+
+    <script>
+        // 日志输出函数
+        function log(message, isError = false) {
+            const statusLog = document.getElementById('statusLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = isError ? 'error' : '';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            statusLog.appendChild(logEntry);
+            statusLog.scrollTop = statusLog.scrollHeight;
+            console.log(message);
+        }
+
+        // 数据库管理类
+        class DbManager {
+            constructor() {
+                this.db = null;
+                this.dbName = 'scheduleSystemDB';
+                this.version = 1;
+            }
+
+            async ensureInitialized() {
+                if (this.db) return this.db;
+                
+                try {
+                    return await new Promise((resolve, reject) => {
+                        const request = indexedDB.open(this.dbName, this.version);
+
+                        request.onupgradeneeded = (event) => {
+                            const db = event.target.result;
+                            
+                            // 创建存储空间
+                            if (!db.objectStoreNames.contains('shifts')) {
+                                db.createObjectStore('shifts', { keyPath: 'id', autoIncrement: true });
+                            }
+                            
+                            if (!db.objectStoreNames.contains('employees')) {
+                                db.createObjectStore('employees', { keyPath: 'id', autoIncrement: true });
+                            }
+                        };
+
+                        request.onsuccess = (event) => {
+                            this.db = event.target.result;
+                            resolve(this.db);
+                        };
+
+                        request.onerror = (event) => {
+                            log(`数据库连接失败: ${event.target.error}`, true);
+                            reject(event.target.error);
+                        };
+                    });
+                } catch (error) {
+                    log(`数据库初始化异常: ${error}`, true);
+                    throw error;
+                }
+            }
+
+            async getAll(storeName) {
+                try {
+                    const db = await this.ensureInitialized();
+                    return await new Promise((resolve, reject) => {
+                        const transaction = db.transaction([storeName], 'readonly');
+                        const store = transaction.objectStore(storeName);
+                        const request = store.getAll();
+
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                    });
+                } catch (error) {
+                    log(`获取${storeName}数据失败: ${error}`, true);
+                    return [];
+                }
+            }
+
+            async save(storeName, data) {
+                try {
+                    const db = await this.ensureInitialized();
+                    return await new Promise((resolve, reject) => {
+                        const transaction = db.transaction([storeName], 'readwrite');
+                        const store = transaction.objectStore(storeName);
+                        const request = store.add(data);
+
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                    });
+                } catch (error) {
+                    log(`保存${storeName}数据失败: ${error}`, true);
+                    throw error;
+                }
+            }
+
+            async update(storeName, data) {
+                try {
+                    const db = await this.ensureInitialized();
+                    return await new Promise((resolve, reject) => {
+                        const transaction = db.transaction([storeName], 'readwrite');
+                        const store = transaction.objectStore(storeName);
+                        const request = store.put(data);
+
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                    });
+                } catch (error) {
+                    log(`更新${storeName}数据失败: ${error}`, true);
+                    throw error;
+                }
+            }
+
+            async clear(storeName) {
+                try {
+                    const db = await this.ensureInitialized();
+                    return await new Promise((resolve, reject) => {
+                        const transaction = db.transaction([storeName], 'readwrite');
+                        const store = transaction.objectStore(storeName);
+                        const request = store.clear();
+
+                        request.onsuccess = () => resolve(true);
+                        request.onerror = () => reject(request.error);
+                    });
+                } catch (error) {
+                    log(`清除${storeName}数据失败: ${error}`, true);
+                    throw error;
+                }
+            }
+        }
+
+        // 班次管理类
+        class ShiftManager {
+            constructor() {
+                this.dbManager = new DbManager();
+            }
+
+            // 获取默认班次数据
+            getDefaultShifts() {
+                return [
+                    {
+                        code: 'Y1330普',
+                        name: '13:30-20:30普通班',
+                        startTime: '13:30',
+                        endTime: '20:30',
+                        isOvertime: false,
+                        description: '下午到晚上的普通工作班次',
+                        status: 1
+                    },
+                    {
+                        code: 'Y16综',
+                        name: '16:00-23:00综合班',
+                        startTime: '16:00',
+                        endTime: '23:00',
+                        isOvertime: true,
+                        description: '综合业务处理班次，工作时间较晚',
+                        status: 1
+                    },
+                    {
+                        code: 'G值',
+                        name: 'G班值班',
+                        startTime: '09:00',
+                        endTime: '17:30',
+                        isOvertime: false,
+                        description: '正常工作日的G班值班',
+                        status: 1
+                    },
+                    {
+                        code: 'G班',
+                        name: 'G班',
+                        startTime: '09:00',
+                        endTime: '17:30',
+                        isOvertime: false,
+                        description: '普通G班工作日',
+                        status: 1
+                    },
+                    {
+                        code: 'Y班',
+                        name: 'Y班',
+                        startTime: '13:30',
+                        endTime: '20:30',
+                        isOvertime: false,
+                        description: '普通Y班工作日',
+                        status: 1
+                    },
+                    {
+                        code: 'G',
+                        name: 'G班',
+                        startTime: '09:00',
+                        endTime: '17:30',
+                        isOvertime: false,
+                        description: '标准G班',
+                        status: 1
+                    },
+                    {
+                        code: 'Y',
+                        name: 'Y班',
+                        startTime: '13:30',
+                        endTime: '20:30',
+                        isOvertime: false,
+                        description: '标准Y班',
+                        status: 1
+                    },
+                    {
+                        code: '休',
+                        name: '休息日',
+                        startTime: '',
+                        endTime: '',
+                        isOvertime: false,
+                        description: '员工休息',
+                        status: 1
+                    }
+                ];
+            }
+
+            // 初始化班次数据
+            async initializeDefaultShifts() {
+                log('开始初始化班次数据...');
+                
+                try {
+                    // 确保数据库已初始化
+                    await this.dbManager.ensureInitialized();
+                    
+                    // 首先检查是否已有班次数据
+                    const existingShifts = await this.dbManager.getAll('shifts');
+                    
+                    if (existingShifts.length > 0) {
+                        log(`检测到已有${existingShifts.length}个班次数据`);
+                        
+                        // 检查是否有非休班次
+                        const hasNonRestShifts = existingShifts.some(shift => shift.code !== '休');
+                        
+                        if (!hasNonRestShifts) {
+                            log('警告: 检测到只有休班次，需要添加其他班次...');
+                            const defaultShifts = this.getDefaultShifts();
+                            
+                            for (let i = 0; i < defaultShifts.length; i++) {
+                                if (defaultShifts[i].code !== '休') {
+                                    // 确保状态设置为启用(1)
+                                    defaultShifts[i].status = 1;
+                                    try {
+                                        await this.dbManager.save('shifts', defaultShifts[i]);
+                                        log(`✓ 添加默认班次成功: ${defaultShifts[i].code} - ${defaultShifts[i].name}`);
+                                    } catch (saveError) {
+                                        log(`✗ 添加默认班次失败: ${defaultShifts[i].code} - ${saveError}`, true);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // 检查所有班次是否都已启用
+                        let updatedCount = 0;
+                        for (let i = 0; i < existingShifts.length; i++) {
+                            const shift = existingShifts[i];
+                            // 如果班次状态不是1(启用)，则更新为启用状态
+                            if (shift.status !== 1) {
+                                try {
+                                    await this.dbManager.update('shifts', {
+                                        id: shift.id,
+                                        code: shift.code,
+                                        name: shift.name,
+                                        startTime: shift.startTime,
+                                        endTime: shift.endTime,
+                                        isOvertime: shift.isOvertime || false,
+                                        description: shift.description || '',
+                                        status: 1 // 强制设置为启用状态
+                                    });
+                                    log(`✓ 更新班次状态为启用: ${shift.code} - ${shift.name}`);
+                                    updatedCount++;
+                                } catch (updateError) {
+                                    log(`✗ 更新班次状态失败: ${shift.code} - ${updateError}`, true);
+                                }
+                            }
+                        }
+                        
+                        if (updatedCount > 0) {
+                            log(`已成功更新${updatedCount}个班次的状态为启用`);
+                        } else {
+                            log('所有班次已经处于启用状态');
+                        }
+                    } else {
+                        // 如果没有班次数据，创建默认班次
+                        log('没有检测到班次数据，创建默认班次...');
+                        const defaultShifts = this.getDefaultShifts();
+                        
+                        for (let i = 0; i < defaultShifts.length; i++) {
+                            // 确保所有班次都设置为启用状态
+                            defaultShifts[i].status = 1;
+                            try {
+                                await this.dbManager.save('shifts', defaultShifts[i]);
+                                log(`✓ 添加默认班次成功: ${defaultShifts[i].code} - ${defaultShifts[i].name}`);
+                            } catch (saveError) {
+                                log(`✗ 添加默认班次失败: ${defaultShifts[i].code} - ${saveError}`, true);
+                            }
+                        }
+                    }
+                    
+                    log('班次数据初始化完成!');
+                    return true;
+                } catch (error) {
+                    log(`初始化班次数据失败: ${error}`, true);
+                    return false;
+                }
+            }
+
+            // 检查班次数据
+            async checkShifts() {
+                log('开始检查班次数据...');
+                
+                try {
+                    // 确保数据库已初始化
+                    await this.dbManager.ensureInitialized();
+                    
+                    // 获取所有班次数据
+                    const shifts = await this.dbManager.getAll('shifts');
+                    
+                    if (shifts.length === 0) {
+                        log('没有检测到任何班次数据', true);
+                        return false;
+                    }
+                    
+                    log(`检测到${shifts.length}个班次数据:`);
+                    shifts.forEach(shift => {
+                        const statusText = shift.status === 0 ? '✓ 启用' : '✗ 禁用';
+                        log(`- ${shift.code} (${shift.name}) - ${statusText}`);
+                    });
+                    
+                    // 检查是否存在启用的非休班次
+                    const activeNonRestShifts = shifts.filter(shift => shift.status === 0 && shift.code !== '休');
+                    log(`启用的非休班次数量: ${activeNonRestShifts.length}`);
+                    
+                    if (activeNonRestShifts.length === 0) {
+                        log('警告: 没有启用的非休班次，排班将只能显示休班', true);
+                        return false;
+                    }
+                    
+                    log('班次数据检查完成!');
+                    return true;
+                } catch (error) {
+                    log(`检查班次数据失败: ${error}`, true);
+                    return false;
+                }
+            }
+        }
+
+        // 初始化按钮事件
+        document.getElementById('initializeBtn').addEventListener('click', async function() {
+            this.disabled = true;
+            log('----------------------------------------');
+            log('开始执行班次数据初始化操作...');
+            
+            const shiftManager = new ShiftManager();
+            await shiftManager.initializeDefaultShifts();
+            
+            log('班次数据初始化操作完成!');
+            log('----------------------------------------');
+            this.disabled = false;
+        });
+
+        // 检查按钮事件
+        document.getElementById('checkBtn').addEventListener('click', async function() {
+            this.disabled = true;
+            log('----------------------------------------');
+            log('开始执行班次数据检查操作...');
+            
+            const shiftManager = new ShiftManager();
+            await shiftManager.checkShifts();
+            
+            log('班次数据检查操作完成!');
+            log('----------------------------------------');
+            this.disabled = false;
+        });
+    </script>
+</body>
+</html>

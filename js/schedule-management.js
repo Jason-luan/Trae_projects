@@ -19,6 +19,66 @@ class ScheduleManager {
             department: '',
             position: ''
         };
+        
+        // 添加班次状态变更监听器，实现排班计划与班次管理的联动
+        window.addEventListener('shiftStatusChanged', this.handleShiftStatusChange.bind(this));
+    }
+    
+    // 处理班次状态变更
+    async handleShiftStatusChange(event) {
+        var shiftCode = event.detail.shiftCode;
+        var status = event.detail.status;
+
+        try {
+            // 获取所有排班计划
+            var allSchedules = await this.getAllSchedulePlans();
+
+            // 检查每个排班计划是否包含该班次
+            var schedulesToUpdate = allSchedules.filter(function(schedule) {
+                // 检查排班计划的数据中是否包含该班次
+                if (schedule.scheduleData) {
+                    for (var empNumber in schedule.scheduleData) {
+                        var employeeSchedule = schedule.scheduleData[empNumber];
+                        if (employeeSchedule && employeeSchedule.schedule) {
+                            if (employeeSchedule.schedule.some(function(day) { return day.shiftCode === shiftCode; })) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            });
+
+            // 如果班次被停用，更新相关的排班计划
+            if (status === 1) {
+                for (var i = 0; i < schedulesToUpdate.length; i++) {
+                    var schedule = schedulesToUpdate[i];
+                    // 获取所有启用的班次
+                    var allShifts = await window.shiftManager.getAllShifts();
+                    var activeShifts = allShifts.filter(function(s) { return s.status === 0; }).map(function(s) { return s.code; });
+
+                    // 如果排班计划中使用了被停用的班次，重新生成排班计划
+                    console.log('班次 ' + shiftCode + ' 已被停用，正在更新排班计划: ' + schedule.year + '年' + schedule.month + '月 - ' + schedule.department + ' ' + schedule.position);
+
+                    try {
+                        // 重新生成排班计划
+                        await this.generateSchedule(
+                            schedule.year,
+                            schedule.month,
+                            schedule.organization,
+                            schedule.department,
+                            schedule.position
+                        );
+                    } catch (error) {
+                        console.error('更新排班计划失败: ' + error.message);
+                    }
+                }
+            }
+
+            console.log('班次状态变更处理完成，共更新了 ' + schedulesToUpdate.length + ' 个排班计划');
+        } catch (error) {
+            console.error('处理班次状态变更失败:', error);
+        }
     }
     
     // 初始化排班计划存储空间
@@ -48,42 +108,98 @@ class ScheduleManager {
     }
     
     // 生成排班计划
-    async generateSchedule(month, year, organization = '', department = '', position = '') {
+    async generateSchedule(year, month, organization = '', department = '', position = '') {
         try {
-            console.log(`开始生成排班计划: ${year}年${month}月, 机构: ${organization}, 部门: ${department}, 岗位: ${position}`);
-            
-            // 1. 获取筛选条件下的所有员工
-            let employees = await this.getFilteredEmployees(organization, department, position);
-            if (employees.length === 0) {
-                throw new Error('没有找到符合条件的员工');
+            // 获取筛选后的员工列表
+            const filteredEmployees = await this.getFilteredEmployees(organization, department, position);
+            if (filteredEmployees.length === 0) {
+                console.log('没有找到匹配的员工');
+                return null;
+            }
+
+            // 获取筛选后的排班顺序
+            const shiftOrders = await this.getFilteredShiftOrders(organization, department, position);
+            if (shiftOrders.length === 0) {
+                console.log('没有找到匹配的排班顺序');
+                return null;
+            }
+
+            // 获取班次数据 - 优化版
+            let activeShifts = [];
+            try {
+                // 详细检查shiftManager状态
+                if (!window.shiftManager) {
+                    console.warn('警告: window.shiftManager 全局实例不存在');
+                    // 尝试动态创建一个临时实例
+                    if (window.ShiftManager) {
+                        console.log('尝试创建临时ShiftManager实例');
+                        const tempShiftManager = new ShiftManager();
+                        if (typeof tempShiftManager.getActiveShifts === 'function') {
+                            const activeShiftsData = await tempShiftManager.getActiveShifts();
+                            activeShifts = activeShiftsData.map(shift => shift.code);
+                            console.log('从临时ShiftManager实例获取的启用班次:', activeShifts);
+                        }
+                    } else {
+                        console.warn('ShiftManager类也不存在，无法获取班次数据');
+                    }
+                } else if (typeof window.shiftManager.getActiveShifts !== 'function') {
+                    console.warn('警告: window.shiftManager实例存在，但getActiveShifts方法不存在');
+                    // 打印shiftManager对象结构，帮助调试
+                    console.log('shiftManager对象结构:', Object.keys(window.shiftManager));
+                    // 如果没有getActiveShifts，尝试使用getAllShifts作为备选
+                    if (typeof window.shiftManager.getAllShifts === 'function') {
+                        const allShifts = await window.shiftManager.getAllShifts();
+                        // 注意：在这个系统中status=0表示启用
+                        activeShifts = allShifts
+                            .filter(shift => shift.status === 0)
+                            .map(shift => shift.code);
+                        console.log('从shiftManager获取的启用班次数量(备选方法):', activeShifts.length);
+                    }
+                } else {
+                    // 正常获取班次 - 使用专门的getActiveShifts方法
+                    const activeShiftsData = await window.shiftManager.getActiveShifts();
+                    activeShifts = activeShiftsData.map(shift => shift.code);
+                    console.log('从shiftManager获取的启用班次数量:', activeShifts.length);
+                }
+            } catch (error) {
+                console.error('获取班次数据时发生错误:', error);
+                // 打印错误堆栈，便于调试
+                if (error.stack) {
+                    console.error('错误堆栈:', error.stack);
+                }
+                activeShifts = [];
             }
             
-            // 2. 获取筛选条件下的排班顺序
-            const shiftOrders = await this.getFilteredShiftOrders(organization, department, position);
+            // 确保班次数据不为空
+            if (activeShifts.length === 0) {
+                console.warn('警告: 未获取到任何启用的班次数据');
+            }
             
-            // 3. 获取所有有效班次
-            const shifts = await this.shiftManager.getAllShifts();
-            const activeShifts = shifts.filter(shift => shift.status === 0);
+            // 直接使用activeShifts，包含所有需要的班次（包括'休'班）
+            const filteredActiveShifts = activeShifts;
             
-            // 4. 获取上个月的排班计划，以保证连续性
-            const lastMonthSchedule = await this.getLastMonthSchedule(year, month, organization, department, position);
-            
-            // 5. 生成日历数据
+            console.log('所有启用班次:', activeShifts);
+            console.log('保留所有启用班次(包括休班次):', filteredActiveShifts);
+
+            // 生成日历数据
             const calendarData = this.generateCalendarData(year, month);
-            
-            // 6. 开始排班算法
+
+            // 获取上个月的排班计划
+            const lastMonthSchedule = await this.getLastMonthSchedule(year, month, organization, department, position);
+
+            // 应用排班算法
             const scheduleResult = this.applySchedulingAlgorithm(
-                employees,
+                filteredEmployees,
                 shiftOrders,
-                activeShifts,
+                filteredActiveShifts, // 传递过滤后的非休班次
                 calendarData,
                 lastMonthSchedule,
                 organization,
                 department,
                 position
             );
-            
-            // 7. 保存排班结果
+
+            // 保存排班结果
             const savedSchedule = await this.saveSchedule({
                 year: year,
                 month: month,
@@ -91,15 +207,12 @@ class ScheduleManager {
                 department: department,
                 position: position,
                 scheduleData: scheduleResult,
-                createdAt: new Date(),
-                updatedAt: new Date()
+                createTime: new Date().getTime()
             });
-            
-            console.log('排班计划生成成功:', savedSchedule);
+
             return savedSchedule;
         } catch (error) {
             console.error('生成排班计划失败:', error);
-            showNotification('生成排班计划失败: ' + error.message, 'error');
             throw error;
         }
     }
@@ -111,36 +224,36 @@ class ScheduleManager {
             
             // 筛选在职员工
             // 注意：员工status可能是数字类型(0表示在职)或字符串类型
-            employees = employees.filter(emp => {
+            employees = employees.filter(function(emp) {
                 // 处理数字类型的status
                 if (typeof emp.status === 'number') {
                     return emp.status === 0;
                 }
                 // 处理字符串类型的status
-                const statusStr = String(emp.status).toLowerCase().trim();
+                var statusStr = String(emp.status).toLowerCase().trim();
                 return statusStr === 'active' || statusStr === '0';
             });
             
             // 按机构筛选 - 注意员工数据中存储的是orgName而不是organizationId
             if (organization && organization !== '全部机构') {
-                employees = employees.filter(emp => 
-                    emp.orgName && emp.orgName.toLowerCase().trim() === organization.toLowerCase().trim()
-                );
+                employees = employees.filter(function(emp) {
+                    return emp.orgName && emp.orgName.toLowerCase().trim() === organization.toLowerCase().trim();
+                });
             }
             
             // 按部门筛选
             // 注意：员工数据中存储部门信息的字段是deptName而不是department
             if (department && department !== '全部部门') {
-                employees = employees.filter(emp => 
-                    emp.deptName && emp.deptName.toLowerCase().trim() === department.toLowerCase().trim()
-                );
+                employees = employees.filter(function(emp) {
+                    return emp.deptName && emp.deptName.toLowerCase().trim() === department.toLowerCase().trim();
+                });
             }
             
             // 按岗位筛选
             if (position && position !== '全部岗位') {
-                employees = employees.filter(emp => 
-                    emp.position && emp.position.toLowerCase().trim() === position.toLowerCase().trim()
-                );
+                employees = employees.filter(function(emp) {
+                    return emp.position && emp.position.toLowerCase().trim() === position.toLowerCase().trim();
+                });
             }
             
             return employees;
@@ -153,24 +266,24 @@ class ScheduleManager {
     // 获取筛选条件下的排班顺序
     async getFilteredShiftOrders(organization, department, position) {
         try {
-            const shiftOrders = await this.dbManager.getAll('shiftOrders');
+            let shiftOrders = await this.dbManager.getAll('shiftOrders');
             let filteredOrders = shiftOrders;
             
             // 按部门筛选
             // 注意：shiftOrders数据结构中的部门信息存储在departmentOrders数组中
             if (department && department !== '全部部门') {
-                filteredOrders = filteredOrders.filter(order => 
-                    order.departmentOrders && order.departmentOrders.some(deptOrder => 
-                        deptOrder.department && deptOrder.department.toLowerCase().trim() === department.toLowerCase().trim()
-                    )
-                );
+                filteredOrders = filteredOrders.filter(function(order) {
+                    return order.departmentOrders && order.departmentOrders.some(function(deptOrder) {
+                        return deptOrder.department && deptOrder.department.toLowerCase().trim() === department.toLowerCase().trim();
+                    });
+                });
             }
             
             // 按岗位筛选
             if (position && position !== '全部岗位') {
-                filteredOrders = filteredOrders.filter(order => 
-                    order.position && order.position.toLowerCase().trim() === position.toLowerCase().trim()
-                );
+                filteredOrders = filteredOrders.filter(function(order) {
+                    return order.position && order.position.toLowerCase().trim() === position.toLowerCase().trim();
+                });
             }
             
             return filteredOrders;
@@ -208,13 +321,13 @@ class ScheduleManager {
             }
             
             // 筛选匹配的计划
-            const matchingSchedule = schedules.find(schedule => 
-                schedule.year === lastYear &&
-                schedule.month === lastMonth &&
-                schedule.organization === organization &&
-                schedule.department === department &&
-                schedule.position === position
-            );
+            const matchingSchedule = schedules.find(function(schedule) {
+                return schedule.year === lastYear &&
+                       schedule.month === lastMonth &&
+                       schedule.organization === organization &&
+                       schedule.department === department &&
+                       schedule.position === position;
+            });
             
             return matchingSchedule || null;
         } catch (error) {
@@ -225,16 +338,16 @@ class ScheduleManager {
     
     // 生成日历数据
     generateCalendarData(year, month) {
-        const firstDay = new Date(year, month - 1, 1);
-        const lastDay = new Date(year, month, 0);
-        const daysInMonth = lastDay.getDate();
-        const startingDayOfWeek = firstDay.getDay(); // 0 = Sunday
-        
-        const calendarData = [];
-        
+        var firstDay = new Date(year, month - 1, 1);
+        var lastDay = new Date(year, month, 0);
+        var daysInMonth = lastDay.getDate();
+        var startingDayOfWeek = firstDay.getDay(); // 0 = Sunday
+
+        var calendarData = [];
+
         // 添加上个月的日期（用于填充第一行）
-        for (let i = 0; i < startingDayOfWeek; i++) {
-            const prevMonthDate = new Date(year, month - 1, -startingDayOfWeek + i + 1);
+        for (var i = 0; i < startingDayOfWeek; i++) {
+            var prevMonthDate = new Date(year, month - 1, -startingDayOfWeek + i + 1);
             calendarData.push({
                 date: prevMonthDate,
                 day: prevMonthDate.getDate(),
@@ -242,10 +355,10 @@ class ScheduleManager {
                 isWeekend: prevMonthDate.getDay() === 0 || prevMonthDate.getDay() === 6
             });
         }
-        
+
         // 添加当前月的日期
-        for (let day = 1; day <= daysInMonth; day++) {
-            const date = new Date(year, month - 1, day);
+        for (var day = 1; day <= daysInMonth; day++) {
+            var date = new Date(year, month - 1, day);
             calendarData.push({
                 date: date,
                 day: day,
@@ -253,75 +366,87 @@ class ScheduleManager {
                 isWeekend: date.getDay() === 0 || date.getDay() === 6
             });
         }
-        
+
         return calendarData;
     }
     
     // 排班算法实现
     applySchedulingAlgorithm(employees, shiftOrders, activeShifts, calendarData, lastMonthSchedule, organization, department, position) {
         try {
+            console.log('applySchedulingAlgorithm开始执行，参数:', { activeShifts, employeeCount: employees.length });
             // 结果对象，按员工号组织
-            const scheduleResult = {};
-            
+            var scheduleResult = {};
+
             // 初始化每个员工的排班数据
-            employees.forEach(employee => {
+            for (var i = 0; i < employees.length; i++) {
+                var employee = employees[i];
+                // 尝试从多个可能的字段获取部门信息
+                var deptInfo = employee.deptName || employee.department || employee.dept || '未知部门';
                 scheduleResult[employee.number] = {
                     employeeNumber: employee.number,
                     employeeName: employee.name,
-                    department: employee.department,
+                    department: deptInfo, // 修复：使用多个可能的字段获取部门信息
                     position: employee.position,
                     schedule: []
                 };
-            });
-            
+            }
+
             // 记录每个员工的排班计数
-            const shiftCounts = {};
-            employees.forEach(employee => {
-                shiftCounts[employee.number] = {};
-                activeShifts.forEach(shift => {
-                    shiftCounts[employee.number][shift.code] = 0;
-                });
-            });
-            
+            var shiftCounts = {};
+            for (var j = 0; j < employees.length; j++) {
+                var emp = employees[j];
+                shiftCounts[emp.number] = {};
+                // 初始化所有启用班次的计数
+                for (var k = 0; k < activeShifts.length; k++) {
+                    var shift = activeShifts[k];
+                    shiftCounts[emp.number][shift] = 0;
+                }
+            }
+
             // 获取上个月最后几天的排班情况，用于保证连续性
-            const lastMonthAssignments = this.getLastMonthAssignments(lastMonthSchedule, employees);
-            
+            var lastMonthAssignments = this.getLastMonthAssignments(lastMonthSchedule, employees);
+
             // 遍历日历数据进行排班
-            calendarData.forEach(dayData => {
-                if (!dayData.isCurrentMonth) return; // 跳过非当前月的日期
-                
+            for (var l = 0; l < calendarData.length; l++) {
+                var dayData = calendarData[l];
+                if (!dayData.isCurrentMonth) continue; // 跳过非当前月的日期
+
                 // 为每个员工安排班次
-                employees.forEach(employee => {
-                    const shiftCode = this.assignShiftToEmployee(
-                        employee,
+                for (var m = 0; m < employees.length; m++) {
+                    var emp = employees[m];
+                    console.log(`为员工 ${emp.number}(${emp.name}) 分配班次，当前活动班次:`, activeShifts);
+                    var shiftCode = this.assignShiftToEmployee(
+                        emp,
                         shiftOrders,
                         dayData,
                         lastMonthAssignments,
-                        shiftCounts
+                        shiftCounts,
+                        activeShifts
                     );
-                    
+                    console.log(`员工 ${emp.number}(${emp.name}) 被分配班次:`, shiftCode);
+
                     // 将排班结果添加到员工的排班数据中
-                    scheduleResult[employee.number].schedule.push({
+                    scheduleResult[emp.number].schedule.push({
                         date: dayData.date,
                         day: dayData.day,
                         shiftCode: shiftCode,
                         isWeekend: dayData.isWeekend
                     });
-                    
+
                     // 更新班次计数
                     if (shiftCode) {
-                        shiftCounts[employee.number][shiftCode] = (shiftCounts[employee.number][shiftCode] || 0) + 1;
+                        shiftCounts[emp.number][shiftCode] = (shiftCounts[emp.number][shiftCode] || 0) + 1;
                     }
-                });
-            });
-            
+                }
+            }
+
             return scheduleResult;
         } catch (error) {
             console.error('排班算法执行失败:', error);
             throw error;
         }
     }
-    
+
     // 获取上个月最后几天的排班情况
     getLastMonthAssignments(lastMonthSchedule, employees) {
         const assignments = {};
@@ -351,18 +476,18 @@ class ScheduleManager {
     }
     
     // 为员工分配班次 - 按照排班顺序中的实际班次信息进行安排
-    assignShiftToEmployee(employee, shiftOrders, dayData, lastMonthAssignments, shiftCounts) {
+    assignShiftToEmployee(employee, shiftOrders, dayData, lastMonthAssignments, shiftCounts, activeShifts) {
         try {
             // 查找该员工所在岗位和部门的排班顺序
-            const relevantOrders = shiftOrders.filter(order => {
+            var relevantOrders = shiftOrders.filter(function(order) {
                 // 检查departmentOrders数组中的部门信息
                 if (order.departmentOrders && Array.isArray(order.departmentOrders)) {
-                    return order.departmentOrders.some(deptOrder => 
-                        deptOrder.department && employee.deptName && 
+                    return order.departmentOrders.some(function(deptOrder) {
+                        return deptOrder.department && employee.deptName && 
                         deptOrder.department.toLowerCase().trim() === employee.deptName.toLowerCase().trim() &&
                         deptOrder.employeeNumbers &&
-                        deptOrder.employeeNumbers.includes(employee.number)
-                    ) && order.position && employee.position && 
+                        deptOrder.employeeNumbers.includes(employee.number);
+                    }) && order.position && employee.position && 
                     order.position.toLowerCase().trim() === employee.position.toLowerCase().trim();
                 }
                 // 兼容旧数据结构
@@ -374,8 +499,9 @@ class ScheduleManager {
                        order.employeeNumbers.includes(employee.number);
             });
 
+            // 如果没有找到相关排班顺序，直接返回空字符串
             if (relevantOrders.length === 0) {
-                return '休'; // 默认安排休息
+                return '';
             }
 
             // 获取第一个匹配的排班顺序
@@ -397,30 +523,40 @@ class ScheduleManager {
                                    departmentOrder.employeeNumbers : order.employeeNumbers;
             
             if (!employeeNumbers || !employeeNumbers.includes(employee.number)) {
-                return '休'; // 员工不在排班顺序中，安排休息
+                // 如果员工不在排班顺序中，直接返回空字符串
+                return '';
             }
 
             // 获取员工在排班顺序中的位置
             const employeeIndex = employeeNumbers.indexOf(employee.number);
 
             // 根据排班规则改进: 查看员工在哪些班次有值班记录，并考虑班次优先级
-            // 首先，获取当天可用的班次列表（从排班顺序中获取或使用默认班次）
-            let availableShifts = ['G', 'Y', '休']; // 默认班次类型
+            // 首先，获取当天可用的班次列表
+            // 确保只使用启用的班次
+            let availableShifts = activeShifts; // 使用从外部传入的启用班次列表
             
-            // 如果排班顺序中有具体的班次列表，使用它
+            // 如果排班顺序中有具体的班次列表，使用它并过滤出启用的班次
             if (order.shifts && Array.isArray(order.shifts)) {
-                availableShifts = order.shifts;
+                availableShifts = order.shifts.filter(shift => activeShifts.includes(shift));
             } else if (order.shiftCode) {
                 // 保持向后兼容
-                availableShifts = [order.shiftCode, '休'];
+                availableShifts = activeShifts.includes(order.shiftCode) ? [order.shiftCode] : [];
+            }
+            
+            // 确保至少有一个可用班次
+            if (availableShifts.length === 0) {
+                availableShifts = activeShifts; // 使用所有启用的班次
             }
 
             // 检查上个月的排班情况，避免连续排班
-            const lastMonthShifts = lastMonthAssignments[employee.number] || [];
-            const recentShifts = lastMonthShifts.map(day => day.shiftCode);
+            var lastMonthShifts = lastMonthAssignments[employee.number] || [];
+            var recentShifts = [];
+            for (var i = 0; i < lastMonthShifts.length; i++) {
+                recentShifts.push(lastMonthShifts[i].shiftCode);
+            }
 
             // 根据员工的排班记录和班次优先级进行智能排班
-            let selectedShift = this.selectShiftBasedOnPriority(
+            var selectedShift = this.selectShiftBasedOnPriority(
                 employee, 
                 availableShifts, 
                 dayData, 
@@ -433,74 +569,62 @@ class ScheduleManager {
             return selectedShift;
         } catch (error) {
             console.error('为员工分配班次失败:', error);
-            return '休'; // 出错时默认安排休息
+            console.error('错误时的上下文信息:', {
+                employeeNumber: employee.number,
+                employeeName: employee.name,
+                activeShifts: activeShifts
+            });
+            // 出错时直接返回空字符串
+            return '';
         }
     }
 
-    // 基于班次优先级和员工排班记录选择班次
-    selectShiftBasedOnPriority(employee, availableShifts, dayData, shiftCounts, recentShifts, employeeIndex, totalEmployees) {
-        // 班次优先级配置（可以根据实际需求调整）
-        const shiftPriority = {
-            'G': 1, // 高优先级
-            'Y': 2, // 中优先级
-            '休': 3  // 低优先级（优先安排工作，最后安排休息）
-        };
+    // 基于分析数据添加的跨业务线和跨班次处理逻辑
+    getBusinessLineFromDepartment(deptName) {
+        // 从部门名称中提取业务线信息
+        if (!deptName) return '未知';
+        var lowerDept = deptName.toLowerCase();
+        if (lowerDept.includes('对公')) return '对公';
+        if (lowerDept.includes('个人')) return '个人';
+        if (lowerDept.includes('风险')) return '风险';
+        return '其他';
+    }
 
-        // 计算排班索引 - 基于日期和员工索引
-        const scheduleIndex = (dayData.day - 1 + employeeIndex) % totalEmployees;
-        
-        // 创建班次候选项及其权重
-        const shiftCandidates = availableShifts.map(shift => {
-            let weight = 0;
+    // 严格按照基础设置中的班次顺序进行排班的方法
+    selectShiftBasedOnPriority(employee, availableShifts, dayData, shiftCounts, recentShifts, employeeIndex, totalEmployees) {
+        try {
+            // 过滤掉所有可能的'休'班次
+            const nonRestShifts = availableShifts.filter(shift => shift !== '休');
             
-            // 根据班次优先级调整权重
-            weight += shiftPriority[shift] || 10; // 默认较低优先级
-            
-            // 检查员工最近是否已经安排过相同班次，避免连续排班
-            if (recentShifts.includes(shift)) {
-                weight += 5; // 增加权重，降低连续安排相同班次的概率
+            // 严格按照availableShifts中的顺序返回第一个可用的非'休'班次
+            if (nonRestShifts.length > 0) {
+                console.log(`员工 ${employee.number}(${employee.name}) 选择班次:`, nonRestShifts[0]);
+                return nonRestShifts[0];
+            } else {
+                console.warn('没有找到合适的非休班次:', {
+                    employeeNumber: employee.number,
+                    employeeName: employee.name,
+                    availableShifts: availableShifts
+                });
+                // 不使用随机或默认逻辑，严格按照排班顺序
+                return '';
             }
-            
-            // 基于员工的排班记录，平衡各班次的数量
-            const currentCount = shiftCounts[employee.number][shift] || 0;
-            weight += currentCount * 2; // 班次安排次数越多，权重越高
-            
-            // 周末特殊处理
-            if (dayData.isWeekend) {
-                if (shift === '休') {
-                    // 周末优先安排休息
-                    weight -= 5;
-                } else {
-                    // 周末工作班次权重增加
-                    weight += 3;
-                }
-            }
-            
-            return { shift, weight };
-        });
-        
-        // 按照权重排序，选择权重最小的班次（权重越小优先级越高）
-        shiftCandidates.sort((a, b) => a.weight - b.weight);
-        
-        // 根据排班索引和总员工数确定是否安排休息
-        // 例如：每3个员工中安排1个休息（可根据实际需求调整）
-        const restFrequency = Math.max(1, Math.floor(totalEmployees / 3)); // 至少每1人中有1人休息
-        const shouldRest = scheduleIndex % restFrequency === 0;
-        
-        // 如果应该安排休息，优先选择休息班次
-        if (shouldRest && shiftCandidates.some(candidate => candidate.shift === '休')) {
-            return '休';
+        } catch (error) {
+            console.error('选择班次失败:', error);
+            console.error('错误时的上下文信息:', {
+                employeeNumber: employee.number,
+                employeeName: employee.name,
+                availableShifts: availableShifts
+            });
+            // 出错时返回空字符串
+            return '';
         }
-        
-        // 返回权重最小的班次
-        return shiftCandidates[0]?.shift || '休';
     }
     
     // 保存排班计划
     async saveSchedule(scheduleData) {
         try {
             const savedSchedule = await this.dbManager.save('schedulePlans', scheduleData);
-            showNotification('排班计划保存成功');
             return savedSchedule;
         } catch (error) {
             console.error('保存排班计划失败:', error);
@@ -600,7 +724,50 @@ class ScheduleManager {
                 schedule.month === month
             );
             
-            return matchingSchedule ? matchingSchedule.scheduleData : null;
+            if (!matchingSchedule) return null;
+            
+            // 获取所有员工数据用于修复部门信息
+            const allEmployees = await this.dbManager.getAll('employees');
+            const employeeMap = new Map();
+            
+            // 定义规范化ID的函数，与系统其他部分保持一致
+            const normalizeId = (id) => {
+                if (id === null || id === undefined) return '';
+                return String(id).toLowerCase().trim();
+            };
+            
+            // 创建规范化后的员工号到员工对象的映射
+            allEmployees.forEach(emp => {
+                const normalizedNumber = normalizeId(emp.number);
+                employeeMap.set(normalizedNumber, emp);
+            });
+            
+            // 修复排班数据中的部门信息
+            const fixedScheduleData = { ...matchingSchedule.scheduleData };
+            
+            Object.keys(fixedScheduleData).forEach(employeeNumber => {
+                const employeeSchedule = fixedScheduleData[employeeNumber];
+                // 规范化员工号后再查找
+                const normalizedNumber = normalizeId(employeeNumber);
+                const employee = employeeMap.get(normalizedNumber);
+                
+                // 检查员工数据是否存在
+                if (employee) {
+                    // 优先使用员工对象中的deptName字段（根据系统数据结构这是最准确的部门信息字段）
+                    if (employee.deptName && employee.deptName.trim() !== '') {
+                        employeeSchedule.department = employee.deptName.trim();
+                    } else {
+                        // 如果deptName为空，再尝试其他可能的字段
+                        employeeSchedule.department = (employee.department || employee.dept || '未知部门').trim();
+                    }
+                } else {
+                    // 如果没有找到对应的员工数据，记录日志以便排查
+                    console.log(`未找到员工号为 ${employeeNumber} 的员工数据，无法确定部门信息`);
+                    employeeSchedule.department = '未知部门';
+                }
+            });
+            
+            return fixedScheduleData;
         } catch (error) {
             console.error('获取指定月份排班计划失败:', error);
             return null;
