@@ -9,6 +9,9 @@ class SchedulePlanning {
         this.currentYear = parseInt(document.getElementById('scheduleYearInput').value);
         this.currentMonth = parseInt(document.getElementById('scheduleMonthInput').value);
         
+        // 防抖计时器
+        this.loadScheduleDataDebounceTimer = null;
+        
         // 初始化事件监听器
         this.initEventListeners();
         
@@ -18,17 +21,32 @@ class SchedulePlanning {
     
     // 异步初始化数据
     async initData() {
-        // 加载机构数据
-        await this.loadOrganizations();
-        // 等待一段时间确保机构数据加载完成
-        setTimeout(async () => {
+        try {
+            // 加载机构数据
+            await this.loadOrganizations();
+
+            
+            // 直接调用，不使用setTimeout，避免延迟导致的冲突
             // 加载部门数据
             await this.loadDepartmentsByOrganization();
+
+            
             // 加载岗位数据
             await this.loadPositionsByDepartment();
+
+            
             // 加载排班数据
-            this.loadScheduleData();
-        }, 500);
+            this.loadScheduleDataDebounced();
+
+        } catch (error) {
+
+            // 如果出错，仍然尝试加载基本数据
+            try {
+                this.loadScheduleData();
+            } catch (innerError) {
+
+            }
+        }
     }
     
     // 初始化事件监听器
@@ -81,52 +99,92 @@ class SchedulePlanning {
         }
         
         // 年份和月份选择事件
-        document.getElementById('scheduleYearInput').addEventListener('change', (e) => {
+        this.bindEventToElement('scheduleYearInput', 'change', (e) => {
             this.currentYear = parseInt(e.target.value);
             this.updateDateRange();
             this.generateCalendarHeaders();
-            this.loadScheduleData();
+            this.loadScheduleDataDebounced();
         });
         
-        document.getElementById('scheduleMonthInput').addEventListener('change', (e) => {
+        this.bindEventToElement('scheduleMonthInput', 'change', (e) => {
             this.currentMonth = parseInt(e.target.value);
             this.updateDateRange();
             this.generateCalendarHeaders();
-            this.loadScheduleData();
+            this.loadScheduleDataDebounced();
         });
         
         // 机构、部门、岗位筛选事件
-        document.getElementById('scheduleOrganizationSelect').addEventListener('change', () => {
+        this.bindEventToElement('scheduleOrganizationSelect', 'change', () => {
             this.loadDepartmentsByOrganization();
             // 不再显式清空岗位选择，让loadDepartmentsByOrganization方法内部处理
-            this.loadScheduleData();
+            this.loadScheduleDataDebounced();
         });
         
-        document.getElementById('scheduleDepartmentSelect').addEventListener('change', () => {
+        this.bindEventToElement('scheduleDepartmentSelect', 'change', () => {
             this.loadPositionsByDepartment();
-            this.loadScheduleData();
+            this.loadScheduleDataDebounced();
         });
         
-        document.getElementById('schedulePositionSelect').addEventListener('change', () => {
-            this.loadScheduleData();
+        this.bindEventToElement('schedulePositionSelect', 'change', () => {
+            this.loadScheduleDataDebounced();
         });
         
         // 操作按钮事件
-        document.getElementById('generateScheduleBtn').addEventListener('click', () => {
+        this.bindEventToElement('generateScheduleBtn', 'click', () => {
             this.generateSchedule();
         });
         
-        document.getElementById('exportScheduleBtn').addEventListener('click', () => {
+        this.bindEventToElement('exportScheduleBtn', 'click', () => {
             this.exportSchedule();
         });
         
-        document.getElementById('refreshScheduleBtn').addEventListener('click', () => {
-            this.loadScheduleData();
+        // 刷新按钮事件 - 确保正确绑定
+        this.bindEventToElement('refreshScheduleBtn', 'click', () => {
+            console.log('刷新按钮被点击，重新加载排班数据');
+            this.loadScheduleData(); // 刷新按钮直接加载，不防抖
         });
+        
+        // 监听班次数据变更事件，确保排班表及时更新
+        window.addEventListener('scheduleDataNeedRefresh', (event) => {
+            console.log('排班计划页面收到数据刷新通知，原因:', event.detail.reason);
+            // 清空班次数据缓存
+            if (window.shiftDataCache) {
+                window.shiftDataCache = null;
+            }
+            // 重新加载排班数据
+            this.loadScheduleDataDebounced();
+        });
+    }
+    
+    // 安全地绑定事件到元素的辅助方法，处理元素可能不存在的情况
+    bindEventToElement(elementId, eventType, callback) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            // 先移除已有的事件监听器，避免重复绑定
+            const newCallback = callback.bind(this);
+            element.addEventListener(eventType, newCallback);
+            console.log(`已绑定${eventType}事件到${elementId}元素`);
+            return true;
+        } else {
+            console.warn(`未找到ID为${elementId}的元素，将在DOM加载完成后重试`);
+            // 使用setTimeout延迟绑定，确保DOM完全加载
+            setTimeout(() => {
+                const retryElement = document.getElementById(elementId);
+                if (retryElement) {
+                    retryElement.addEventListener(eventType, callback.bind(this));
+                    console.log(`延迟绑定${eventType}事件到${elementId}元素成功`);
+                } else {
+                    console.error(`仍然未找到ID为${elementId}的元素，事件绑定失败`);
+                }
+            }, 1000);
+            return false;
+        }
     }
     
     // 显示排班计划内容
     showSchedulePlanning() {
+        console.log('显示排班计划页面');
+        
         // 隐藏所有内容区域
         const allContentSections = document.querySelectorAll('.content-section');
         allContentSections.forEach(section => {
@@ -168,8 +226,11 @@ class SchedulePlanning {
         // 初始化数据显示
         this.updateDateRange();
         this.generateCalendarHeaders();
-        // 关键修复：确保在显示排班计划页面时加载数据
-        this.loadScheduleData();
+        
+        // 不要在页面切换时重新加载机构和部门数据，避免覆盖用户当前选择
+        // 只重新加载排班数据
+        console.log('页面切换，重新加载排班数据，但保留当前筛选条件');
+        this.loadScheduleDataDebounced();
     }
     
     // 加载机构数据
@@ -195,7 +256,7 @@ class SchedulePlanning {
                 }
             });
         } catch (error) {
-            console.error('加载机构数据失败:', error);
+
         }
     }
     
@@ -243,51 +304,21 @@ class SchedulePlanning {
                     }
                 });
                 
-                // 如果之前有选择部门，尝试选择第一个部门
+                // 保持默认选择"全部部门"，不自动选择第一个具体部门
+                // 只在有部门数据时加载岗位数据，但不改变当前选择
                 if (departments.length > 0) {
-                    departmentSelect.value = departments[0].name.toLowerCase().trim();  // 使用小写并去除空格的名称
-                    // 加载该部门下的岗位
+                    // 保持选择"全部部门"
+                    departmentSelect.value = "全部部门";
+                    // 加载全部部门的岗位数据
                     await this.loadPositionsByDepartment();
-                    
-                    // 尝试恢复之前选择的岗位值（如果存在）
-                    if (previousPositionValue) {
-                        for (let i = 0; i < positionSelect.options.length; i++) {
-                            if (positionSelect.options[i].value === previousPositionValue) {
-                                positionSelect.value = previousPositionValue;
-                                break;
-                            }
-                        }
-                    }
                 }
             } else {
-                // 如果选择了"全部机构"，加载所有部门
-                // 从organizations表中获取所有部门，并按部门名称去重
-                const departments = organizations
-                    .filter(org => org.description) // 确保有部门名称
-                    .map(org => ({ id: org.id, name: org.description }))
-                    .filter((dept, index, self) => 
-                        self.findIndex(d => d.name === dept.name) === index // 按部门名称去重
-                    );
-                
-                departments.forEach(dept => {
-                    if (!departmentNames.has(dept.name)) {
-                        const option = document.createElement('option');
-                        option.value = dept.name.toLowerCase().trim();  // 存储为小写并去除空格
-                        option.textContent = dept.name;
-                        departmentSelect.appendChild(option);
-                        departmentNames.add(dept.name);
-                    }
-                });
-                
-                // 如果有部门数据，选择第一个部门
-                if (departments.length > 0) {
-                    departmentSelect.value = departments[0].name.toLowerCase().trim();  // 使用小写并去除空格的名称
-                    // 加载该部门下的岗位
-                    await this.loadPositionsByDepartment();
-                }
+                // 重要变更：如果选择了"全部机构"，只显示"全部部门"选项，不显示具体部门
+                // 直接加载所有岗位数据（不按部门筛选）
+                await this.loadPositionsByDepartment();
             }
         } catch (error) {
-            console.error('加载部门数据失败:', error);
+
         }
     }
     
@@ -308,9 +339,9 @@ class SchedulePlanning {
                 const positions = [...new Set(
                     employees
                         .filter(emp => {
-                            // 由于departmentValue已经是小写并去除空格的，这里直接比较
-                            const empDeptName = emp.deptName ? emp.deptName.toLowerCase().trim() : '';
-                            return empDeptName === departmentValue;
+                            // 统一转换为小写并去除空格进行比较，避免大小写和空格差异导致的不匹配
+                            const empDeptName = emp.deptName || '';
+                            return empDeptName.toLowerCase().trim() === departmentValue;
                         })
                         .map(emp => emp.position)
                         .filter(pos => pos)
@@ -324,7 +355,7 @@ class SchedulePlanning {
                 });
             }
         } catch (error) {
-            console.error('加载岗位数据失败:', error);
+
         }
     }
     
@@ -407,6 +438,21 @@ class SchedulePlanning {
         }
     }
     
+    // 防抖版加载排班数据
+    loadScheduleDataDebounced() {
+        // 清除之前的计时器
+        if (this.loadScheduleDataDebounceTimer) {
+            clearTimeout(this.loadScheduleDataDebounceTimer);
+        }
+        
+        // 设置新的计时器，300ms后执行加载
+        this.loadScheduleDataDebounceTimer = setTimeout(() => {
+            this.loadScheduleData();
+        }, 300);
+    }
+    
+
+    
     // 加载排班数据
     async loadScheduleData() {
         console.log('开始加载排班数据');
@@ -455,44 +501,72 @@ class SchedulePlanning {
                 const filteredByOrg = employees.filter(emp => 
                     emp.orgName && emp.orgName.toLowerCase().trim() === organizationValue.toLowerCase().trim()
                 );
-                console.log(`机构筛选后员工数量: ${filteredByOrg.length} (机构: ${organizationValue})`);
                 employees = filteredByOrg;
             }
             
             if (departmentValue && departmentValue !== '全部部门' && departmentValue !== '') {
                 // 使用部门名称而不是部门ID来筛选员工
-                console.log('执行部门筛选:', departmentValue);
-                console.log('筛选前的员工数量:', employees.length);
-                
                 const filteredByDept = employees.filter(emp => {
                     // 由于选项的value已经是小写并去除空格的，这里可以直接比较
                     const empDeptName = emp.deptName ? emp.deptName.toLowerCase().trim() : '';
-                    console.log(`比较: ${empDeptName} === ${departmentValue} ? ${empDeptName === departmentValue}`);
                     return empDeptName === departmentValue;
                 });
-                
-                console.log(`部门筛选后员工数量: ${filteredByDept.length} (部门: ${departmentValue})`);
                 employees = filteredByDept;
             }
             
-            if (position && position !== "全部岗位") {
+            // 只有当position不为空且不等于"全部岗位"时才进行岗位筛选
+            if (position && position !== "全部岗位" && position !== '全部') {
                 const filteredByPosition = employees.filter(emp => 
                     emp.position && emp.position.toLowerCase().trim() === position.toLowerCase().trim()
                 );
-                console.log(`岗位筛选后员工数量: ${filteredByPosition.length} (岗位: ${position})`);
                 employees = filteredByPosition;
-            } else {
-                console.log('未执行岗位筛选（选择了全部岗位）');
             }
-            
-            console.log('最终筛选后的员工数据数量:', employees.length);
             
             // 加载排班数据
             const scheduleData = await this.scheduleManager.getScheduleByMonth(this.currentYear, this.currentMonth);
-            console.log('排班数据:', scheduleData);
             // 确保scheduleData始终是一个对象（getScheduleByMonth返回的是以员工号为键的对象）
             // 特别处理null值，因为在JavaScript中typeof null === 'object'
             const safeScheduleData = scheduleData !== null && typeof scheduleData === 'object' ? scheduleData : {};
+            
+            // 添加详细日志，验证获取到的排班数据
+            const scheduleDataInfo = {
+                totalEmployees: Object.keys(safeScheduleData).length,
+                isEmpty: Object.keys(safeScheduleData).length === 0
+            };
+            console.log(`loadScheduleData获取的排班数据结构:`, scheduleDataInfo);
+    
+            
+
+
+            
+            // 获取启用班次的优先级信息并按优先级排序（数字越小优先级越高）
+            try {
+                // 从shiftManager获取所有启用的班次
+                if (window.shiftManager && typeof window.shiftManager.getAllShifts === 'function') {
+                    const allShifts = await window.shiftManager.getAllShifts();
+                    // 过滤出启用的班次（注意：在系统中status=0表示启用）
+                    const enabledShifts = Array.isArray(allShifts) ? allShifts.filter(shift => shift.status === 0) : [];
+                    
+                    // 按优先级升序排序
+                    if (Array.isArray(enabledShifts)) {
+                        enabledShifts.sort((a, b) => {
+                            const priorityA = a.priority !== undefined ? parseInt(a.priority, 10) : 999; // 默认低优先级
+                            const priorityB = b.priority !== undefined ? parseInt(b.priority, 10) : 999;
+                            return priorityA - priorityB;
+                        });
+                    }
+                    
+                    console.log('按优先级排序的启用班次:', enabledShifts);
+                    
+                    // 为排班数据添加班次优先级排序功能
+                    window.shiftDataCache = window.shiftDataCache || {};
+                    window.shiftDataCache.enabledShifts = enabledShifts;
+                } else {
+                    console.log('shiftManager未初始化或getAllShifts方法不存在');
+                }
+            } catch (error) {
+                console.error('获取和排序班次优先级时出错:', error);
+            }
             
             // 更新员工数量统计
             const scheduleStatistics = document.getElementById('scheduleStatistics');
@@ -536,6 +610,13 @@ class SchedulePlanning {
         tableBody.innerHTML = '';
         
         console.log('渲染表格的员工数据数量:', employees.length);
+        console.log('排班数据类型:', typeof scheduleData);
+        console.log('排班数据是否为空对象:', scheduleData && Object.keys(scheduleData).length === 0);
+        if (scheduleData && Object.keys(scheduleData).length > 0) {
+            console.log('排班数据键列表示例:', Object.keys(scheduleData).slice(0, 5));
+            const firstKey = Object.keys(scheduleData)[0];
+            console.log('第一个员工的排班数据结构:', scheduleData[firstKey]);
+        }
         
         // 如果没有员工数据，显示空数据提示
         if (employees.length === 0) {
@@ -585,8 +666,17 @@ class SchedulePlanning {
             row.appendChild(nameCell);
             
             // 获取该员工的排班记录 - 注意scheduleData是以员工号为键的对象
+            // 添加员工号规范化逻辑，与schedule-management.js中的处理保持一致
+            const normalizeId = (id) => {
+                if (id === null || id === undefined) return '';
+                return String(id).toLowerCase().trim();
+            };
+            
+            const normalizedEmployeeNumber = normalizeId(employee.number);
             const employeeSchedule = (scheduleData && typeof scheduleData === 'object') ? 
-                scheduleData[employee.number] || {} : {};
+                scheduleData[normalizedEmployeeNumber] || {} : {};
+            
+
                 
             const departmentCell = document.createElement('td');
             departmentCell.className = 'fixed-column';
@@ -818,8 +908,11 @@ class SchedulePlanning {
 // 初始化排班计划模块
 function initSchedulePlanning() {
     const schedulePlanning = new SchedulePlanning();
+    // 保存为全局变量，供其他模块访问
+    window.schedulePlanningInstance = schedulePlanning;
 }
 
+// 全局调试日志函数，供其他模块使用
 // 当页面加载完成后初始化
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initSchedulePlanning);

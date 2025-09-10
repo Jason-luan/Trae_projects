@@ -28,7 +28,15 @@ class ShiftManager {
                         shiftStore.createIndex('startTime', 'startTime', { unique: false });
                         shiftStore.createIndex('endTime', 'endTime', { unique: false });
                         shiftStore.createIndex('status', 'status', { unique: false });
+                        shiftStore.createIndex('priority', 'priority', { unique: false });
                         console.log('班次存储空间创建成功');
+                    } else {
+                        // 存储空间已存在，检查是否需要添加priority字段的索引
+                        const shiftStore = event.target.transaction.objectStore('shifts');
+                        if (!shiftStore.indexNames.contains('priority')) {
+                            shiftStore.createIndex('priority', 'priority', { unique: false });
+                            console.log('已添加priority字段索引');
+                        }
                     }
                 };
                 
@@ -47,6 +55,35 @@ class ShiftManager {
             console.error('初始化班次存储空间失败:', error);
         }
     }
+    
+    // 添加priority字段到所有现有班次
+    async addPriorityFieldToExistingShifts() {
+        try {
+            const shifts = await dbManager.getAll('shifts');
+            const updatePromises = [];
+            
+            shifts.forEach(shift => {
+                // 只有当班次没有priority字段时才添加
+                if (shift.priority === undefined) {
+                    shift.priority = 0; 
+                    shift.updatedAt = new Date();
+                    updatePromises.push(dbManager.save('shifts', shift));
+                }
+            });
+            
+            if (updatePromises.length > 0) {
+                await Promise.all(updatePromises);
+                console.log(`已为${updatePromises.length}个班次添加优先级字段`);
+            } else {
+                console.log('所有班次已经包含优先级字段');
+            }
+            
+            return updatePromises.length;
+        } catch (error) {
+            console.error('添加优先级字段失败:', error);
+            throw error;
+        }
+    }
 
     // 初始化默认班次数据
     async initializeDefaultShifts() {
@@ -55,26 +92,26 @@ class ShiftManager {
             if (existingShifts.length === 0) {
                 // 默认班次数据
                 const defaultShifts = [
-                    { code: 'G', name: '白班', startTime: '08:50', endTime: '18:00', description: '正常白班', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'Y0', name: '夜班00:00-08:00', startTime: '00:00', endTime: '08:00', description: '夜班', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'Y1030普', name: '中班10:20-19:30', startTime: '10:20', endTime: '19:30', description: '普通中班', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'Y1330普', name: '中班13:20-22:00', startTime: '13:20', endTime: '22:00', description: '普通中班', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'Y1330综', name: '中班13:20-22:00(综合)', startTime: '13:20', endTime: '22:00', description: '综合中班', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'Y1330贵', name: '中班13:20-22:00(贵宾)', startTime: '13:20', endTime: '22:00', description: '贵宾中班', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'Y16综', name: '晚班15:50-次日00:00', startTime: '15:50', endTime: '24:00', description: '综合晚班', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'Y18普', name: '晚班18:00-次日02:00', startTime: '18:00', endTime: '02:00', description: '普通晚班', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'Y8普', name: '早班07:50-16:30', startTime: '07:50', endTime: '16:30', description: '普通早班', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'Y8综', name: '早班07:50-16:30(综合)', startTime: '07:50', endTime: '16:30', description: '综合早班', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'Y9值', name: '值班08:50-17:30', startTime: '08:50', endTime: '17:30', description: '值班', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'Y9公', name: '对公值班08:50-17:30', startTime: '08:50', endTime: '17:30', description: '对公白班', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'Y9普', name: '普通班08:50-17:30', startTime: '08:50', endTime: '17:30', description: '普通班', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'Y9综', name: '综合班08:50-17:30', startTime: '08:50', endTime: '17:30', description: '综合班', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'G值', name: '周末值班08:50-18:00', startTime: '08:50', endTime: '18:00', description: '周末值班', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: '休', name: '休息日', startTime: '', endTime: '', description: '当天休息', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'C', name: '产假', startTime: '', endTime: '', description: '产假', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'G值-A', name: '周末对公值班A岗08:50-18:00', startTime: '08:50', endTime: '18:00', description: '对公周末G班A岗', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'G值-B', name: '周末风险值班B岗08:50-18:00', startTime: '08:50', endTime: '18:00', description: '风险核查岗周末G班B岗', status: 0, createdAt: new Date(), updatedAt: new Date() },
-                    { code: 'G值-C', name: '周末对公值班C岗08:50-18:00', startTime: '08:50', endTime: '18:00', description: '对公周末G班C岗', status: 0, createdAt: new Date(), updatedAt: new Date() }
+                    { code: 'G', name: '白班', startTime: '08:50', endTime: '18:00', description: '正常白班', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'Y0', name: '夜班00:00-08:00', startTime: '00:00', endTime: '08:00', description: '夜班', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'Y1030普', name: '中班10:20-19:30', startTime: '10:20', endTime: '19:30', description: '普通中班', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'Y1330普', name: '中班13:20-22:00', startTime: '13:20', endTime: '22:00', description: '普通中班', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'Y1330综', name: '中班13:20-22:00(综合)', startTime: '13:20', endTime: '22:00', description: '综合中班', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'Y1330贵', name: '中班13:20-22:00(贵宾)', startTime: '13:20', endTime: '22:00', description: '贵宾中班', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'Y16综', name: '晚班15:50-次日00:00', startTime: '15:50', endTime: '23:59', description: '综合晚班', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'Y18普', name: '晚班18:00-次日02:00', startTime: '18:00', endTime: '02:00', description: '普通晚班', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'Y8普', name: '早班07:50-16:30', startTime: '07:50', endTime: '16:30', description: '普通早班', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'Y8综', name: '早班07:50-16:30(综合)', startTime: '07:50', endTime: '16:30', description: '综合早班', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'Y9值', name: '值班08:50-17:30', startTime: '08:50', endTime: '17:30', description: '值班', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'Y9公', name: '对公值班08:50-17:30', startTime: '08:50', endTime: '17:30', description: '对公白班', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'Y9普', name: '普通班08:50-17:30', startTime: '08:50', endTime: '17:30', description: '普通班', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'Y9综', name: '综合班08:50-17:30', startTime: '08:50', endTime: '17:30', description: '综合班', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'G值', name: '周末值班08:50-18:00', startTime: '08:50', endTime: '18:00', description: '周末值班', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: '休', name: '休息日', startTime: '', endTime: '', description: '当天休息', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'C', name: '产假', startTime: '', endTime: '', description: '产假', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'G值-A', name: '周末对公值班A岗08:50-18:00', startTime: '08:50', endTime: '18:00', description: '对公周末G班A岗', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'G值-B', name: '周末风险值班B岗08:50-18:00', startTime: '08:50', endTime: '18:00', description: '风险核查岗周末G班B岗', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() },
+                    { code: 'G值-C', name: '周末对公值班C岗08:50-18:00', startTime: '08:50', endTime: '18:00', description: '对公周末G班C岗', status: 0, priority: 0, createdAt: new Date(), updatedAt: new Date() }
                 ];
 
                 // 批量保存默认班次
@@ -104,6 +141,18 @@ class ShiftManager {
         }
     }
 
+    // 获取所有启用的班次
+    async getActiveShifts() {
+        try {
+            const allShifts = await this.getAllShifts();
+            // 在系统中status=0表示启用
+            return allShifts.filter(shift => shift.status === 0);
+        } catch (error) {
+            console.error('获取启用的班次数据失败:', error);
+            return [];
+        }
+    }
+
     // 保存班次
     async saveShift(shiftData) {
         try {
@@ -120,6 +169,7 @@ class ShiftManager {
             // 创建班次对象并过滤无效的id
             const shift = {
                 ...shiftData,
+                priority: shiftData.priority !== undefined ? parseInt(shiftData.priority) : 0,
                 updatedAt: new Date() // 设置当前时间为更新时间
             };
             
@@ -194,6 +244,36 @@ class ShiftManager {
                 await dbManager.save('shifts', shift);
                 showNotification('班次状态更新成功');
                 
+                // 重要：更新全局班次数据缓存，确保排班逻辑能正确识别停用的班次
+                if (window.shiftDataCache) {
+                    const cacheIndex = window.shiftDataCache.findIndex(s => s.id === id);
+                    if (cacheIndex !== -1) {
+                        window.shiftDataCache[cacheIndex] = {...shift};
+                        console.log(`已更新全局班次数据缓存中的班次状态: ${shift.code} (状态: ${status})`);
+                    } else {
+                        // 如果在缓存中找不到对应班次，可能是缓存未初始化，添加日志
+                        console.warn(`未在全局班次数据缓存中找到班次ID: ${id}，尝试重新加载缓存`);
+                        // 尝试重新加载缓存
+                        try {
+                            const allShifts = await this.getAllShifts();
+                            window.shiftDataCache = [...allShifts];
+                            console.log('已重新创建全局班次数据缓存，包含', window.shiftDataCache.length, '个班次');
+                        } catch (reloadError) {
+                            console.error('重新加载班次数据缓存失败:', reloadError);
+                        }
+                    }
+                } else {
+                    // 如果缓存不存在，创建它
+                    console.warn('全局班次数据缓存不存在，尝试创建');
+                    try {
+                        const allShifts = await this.getAllShifts();
+                        window.shiftDataCache = [...allShifts];
+                        console.log('已创建全局班次数据缓存，包含', window.shiftDataCache.length, '个班次');
+                    } catch (createError) {
+                        console.error('创建班次数据缓存失败:', createError);
+                    }
+                }
+                
                 // 添加班次状态变更时联动排班班次的逻辑
                 if (window.shiftOrderManager) {
                     try {
@@ -254,8 +334,17 @@ let allShifts = [];
 // 加载班次数据
 window.loadShifts = async function() {
     try {
+        // 为优先级表头添加点击事件
+        const priorityHeader = document.getElementById('priorityHeader');
+        if (priorityHeader && typeof priorityHeader.onclick !== 'function') {
+            priorityHeader.onclick = showShiftPriorityModal;
+        }
         // 获取并保存所有班次数据
         allShifts = await shiftManager.getAllShifts();
+        
+        // 创建全局班次数据缓存，用于在排班时快速查找班次优先级信息
+        window.shiftDataCache = [...allShifts];
+        console.log('已创建全局班次数据缓存，包含', window.shiftDataCache.length, '个班次');
         
         // 排序 - 按班次代码
         allShifts.sort((a, b) => {
@@ -313,6 +402,12 @@ window.loadShifts = async function() {
             const descCell = document.createElement('td');
             descCell.textContent = shift.description || '-';
             row.appendChild(descCell);
+
+            // 优先级 - 显示数值，不再可点击
+            const priorityCell = document.createElement('td');
+            const priorityValue = shift.priority !== undefined ? shift.priority : '-';
+            priorityCell.textContent = priorityValue;
+            row.appendChild(priorityCell);
 
             // 更新时间（显示更新时间而不是创建时间）
             const updateTimeCell = document.createElement('td');
@@ -389,6 +484,244 @@ window.showAddShiftModal = function() {
     document.getElementById('shiftModal').style.display = 'block';
 };
 
+// 班次优先级管理相关变量
+let sortedShifts = []; // 已排序的班次列表
+let availableShifts = []; // 待排序的班次列表
+
+// 显示班次优先级管理模态框
+window.showShiftPriorityModal = async function() {
+    try {
+        // 获取所有班次数据
+        const allShifts = await shiftManager.getAllShifts();
+        
+        // 初始化已排序和待排序列表
+        sortedShifts = [];  // 已排序的班次列表
+        availableShifts = [];  // 待排序的班次列表
+        
+        // 遍历所有班次，根据状态和优先级分类
+        allShifts.forEach(shift => {
+            // 确保班次有优先级字段，未设置的设为0
+            if (shift.priority === undefined) {
+                shift.priority = 0;
+            }
+            
+            // 只处理启用状态的班次
+            if (shift.status === 0) {
+                // 对于启用的班次，优先级为0的放入待排序列表，优先级>0的放入已排序列表
+                if (shift.priority > 0) {
+                    sortedShifts.push(shift);
+                } else {
+                    shift.priority = 0;  // 确保未排序的启用班次优先级为0
+                    availableShifts.push(shift);
+                }
+            } else {
+                // 未启用的班次不放入任何列表，但确保它们的优先级为0
+                shift.priority = 0;
+            }
+        });
+        
+        // 对已排序列表按优先级排序
+        sortedShifts.sort((a, b) => {
+            const priorityA = a.priority !== undefined ? a.priority : 0;
+            const priorityB = b.priority !== undefined ? b.priority : 0;
+            return priorityA - priorityB;
+        });
+        
+        // 渲染两个列表
+        renderShiftPriorityLists();
+        
+        // 显示模态框
+        const shiftPriorityModal = document.getElementById('shiftPriorityModal');
+        shiftPriorityModal.style.display = 'block';
+        
+        // 为取消按钮添加事件监听器
+        const cancelButton = shiftPriorityModal.querySelector('.btn-secondary');
+        if (cancelButton && typeof cancelButton.onclick !== 'function') {
+            cancelButton.onclick = function() {
+                closeShiftPriorityModal();
+            };
+        }
+        
+        // 绑定清空和保存按钮事件
+        document.getElementById('clearSortedShiftsBtn').onclick = clearSortedShifts;
+        document.getElementById('saveShiftPriorityBtn').onclick = saveShiftPriorities;
+    } catch (error) {
+        console.error('加载班次优先级数据失败:', error);
+        showNotification('加载班次优先级数据失败: ' + error.message, 'error');
+    }
+};
+
+// 渲染班次优先级列表
+function renderShiftPriorityLists() {
+    const sortedListElement = document.getElementById('sortedShiftsList');
+    const availableListElement = document.getElementById('availableShiftsList');
+    
+    if (!sortedListElement || !availableListElement) return;
+    
+    // 清空列表
+    sortedListElement.innerHTML = '';
+    availableListElement.innerHTML = '';
+    
+    // 渲染已排序列表
+    if (sortedShifts.length > 0) {
+        sortedShifts.forEach((shift, index) => {
+            const shiftItem = createShiftPriorityItem(shift, index + 1, true);
+            sortedListElement.appendChild(shiftItem);
+        });
+    } else {
+        sortedListElement.innerHTML = '<div class="no-data">暂无已排序的班次</div>';
+    }
+    
+    // 渲染待排序列表
+    if (availableShifts.length > 0) {
+        availableShifts.forEach(shift => {
+            const shiftItem = createShiftPriorityItem(shift, null, false);
+            availableListElement.appendChild(shiftItem);
+        });
+    } else {
+        availableListElement.innerHTML = '<div class="no-data">暂无待排序的班次</div>';
+    }
+}
+
+// 创建班次优先级列表项
+function createShiftPriorityItem(shift, priority, isInSortedList) {
+    const item = document.createElement('div');
+    item.className = 'shift-priority-item';
+    item.style = `
+        padding: 8px;
+        margin-bottom: 5px;
+        border-radius: 4px;
+        background-color: ${isInSortedList ? 'rgba(52, 152, 219, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
+        cursor: pointer;
+        transition: background-color 0.3s;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    `;
+    
+    const content = document.createElement('div');
+    content.style.display = 'flex';
+    content.style.alignItems = 'center';
+    content.style.width = '100%';
+    
+    if (priority) {
+        const priorityBadge = document.createElement('span');
+        priorityBadge.textContent = priority;
+        priorityBadge.style = `
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            line-height: 24px;
+            text-align: center;
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            margin-right: 10px;
+            font-size: 12px;
+        `;
+        content.appendChild(priorityBadge);
+    }
+    
+    const shiftInfo = document.createElement('span');
+    shiftInfo.textContent = `${shift.code} - ${shift.name}`;
+    content.appendChild(shiftInfo);
+    
+    item.appendChild(content);
+    
+    // 添加移除按钮（仅已排序列表项显示）
+    if (isInSortedList) {
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'btn btn-danger btn-xs';
+        removeBtn.textContent = '移除';
+        removeBtn.style.marginLeft = '10px';
+        removeBtn.onclick = (e) => {
+            e.stopPropagation(); // 阻止事件冒泡
+            removeShiftFromSortedList(shift);
+        };
+        item.appendChild(removeBtn);
+    }
+    
+    // 添加点击事件
+    item.onclick = () => {
+        if (isInSortedList) {
+            // 从已排序列表移除到待排序列表
+            removeShiftFromSortedList(shift);
+        } else {
+            // 从待排序列表添加到已排序列表末尾
+            addShiftToSortedList(shift);
+        }
+    };
+    
+    return item;
+}
+
+// 从已排序列表移除班次到待排序列表
+function removeShiftFromSortedList(shift) {
+    sortedShifts = sortedShifts.filter(s => s.id !== shift.id);
+    availableShifts.push(shift);
+    renderShiftPriorityLists();
+}
+
+// 添加班次到已排序列表末尾
+function addShiftToSortedList(shift) {
+    availableShifts = availableShifts.filter(s => s.id !== shift.id);
+    sortedShifts.push(shift);
+    renderShiftPriorityLists();
+}
+
+// 清空所有已排序的班次
+function clearSortedShifts() {
+    if (confirm('确定要清空所有已排序的班次吗？')) {
+        availableShifts = [...availableShifts, ...sortedShifts];
+        sortedShifts = [];
+        renderShiftPriorityLists();
+    }
+}
+
+// 保存班次优先级设置
+async function saveShiftPriorities() {
+    try {
+        // 创建一个保存所有班次优先级更新的Promise数组
+        const updatePromises = [];
+        
+        // 为已排序列表中的班次设置新的优先级
+        sortedShifts.forEach((shift, index) => {
+            const updatedShift = {
+                ...shift,
+                priority: index + 1, // 优先级从1开始
+                updatedAt: new Date()
+            };
+            updatePromises.push(shiftManager.saveShift(updatedShift));
+        });
+        
+        // 为待排序列表中的班次设置默认优先级0
+        availableShifts.forEach(shift => {
+            const updatedShift = {
+                ...shift,
+                priority: 0,
+                updatedAt: new Date()
+            };
+            updatePromises.push(shiftManager.saveShift(updatedShift));
+        });
+        
+        // 等待所有更新完成
+        await Promise.all(updatePromises);
+        
+        // 刷新班次数据和缓存
+        loadShifts();
+        if (window.refreshScheduleCache) {
+            window.refreshScheduleCache();
+        }
+        
+        // 关闭模态框并显示成功提示
+        document.getElementById('shiftPriorityModal').style.display = 'none';
+        showNotification('班次优先级设置保存成功');
+    } catch (error) {
+        console.error('保存班次优先级设置失败:', error);
+        showNotification('保存班次优先级设置失败: ' + error.message, 'error');
+    }
+};
+
 // 编辑班次
 window.editShift = async function(id) {
     try {
@@ -420,6 +753,31 @@ window.editShift = async function(id) {
     }
 };
 
+// 关闭班次优先级模态框
+window.closeShiftPriorityModal = function() {
+    document.getElementById('shiftPriorityModal').style.display = 'none';
+    // 重置列表数据，避免下次打开时使用旧数据
+    sortedShifts = [];
+    availableShifts = [];
+};
+
+// 点击模态框外部关闭模态框
+window.onclick = function(event) {
+    const shiftModal = document.getElementById('shiftModal');
+    const shiftPriorityModal = document.getElementById('shiftPriorityModal');
+    
+    if (shiftModal && event.target === shiftModal) {
+        shiftModal.style.display = 'none';
+    }
+    
+    if (shiftPriorityModal && event.target === shiftPriorityModal) {
+        shiftPriorityModal.style.display = 'none';
+        // 重置列表数据
+        sortedShifts = [];
+        availableShifts = [];
+    }
+};
+
 // 保存班次
 window.saveShift = async function(event) {
     event.preventDefault();
@@ -435,6 +793,20 @@ window.saveShift = async function(event) {
         const endTime = document.getElementById('shiftEndTimeInput').value.trim();
         const description = document.getElementById('shiftDescriptionInput').value.trim();
         const status = document.getElementById('shiftStatusInput').value === 'active' ? 0 : 1;
+        
+        // 对于编辑的班次，保留原有优先级；对于新班次，使用默认优先级0
+        let priority = 0;
+        if (id) {
+            // 尝试获取现有班次的优先级
+            try {
+                const existingShift = await shiftManager.getShiftById(id);
+                if (existingShift && existingShift.priority !== undefined) {
+                    priority = existingShift.priority;
+                }
+            } catch (error) {
+                console.warn('获取现有班次优先级失败，使用默认值:', error);
+            }
+        }
 
         if (!name) {
             showNotification('班次名称不能为空', 'warning');
@@ -458,6 +830,7 @@ window.saveShift = async function(event) {
             startTime,
             endTime,
             description,
+            priority,
             status,
             updatedAt: new Date() // 设置当前时间为更新时间
         };
@@ -484,6 +857,15 @@ window.saveShift = async function(event) {
         setTimeout(() => {
             // 保持当前页码，不重置到第1页
             loadShifts();
+            // 刷新排班计划相关的缓存数据
+            if (window.refreshScheduleCache) {
+                try {
+                    window.refreshScheduleCache();
+                    console.log('已刷新排班计划缓存');
+                } catch (error) {
+                    console.error('刷新排班计划缓存失败:', error);
+                }
+            }
         }, 300);
     } catch (error) {
         console.error('保存班次失败:', error);
@@ -514,8 +896,42 @@ window.deleteShift = async function(id) {
         // 重置为第1页
         shiftCurrentPage = 1;
         loadShifts();
+        // 刷新排班计划相关的缓存数据
+        if (window.refreshScheduleCache) {
+            try {
+                window.refreshScheduleCache();
+                console.log('已刷新排班计划缓存');
+            } catch (error) {
+                console.error('刷新排班计划缓存失败:', error);
+            }
+        }
     } catch (error) {
         console.error('删除班次失败:', error);
+    }
+};
+
+// 创建一个全局函数，用于刷新排班计划缓存数据
+window.refreshScheduleCache = function() {
+    // 清空班次数据缓存，下次加载时会自动重建
+    if (window.shiftDataCache) {
+        window.shiftDataCache = null;
+        console.log('已清空班次数据缓存');
+    }
+    
+    // 触发排班计划模块的数据刷新
+    if (window.loadScheduleData) {
+        try {
+            console.log('触发排班计划数据刷新...');
+            // 不直接调用loadScheduleData，而是通过事件通知
+            const event = new CustomEvent('scheduleDataNeedRefresh', {
+                detail: {
+                    reason: 'shiftDataChanged'
+                }
+            });
+            window.dispatchEvent(event);
+        } catch (error) {
+            console.error('触发排班数据刷新事件失败:', error);
+        }
     }
 };
 

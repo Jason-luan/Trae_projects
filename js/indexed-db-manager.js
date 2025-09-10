@@ -148,12 +148,12 @@ class IndexedDBManager {
                     if (!identifierStore.indexNames.contains('shiftCode')) {
                         console.log('创建shiftCode索引...');
                         identifierStore.createIndex('shiftCode', 'shiftCode', { unique: false });
-                        console.log('shiftCode索引创建成功');
+
                     }
                     if (!identifierStore.indexNames.contains('employeeNumber_shiftCode')) {
-                        console.log('创建employeeNumber_shiftCode复合索引...');
+
                         identifierStore.createIndex('employeeNumber_shiftCode', ['employeeNumber', 'shiftCode'], { unique: true });
-                        console.log('employeeNumber_shiftCode复合索引创建成功');
+
                     }
                 }
                 
@@ -173,16 +173,16 @@ class IndexedDBManager {
                     shiftOrderStore.createIndex('updatedAt', 'updatedAt', { unique: false });
                     // 添加复合唯一索引，确保岗位+班次+部门的组合唯一
                     shiftOrderStore.createIndex('position_shiftCode_department', ['position', 'shiftCode', 'department'], { unique: true });
-                    console.log('排班顺序数据存储空间和索引已创建');
+
                 } else {
                     // 如果存储空间已存在，确保复合索引存在
                     const transaction = event.target.transaction;
                     const shiftOrderStore = transaction.objectStore('shiftOrders');
                     
                     if (!shiftOrderStore.indexNames.contains('position_shiftCode_department')) {
-                    console.log('创建position_shiftCode_department复合唯一索引...');
+
                     shiftOrderStore.createIndex('position_shiftCode_department', ['position', 'shiftCode', 'department'], { unique: true });
-                    console.log('position_shiftCode_department复合唯一索引创建成功');
+
                 }
             }
 
@@ -646,7 +646,9 @@ class IndexedDBManager {
                     processedData = processedData.map(item => ({
                         ...item,
                         createdAt: new Date(item.createdAt),
-                        updatedAt: new Date(item.updatedAt)
+                        updatedAt: new Date(item.updatedAt),
+                        // 确保priority字段存在，如果不存在则设置默认值100
+                        priority: item.priority !== undefined ? parseInt(item.priority) : 100
                     }));
                 } else if (storeName === 'identifiers') {
                     // 处理标识数据，转换日期字段，并将employeeNumber和shiftCode转换为对应的ID
@@ -807,7 +809,7 @@ class IndexedDBManager {
             
             // 检查对象存储空间是否已存在
             if (this.db.objectStoreNames.contains(storeName)) {
-                console.log(`对象存储空间${storeName}已存在`);
+
                 return true;
             }
             
@@ -824,7 +826,7 @@ class IndexedDBManager {
                     // 创建新的对象存储空间
                     if (!db.objectStoreNames.contains(storeName)) {
                         const objectStore = db.createObjectStore(storeName, options);
-                        console.log(`对象存储空间${storeName}已创建`);
+
                     }
                 };
                 
@@ -833,7 +835,7 @@ class IndexedDBManager {
                 };
                 
                 request.onerror = (event) => {
-                    console.error(`创建对象存储空间${storeName}失败:`, event.target.error);
+
                     reject(event.target.error);
                 };
             });
