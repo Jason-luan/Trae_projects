@@ -1,7 +1,7 @@
 // 移除模块化导入，现在通过传统脚本加载
 
 // 确保全局管理实例存在，在文件顶部立即初始化
-// 分别检查并初始化shiftManager和shiftOrderManager
+// 分别检查并初始化shiftManager、shiftOrderManager和scheduleManager
 if (!window.shiftManager && window.ShiftManager) {
     window.shiftManager = new ShiftManager();
     console.log('已在app-init.js文件顶部创建全局shiftManager实例');
@@ -10,6 +10,12 @@ if (!window.shiftManager && window.ShiftManager) {
 if (!window.shiftOrderManager && window.ShiftOrderManager) {
     window.shiftOrderManager = new ShiftOrderManager();
     console.log('已在app-init.js文件顶部创建全局shiftOrderManager实例');
+}
+
+// 初始化scheduleManager实例
+if (!window.scheduleManager && window.ScheduleManager) {
+    window.scheduleManager = new ScheduleManager();
+    console.log('已在app-init.js文件顶部创建全局scheduleManager实例');
 }
 
 // 自动选择部门并加载排班顺序数据

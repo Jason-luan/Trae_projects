@@ -3,7 +3,8 @@ class SchedulePlanning {
     constructor() {
         // 初始化数据库管理器
         this.dbManager = new IndexedDBManager();
-        this.scheduleManager = new ScheduleManager();
+        // 使用全局已初始化的scheduleManager实例
+        this.scheduleManager = window.scheduleManager;
         
         // 当前选中的年份和月份
         this.currentYear = parseInt(document.getElementById('scheduleYearInput').value);
@@ -39,12 +40,18 @@ class SchedulePlanning {
             this.loadScheduleDataDebounced();
 
         } catch (error) {
+            console.warn('初始化数据时发生错误，但会继续尝试加载排班数据:', error);
 
-            // 如果出错，仍然尝试加载基本数据
+            // 如果出错，清除可能存在的定时器，然后直接加载排班数据
             try {
+                // 清除之前的定时器，防止重复加载
+                if (this.loadScheduleDataDebounceTimer) {
+                    clearTimeout(this.loadScheduleDataDebounceTimer);
+                    this.loadScheduleDataDebounceTimer = null;
+                }
                 this.loadScheduleData();
             } catch (innerError) {
-
+                console.error('尝试直接加载排班数据也失败:', innerError);
             }
         }
     }
@@ -490,7 +497,7 @@ class SchedulePlanning {
                     scheduleStatistics.innerHTML = '共 <strong>0</strong> 人 <span class="text-info">（请先在基础设置中导入员工数据）</span>';
                 }
                 // 渲染空表格，传递空对象而不是空数组，因为renderScheduleTable期望scheduleData是对象
-            await this.renderScheduleTable([], {});
+                await this.renderScheduleTable([], {});
                 // 隐藏加载状态
                 this.showLoading(false);
                 return;
@@ -588,15 +595,22 @@ class SchedulePlanning {
                 const employees = await this.dbManager.getAll('employees');
                 // 即使出错，也要传递空对象而不是空数组，因为renderScheduleTable期望scheduleData是对象
                 await this.renderScheduleTable(employees || [], {});
+                
+                // 显示实际的员工数量和错误提示
+                const scheduleStatistics = document.getElementById('scheduleStatistics');
+                if (scheduleStatistics) {
+                    scheduleStatistics.innerHTML = '共 <strong>' + (employees ? employees.length : 0) + '</strong> 人 <span class="text-danger">（加载数据时出错，但已显示员工列表）</span>';
+                }
             } catch (innerError) {
                 console.error('再次尝试加载员工数据失败:', innerError);
                 // 即使出错，也要传递空对象而不是空数组
                 await this.renderScheduleTable([], {});
-            }
-            // 显示错误信息
-            const scheduleStatistics = document.getElementById('scheduleStatistics');
-            if (scheduleStatistics) {
-                scheduleStatistics.innerHTML = '共 <strong>0</strong> 人 <span class="text-danger">（加载数据时出错）</span>';
+                
+                // 显示错误信息
+                const scheduleStatistics = document.getElementById('scheduleStatistics');
+                if (scheduleStatistics) {
+                    scheduleStatistics.innerHTML = '共 <strong>0</strong> 人 <span class="text-danger">（加载数据时出错）</span>';
+                }
             }
         } finally {
             // 隐藏加载状态
@@ -716,12 +730,38 @@ class SchedulePlanning {
                 cell.textContent = shift;
                 
                 // 根据班次类型添加样式类
-                if (shift.includes('G') || shift.includes('g')) {
+                if (shift === '休' || shift === '休息') {
+                    cell.className = 'shift-xiu';
+                } else if (shift === 'G' || shift === 'G班') {
                     cell.className = 'shift-g';
-                } else if (shift.includes('Y') || shift.includes('y')) {
+                } else if (shift === 'G值') {
+                    cell.className = 'shift-gzhi';
+                } else if (shift === 'G值-A') {
+                    cell.className = 'shift-gzhia';
+                } else if (shift === 'G值-B') {
+                    cell.className = 'shift-gzhib';
+                } else if (shift === 'G值-C') {
+                    cell.className = 'shift-gzhic';
+                } else if (shift === 'Y' || shift === 'Y班') {
                     cell.className = 'shift-y';
+                } else if (shift === 'Y0' || shift.includes('夜班')) {
+                    cell.className = 'shift-y0';
+                } else if (shift.includes('Y10') || shift.includes('10:20')) {
+                    cell.className = 'shift-y10';
+                } else if (shift.includes('Y13') || shift.includes('13:20')) {
+                    cell.className = 'shift-y13';
+                } else if (shift.includes('Y16') || shift.includes('15:50')) {
+                    cell.className = 'shift-y16';
+                } else if (shift.includes('Y18') || shift.includes('18:00')) {
+                    cell.className = 'shift-y18';
+                } else if (shift.includes('Y8') || shift.includes('07:50')) {
+                    cell.className = 'shift-y8';
+                } else if (shift.includes('Y9') || shift.includes('08:50')) {
+                    cell.className = 'shift-y9';
                 } else if (shift === '') {
                     cell.className = 'shift-empty';
+                } else {
+                    cell.className = 'shift-other';
                 }
                 
                 // 添加样式使单元格宽度按内容适应
@@ -753,9 +793,9 @@ class SchedulePlanning {
         setTimeout(() => {
             const container = document.getElementById('schedule-planning-content');
             if (container && tableWrapper) {
-                // 触发强制重排
-                container.offsetHeight;
-                tableWrapper.offsetHeight;
+                // 触发强制重排的更安全方式
+                void container.offsetWidth; // 使用void避免返回值
+                void tableWrapper.offsetWidth;
                 
                 // 确保表格容器能够正确滚动
                 tableWrapper.style.width = '100%';
@@ -792,9 +832,19 @@ class SchedulePlanning {
                 position
             );
             
-            // 重新加载排班数据
-            this.loadScheduleData();
-            this.loadHistoryRecords();
+            // 强制重新加载排班数据，确保显示最新内容
+            // 先清除表格内容，然后再加载，给用户更明确的刷新反馈
+            const tableBody = document.getElementById('scheduleTableBody');
+            if (tableBody) {
+                tableBody.innerHTML = '<tr><td colspan="100%"><div style="text-align:center; padding:20px;">正在刷新数据...</div></td></tr>';
+            }
+            
+            // 等待一小段时间，让用户看到刷新的过程，然后再重新加载
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // 使用防抖函数的立即执行版本，确保数据完全刷新
+            await this.loadScheduleData();
+            await this.loadHistoryRecords();
             
             // 显示成功提示
             alert(`${this.currentYear}年${this.currentMonth}月排班计划生成成功！`);

@@ -11,12 +11,13 @@
     <script src="js/xlsx.full.min.js"></script>
     <script src="js/indexed-db-manager.js"></script>
     <script src="js/shift-management.js"></script>
+    <script src="js/shift-order-management.js"></script>
+    <script src="js/scheduling-algorithm.js"></script>
+    <script src="js/schedule-management.js"></script>
     <script src="js/base-settings.js"></script>
     <script src="js/search-functions.js"></script>
     <script src="js/app-init.js"></script>
     <script src="js/identifier-management.js"></script>
-    <script src="js/shift-order-management.js"></script>
-    <script src="js/schedule-management.js"></script>
     <script src="js/schedule-planning.js"></script>
     <style>
         :root {
@@ -670,6 +671,26 @@
             color: var(--success);
         }
         
+        #schedule-planning-content .shift-gzhi {
+            background-color: rgba(131, 148, 5, 0.2);
+            color: #e65100;
+        }
+        
+        #schedule-planning-content .shift-gzhia {
+            background-color: rgba(74, 144, 226, 0.2);
+            color: #1565c0;
+        }
+        
+        #schedule-planning-content .shift-gzhib {
+            background-color: rgba(69, 135, 133, 0.2);
+            color: #c2185b;
+        }
+        
+        #schedule-planning-content .shift-gzhic {
+            background-color: rgba(124, 77, 255, 0.2);
+            color: #6a1b9a;
+        }
+        
         #schedule-planning-content .shift-xiu {
             background-color: rgba(255, 170, 0, 0.2);
             color: var(--warning);
@@ -678,6 +699,46 @@
         #schedule-planning-content .shift-y {
             background-color: rgba(30, 144, 255, 0.2);
             color: var(--accent);
+        }
+        
+        #schedule-planning-content .shift-y0 {
+            background-color: rgba(153, 51, 255, 0.2);
+            color: #9933ff;
+        }
+        
+        #schedule-planning-content .shift-y10 {
+            background-color: rgba(255, 51, 204, 0.2);
+            color: #ff33cc;
+        }
+        
+        #schedule-planning-content .shift-y13 {
+            background-color: rgba(255, 51, 102, 0.2);
+            color: #ff3366;
+        }
+        
+        #schedule-planning-content .shift-y16 {
+            background-color: rgba(255, 102, 51, 0.2);
+            color: #ff6633;
+        }
+        
+        #schedule-planning-content .shift-y18 {
+            background-color: rgba(102, 51, 255, 0.2);
+            color: #6633ff;
+        }
+        
+        #schedule-planning-content .shift-y8 {
+            background-color: rgba(51, 255, 204, 0.2);
+            color: #33ffcc;
+        }
+        
+        #schedule-planning-content .shift-y9 {
+            background-color: rgba(51, 204, 255, 0.2);
+            color: #33ccff;
+        }
+        
+        #schedule-planning-content .shift-other {
+            background-color: rgba(153, 153, 153, 0.2);
+            color: #999;
         }
         
         #schedule-planning-content .history-section {
@@ -1191,6 +1252,10 @@
                                     <th>开始时间</th>
                                     <th>结束时间</th>
                                     <th>描述</th>
+                                    <th id="priorityHeader" style="cursor: pointer; user-select: none;">
+                                        优先级
+                                       
+                                    </th>
                                     <th>更新时间</th>
                                     <th>状态</th>
                                     <th>操作</th>
@@ -1436,6 +1501,43 @@
                             <button type="submit" class="btn btn-primary">保存</button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 班次优先级管理模态框 -->
+        <div id="shiftPriorityModal" class="modal" style="display: none;">
+            <div class="modal-content" style="width: 700px;">
+                <div class="modal-header">
+                    <h3 class="modal-title">班次优先级管理</h3>
+                    <button class="modal-close" onclick="closeShiftPriorityModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div style="display: flex; gap: 20px;">
+                        <!-- 已排序列表 -->
+                        <div style="flex: 1;">
+                            <h4 style="margin-bottom: 10px;">已排序的班次</h4>
+                            <div id="sortedShiftsList" style="max-height: 400px; overflow-y: auto; background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 4px;">
+                                <!-- 已排序的班次列表将通过JavaScript动态生成 -->
+                            </div>
+                        </div>
+                        
+                        <!-- 待排序列表 -->
+                        <div style="flex: 1;">
+                            <h4 style="margin-bottom: 10px;">待排序的班次</h4>
+                            <div id="availableShiftsList" style="max-height: 400px; overflow-y: auto; background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 4px;">
+                                <!-- 待排序的班次列表将通过JavaScript动态生成 -->
+                            </div>
+                        </div>
+                    </div>
+                    <p style="margin-top: 15px; font-size: 14px; color: #999;">点击班次可在两个列表之间移动</p>
+                </div>
+                <div class="modal-footer" style="display: flex; justify-content: space-between; padding: 15px;">
+                    <button type="button" id="clearSortedShiftsBtn" class="btn btn-danger">清空所有</button>
+                    <div>
+                        <button type="button" class="btn btn-secondary" onclick="closeShiftPriorityModal()">取消</button>
+                        <button type="button" id="saveShiftPriorityBtn" class="btn btn-primary">保存设置</button>
+                    </div>
                 </div>
             </div>
         </div>

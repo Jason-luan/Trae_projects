@@ -1023,6 +1023,11 @@ window.closeShiftModal = function() {
     document.getElementById('shiftModal').style.display = 'none';
 };
 
+// 关闭班次优先级管理模态框
+window.closeShiftPriorityModal = function() {
+    document.getElementById('shiftPriorityModal').style.display = 'none';
+};
+
 // 初始化班次管理功能
 window.initShiftManagement = async function() {
     try {
