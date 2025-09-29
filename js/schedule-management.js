@@ -466,7 +466,7 @@ class ScheduleManager {
     // 获取指定的排班计划
     async getSchedule(scheduleId) {
         try {
-            const schedule = await this.dbManager.get('schedulePlans', scheduleId);
+            const schedule = await this.dbManager.getById('schedulePlans', scheduleId);
             return schedule;
         } catch (error) {
             console.error('获取排班计划失败:', error);
@@ -535,6 +535,30 @@ class ScheduleManager {
             return true;
         } catch (error) {
             console.error('删除排班计划失败:', error);
+            throw error;
+        }
+    }
+    
+    // 根据年份和月份导出排班表
+    async exportSchedule(year, month) {
+        try {
+            console.log(`开始导出${year}年${month}月的排班表`);
+            
+            // 获取当月所有排班计划
+            const schedules = await this.getAllSchedulePlans({ year, month });
+            
+            if (schedules.length === 0) {
+                console.error(`未找到${year}年${month}月的排班计划`);
+                throw new Error(`未找到${year}年${month}月的排班计划`);
+            }
+            
+            // 如果当月有多个排班计划，选择最新的一个
+            const latestSchedule = schedules[0];
+            
+            // 调用现有的导出方法
+            return await this.exportScheduleToExcel(latestSchedule.id);
+        } catch (error) {
+            console.error('导出排班表失败:', error);
             throw error;
         }
     }

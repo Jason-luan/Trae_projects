@@ -141,10 +141,33 @@ class SchedulingAlgorithm {
         }
     }
 
-    // 为Y16综班次自动安排调休
-    assignY16ShiftRestDays(scheduleResult, currentMonthDates) {
+    // 统一调休函数 - 整合所有调休规则
+    assignAllRestDays(scheduleResult, currentMonthDates) {
         try {
-            console.log('开始为Y16综班次自动安排调休');
+            console.log('开始统一分配所有休息日和调休日');
+            
+            // 1. 基础休息日分配（周末休息）
+            this.assignBaseRestDays(scheduleResult, currentMonthDates);
+            
+            // 2. Y16综班次调休处理
+            this.handleY16RestRules(scheduleResult, currentMonthDates);
+            
+            // 3. G值相关班次调休处理
+            this.handleGZhiRestRules(scheduleResult, currentMonthDates);
+            
+            // 4. 连续工作天数检查和调休优化
+            this.checkAndOptimizeConsecutiveWork(scheduleResult, currentMonthDates);
+            
+            console.log('所有休息日和调休日分配完成');
+        } catch (error) {
+            console.error('统一分配休息日和调休日失败:', error);
+        }
+    }
+    
+    // 基础休息日分配（周末休息）
+    assignBaseRestDays(scheduleResult, currentMonthDates) {
+        try {
+            console.log('开始分配基础休息日');
             
             // 遍历每个员工
             for (const empNumber in scheduleResult) {
@@ -290,80 +313,348 @@ class SchedulingAlgorithm {
         }
     }
 
-    // 计算Y16综班次需要的休息日期
-    calculateY16RestDates(shiftDate, needPreRest, currentMonthDates) {
-        try {
-            const restDates = [];
-            
-            // 1. 优先保证值完Y16综后休两天（无论前一周休息了多少天）
-            // 第一天休息（值完Y16综的第二天）
-            const postRestDate1 = new Date(shiftDate);
-            postRestDate1.setDate(postRestDate1.getDate() + 1);
-            
-            // 第二天休息（值完Y16综的第三天）
-            const postRestDate2 = new Date(shiftDate);
-            postRestDate2.setDate(postRestDate2.getDate() + 2);
-            
-            // 检查第一天是否在当月
-            const isInCurrentMonth1 = currentMonthDates.some(day => {
-                const dayDate = new Date(day.date);
-                return dayDate.getDate() === postRestDate1.getDate() && 
-                       dayDate.getMonth() === postRestDate1.getMonth() && 
-                       dayDate.getFullYear() === postRestDate1.getFullYear();
-            });
-            
-            // 检查第二天是否在当月
-            const isInCurrentMonth2 = currentMonthDates.some(day => {
-                const dayDate = new Date(day.date);
-                return dayDate.getDate() === postRestDate2.getDate() && 
-                       dayDate.getMonth() === postRestDate2.getMonth() && 
-                       dayDate.getFullYear() === postRestDate2.getFullYear();
-            });
-            
-            if (isInCurrentMonth1) {
-                restDates.push(postRestDate1);
-                console.log(`安排Y16综后必须休息1天: ${postRestDate1.toISOString().split('T')[0]}`);
-            }
-            
-            if (isInCurrentMonth2) {
-                restDates.push(postRestDate2);
-                console.log(`安排Y16综后必须休息2天: ${postRestDate2.toISOString().split('T')[0]}`);
-            }
-            
-            // 2. 额外处理：如果前一周只休了一天，再安排值班前1天的休息
-            if (needPreRest) {
-                const preRestDate = new Date(shiftDate);
-                preRestDate.setDate(preRestDate.getDate() - 1);
-                
-                // 检查这一天是否在当月
-                const isPreRestInCurrentMonth = currentMonthDates.some(day => {
-                    const dayDate = new Date(day.date);
-                    return dayDate.getDate() === preRestDate.getDate() && 
-                           dayDate.getMonth() === preRestDate.getMonth() && 
-                           dayDate.getFullYear() === preRestDate.getFullYear();
-                });
-                
-                if (isPreRestInCurrentMonth) {
-                    // 检查这个日期是否已经被安排为休息（避免重复安排）
-                    const isAlreadyScheduled = restDates.some(date => {
-                        return date.getDate() === preRestDate.getDate() && 
-                               date.getMonth() === preRestDate.getMonth() && 
-                               date.getFullYear() === preRestDate.getFullYear();
-                    });
+    // Y16综班次调休处理
+            handleY16RestRules(scheduleResult, currentMonthDates) {
+                try {
+                    console.log('开始处理Y16综班次调休规则');
                     
-                    if (!isAlreadyScheduled) {
-                        restDates.push(preRestDate);
-                        console.log(`因前一周休息不足，额外安排Y16综前休息: ${preRestDate.toISOString().split('T')[0]}`);
+                    // 遍历每个员工
+                    for (const empNumber in scheduleResult) {
+                        // 检查员工是否在排班顺序中出现
+                        if (!this.isEmployeeInShiftOrders(empNumber)) {
+                            console.log(`员工 ${empNumber} 未在排班顺序中出现，不分配Y16综调休`);
+                            continue;
+                        }
+                        
+                        const employeeSchedule = scheduleResult[empNumber].schedule;
+                        
+                        // 记录员工已排班的日期和对应的班次
+                        const scheduledDates = new Map();
+                        employeeSchedule.forEach(item => {
+                            const dateKey = `${new Date(item.date).getFullYear()}-${String(new Date(item.date).getMonth() + 1).padStart(2, '0')}-${String(new Date(item.date).getDate()).padStart(2, '0')}`;
+                            scheduledDates.set(dateKey, item.shiftCode);
+                        });
+                        
+                        // 查找员工所有Y16综班次
+                        const y16Shifts = employeeSchedule.filter(item => item.shiftCode === 'Y16综');
+                        
+                        // 为每个Y16综班次安排调休
+                        for (const y16Shift of y16Shifts) {
+                            const shiftDate = new Date(y16Shift.date);
+                            
+                            // 检查员工在前一周的休息天数
+                            const restCount = this.getPreWeekRestCount(empNumber, shiftDate, scheduleResult);
+                            
+                            // 如果前一周休息天数少于2天，需要额外安排前一天休息
+                            const needPreRest = restCount < 2;
+                            
+                            // 计算Y16综班次需要的休息日期
+                            const restDates = this.calculateY16RestDates(shiftDate, needPreRest, currentMonthDates);
+                            
+                            // 为每个休息日期安排调休
+                            for (const restDate of restDates) {
+                                // 格式化休息日期为key
+                                const restDateKey = `${restDate.getFullYear()}-${String(restDate.getMonth() + 1).padStart(2, '0')}-${String(restDate.getDate()).padStart(2, '0')}`;
+                                
+                                // 检查这个日期是否已经被安排了班次（避免重复安排）
+                                if (!scheduledDates.has(restDateKey)) {
+                                    // 查找对应的dayData
+                                    const dayData = currentMonthDates.find(day => {
+                                        const dayDate = new Date(day.date);
+                                        return dayDate.getDate() === restDate.getDate() && 
+                                               dayDate.getMonth() === restDate.getMonth() && 
+                                               dayDate.getFullYear() === restDate.getFullYear();
+                                    });
+                                    
+                                    if (dayData) {
+                                        employeeSchedule.push({
+                                            date: dayData.date,
+                                            day: dayData.day,
+                                            shiftCode: '休',
+                                            isWeekend: dayData.isWeekend,
+                                            position: scheduleResult[empNumber].position
+                                        });
+                                        
+                                        // 将新分配的日期添加到已排班集合中
+                                        scheduledDates.set(restDateKey, '休');
+                                        
+                                        console.log(`为员工 ${empNumber} 安排Y16综调休日: ${restDateKey}`);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // 重新排序，确保日期顺序正确
+                        employeeSchedule.sort((a, b) => {
+                            return new Date(a.date) - new Date(b.date);
+                        });
                     }
+                    
+                    console.log('Y16综班次调休处理完成');
+                } catch (error) {
+                    console.error('处理Y16综班次调休规则失败:', error);
                 }
             }
             
-            return restDates;
-        } catch (error) {
-            console.error('计算Y16综休息日期失败:', error);
-            return [];
-        }
-    }
+            // 计算Y16综班次需要的休息日期
+            calculateY16RestDates(shiftDate, needPreRest, currentMonthDates) {
+                try {
+                    const restDates = [];
+                    
+                    // 1. 优先保证值完Y16综后休两天（无论前一周休息了多少天）
+                    // 第一天休息（值完Y16综的第二天）
+                    const postRestDate1 = new Date(shiftDate);
+                    postRestDate1.setDate(postRestDate1.getDate() + 1);
+                    
+                    // 第二天休息（值完Y16综的第三天）
+                    const postRestDate2 = new Date(shiftDate);
+                    postRestDate2.setDate(postRestDate2.getDate() + 2);
+                    
+                    // 检查第一天是否在当月
+                    const isInCurrentMonth1 = currentMonthDates.some(day => {
+                        const dayDate = new Date(day.date);
+                        return dayDate.getDate() === postRestDate1.getDate() && 
+                               dayDate.getMonth() === postRestDate1.getMonth() && 
+                               dayDate.getFullYear() === postRestDate1.getFullYear();
+                    });
+                    
+                    // 检查第二天是否在当月
+                    const isInCurrentMonth2 = currentMonthDates.some(day => {
+                        const dayDate = new Date(day.date);
+                        return dayDate.getDate() === postRestDate2.getDate() && 
+                               dayDate.getMonth() === postRestDate2.getMonth() && 
+                               dayDate.getFullYear() === postRestDate2.getFullYear();
+                    });
+                    
+                    if (isInCurrentMonth1) {
+                        restDates.push(postRestDate1);
+                        console.log(`安排Y16综后必须休息1天: ${postRestDate1.toISOString().split('T')[0]}`);
+                    }
+                    
+                    if (isInCurrentMonth2) {
+                        restDates.push(postRestDate2);
+                        console.log(`安排Y16综后必须休息2天: ${postRestDate2.toISOString().split('T')[0]}`);
+                    }
+                    
+                    // 2. 额外处理：如果前一周只休了一天，再安排值班前1天的休息
+                    if (needPreRest) {
+                        const preRestDate = new Date(shiftDate);
+                        preRestDate.setDate(preRestDate.getDate() - 1);
+                        
+                        // 检查这一天是否在当月
+                        const isPreRestInCurrentMonth = currentMonthDates.some(day => {
+                            const dayDate = new Date(day.date);
+                            return dayDate.getDate() === preRestDate.getDate() && 
+                                   dayDate.getMonth() === preRestDate.getMonth() && 
+                                   dayDate.getFullYear() === preRestDate.getFullYear();
+                        });
+                        
+                        if (isPreRestInCurrentMonth) {
+                            // 检查这个日期是否已经被安排为休息（避免重复安排）
+                            const isAlreadyScheduled = restDates.some(date => {
+                                return date.getDate() === preRestDate.getDate() && 
+                                       date.getMonth() === preRestDate.getMonth() && 
+                                       date.getFullYear() === preRestDate.getFullYear();
+                            });
+                            
+                            if (!isAlreadyScheduled) {
+                                restDates.push(preRestDate);
+                                console.log(`因前一周休息不足，额外安排Y16综前休息: ${preRestDate.toISOString().split('T')[0]}`);
+                            }
+                        }
+                    }
+                    
+                    return restDates;
+                } catch (error) {
+                    console.error('计算Y16综休息日期失败:', error);
+                    return [];
+                }
+            }
+            
+            // G值相关班次调休处理
+            handleGZhiRestRules(scheduleResult, currentMonthDates) {
+                try {
+                    console.log('开始处理G值相关班次调休规则');
+                    
+                    // G值-C班次的特殊调休规则已经在基础休息日分配中处理
+                    // 此处可以添加其他G值相关班次的调休规则
+                    
+                    console.log('G值相关班次调休处理完成');
+                } catch (error) {
+                    console.error('处理G值相关班次调休规则失败:', error);
+                }
+            }
+            
+            // 连续工作天数检查和调休优化
+            checkAndOptimizeConsecutiveWork(scheduleResult, currentMonthDates) {
+                try {
+                    console.log('开始检查连续工作天数并优化调休');
+                    
+                    for (const empNumber in scheduleResult) {
+                        // 检查员工是否在排班顺序中出现
+                        if (!this.isEmployeeInShiftOrders(empNumber)) {
+                            console.log(`员工 ${empNumber} 未在排班顺序中出现，跳过连续工作检查`);
+                            continue;
+                        }
+                        
+                        const employeeSchedule = scheduleResult[empNumber].schedule;
+                        
+                        // 检查连续工作天数
+                        const consecutiveInfo = this.checkConsecutiveWorkDays(empNumber, employeeSchedule, currentMonthDates);
+                        
+                        // 如果连续工作超过7天，安排额外调休
+                        if (consecutiveInfo.maxConsecutiveDays > 7) {
+                            console.log(`员工 ${empNumber} 存在超过7天的连续工作区间，最长: ${consecutiveInfo.maxConsecutiveDays}天`);
+                            this.handleConsecutiveWorkExceeding7Days(empNumber, employeeSchedule, consecutiveInfo.problemRanges, currentMonthDates);
+                        }
+                    }
+                    
+                    console.log('连续工作天数检查和调休优化完成');
+                } catch (error) {
+                    console.error('检查连续工作天数并优化调休失败:', error);
+                }
+            }
+            
+            // 检查连续工作天数
+            checkConsecutiveWorkDays(empNumber, employeeSchedule, currentMonthDates) {
+                try {
+                    // 排序员工的排班记录
+                    const sortedSchedule = [...employeeSchedule].sort((a, b) => {
+                        return new Date(a.date) - new Date(b.date);
+                    });
+                    
+                    let maxConsecutiveDays = 0;
+                    let currentConsecutiveDays = 0;
+                    let problemRanges = [];
+                    let currentRangeStart = null;
+                    
+                    // 创建日期到班次的映射
+                    const dateToShiftMap = new Map();
+                    sortedSchedule.forEach(item => {
+                        const dateKey = `${new Date(item.date).getFullYear()}-${String(new Date(item.date).getMonth() + 1).padStart(2, '0')}-${String(new Date(item.date).getDate()).padStart(2, '0')}`;
+                        dateToShiftMap.set(dateKey, item.shiftCode);
+                    });
+                    
+                    // 遍历当月所有日期
+                    for (let i = 0; i < currentMonthDates.length; i++) {
+                        const day = currentMonthDates[i];
+                        const date = new Date(day.date);
+                        const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                        
+                        // 获取当天的班次
+                        const shiftCode = dateToShiftMap.get(dateKey);
+                        
+                        // 如果当天没有排班或者是休息日，重置连续工作天数
+                        if (!shiftCode || shiftCode === '休') {
+                            if (currentConsecutiveDays > 7) {
+                                problemRanges.push({
+                                    start: currentRangeStart,
+                                    end: currentMonthDates[i-1],
+                                    days: currentConsecutiveDays
+                                });
+                            }
+                            currentConsecutiveDays = 0;
+                            currentRangeStart = null;
+                        } else {
+                            // 如果当天有排班且不是休息日，增加连续工作天数
+                            if (currentConsecutiveDays === 0) {
+                                currentRangeStart = day;
+                            }
+                            currentConsecutiveDays++;
+                            maxConsecutiveDays = Math.max(maxConsecutiveDays, currentConsecutiveDays);
+                        }
+                    }
+                    
+                    // 检查最后一个连续工作区间
+                    if (currentConsecutiveDays > 7) {
+                        problemRanges.push({
+                            start: currentRangeStart,
+                            end: currentMonthDates[currentMonthDates.length-1],
+                            days: currentConsecutiveDays
+                        });
+                    }
+                    
+                    return {
+                        maxConsecutiveDays: maxConsecutiveDays,
+                        problemRanges: problemRanges
+                    };
+                } catch (error) {
+                    console.error('检查连续工作天数失败:', error);
+                    return {
+                        maxConsecutiveDays: 0,
+                        problemRanges: []
+                    };
+                }
+            }
+            
+            // 处理连续工作超过7天的情况，安排额外调休
+            handleConsecutiveWorkExceeding7Days(empNumber, employeeSchedule, problemRanges, currentMonthDates) {
+                try {
+                    console.log(`为员工 ${empNumber} 处理连续工作超过7天的情况`);
+                    
+                    // 创建日期到班次的映射
+                    const dateToShiftMap = new Map();
+                    employeeSchedule.forEach(item => {
+                        const dateKey = `${new Date(item.date).getFullYear()}-${String(new Date(item.date).getMonth() + 1).padStart(2, '0')}-${String(new Date(item.date).getDate()).padStart(2, '0')}`;
+                        dateToShiftMap.set(dateKey, item.shiftCode);
+                    });
+                    
+                    // 为每个问题区间安排调休
+                    for (const range of problemRanges) {
+                        // 计算需要安排的调休天数
+                        const extraRestDaysNeeded = Math.ceil(range.days / 7) - 1; // 每7天需要1天调休
+                        
+                        console.log(`问题区间: ${range.start.day}日-${range.end.day}日 (${range.days}天)，需要安排 ${extraRestDaysNeeded} 天额外调休`);
+                        
+                        let assignedRestDays = 0;
+                        
+                        // 尝试在问题区间内安排调休，优先选择非周末的日期
+                        for (let i = 1; i < range.days - 1; i++) { // 避开区间的第一天和最后一天
+                            const currentIndex = currentMonthDates.findIndex(day => day.day === range.start.day);
+                            if (currentIndex === -1) break;
+                            
+                            const targetDate = currentMonthDates[currentIndex + i];
+                            if (!targetDate) break;
+                            
+                            // 如果是周末，跳过（周末通常已经是休息日）
+                            if (targetDate.isWeekend) continue;
+                            
+                            const targetDateKey = `${new Date(targetDate.date).getFullYear()}-${String(new Date(targetDate.date).getMonth() + 1).padStart(2, '0')}-${String(new Date(targetDate.date).getDate()).padStart(2, '0')}`;
+                            
+                            // 检查这一天是否已经安排了班次
+                            if (dateToShiftMap.has(targetDateKey) && dateToShiftMap.get(targetDateKey) !== '休') {
+                                // 将原班次改为调休
+                                const existingShiftIndex = employeeSchedule.findIndex(item => {
+                                    const itemDate = new Date(item.date);
+                                    return itemDate.getDate() === new Date(targetDate.date).getDate() && 
+                                           itemDate.getMonth() === new Date(targetDate.date).getMonth() && 
+                                           itemDate.getFullYear() === new Date(targetDate.date).getFullYear();
+                                });
+                                
+                                if (existingShiftIndex !== -1) {
+                                    employeeSchedule[existingShiftIndex].shiftCode = '休';
+                                    dateToShiftMap.set(targetDateKey, '休');
+                                    assignedRestDays++;
+                                    
+                                    console.log(`为员工 ${empNumber} 在连续工作区间中安排调休: ${targetDateKey}`);
+                                    
+                                    // 如果已经安排了足够的调休天数，停止
+                                    if (assignedRestDays >= extraRestDaysNeeded) {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 重新排序，确保日期顺序正确
+                    employeeSchedule.sort((a, b) => {
+                        return new Date(a.date) - new Date(b.date);
+                    });
+                } catch (error) {
+                    console.error('处理连续工作超过7天的情况失败:', error);
+                }
+            }
 
     // 通用排班算法主方法
     async applyGeneralSchedulingAlgorithm(employees, activeShifts, calendarData, lastMonthSchedule, organization, department, position) {
@@ -447,12 +738,8 @@ class SchedulingAlgorithm {
                 
                 console.log(`班次 ${currentShift} 排班完成，已分配 ${assignedCount} 人`);
                 
-                // 特殊处理：当处理完Y16综班次后，立即为员工安排Y16综的休息日期
-                if (currentShift === 'Y16综') {
-                    console.log('Y16综班次处理完毕，立即为相关员工安排休息日期');
-                    // 立即为Y16综班次安排调休
-                    this.assignY16ShiftRestDays(scheduleResult, currentMonthDates);
-                }
+                // 特殊处理：当处理完Y16综班次后，将在统一调休函数中处理
+            // Y16综班次的调休逻辑已经整合到assignAllRestDays函数中
             }
              
             // 对每个员工的排班进行排序
@@ -462,8 +749,8 @@ class SchedulingAlgorithm {
                 });
             }
 
-            // 自动分配剩余的休息日（包括周末休息，但已经排除了Y16综的调休日）
-            this.assignRestDays(scheduleResult, currentMonthDates);
+            // 使用统一调休函数分配所有休息日和调休日
+            this.assignAllRestDays(scheduleResult, currentMonthDates);
 
             return scheduleResult;
         } catch (error) {
